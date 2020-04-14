@@ -1,0 +1,6 @@
+# Default Build Directory
+build/
+# Visual Studio Code
+.vscode/
+# Old sdkconfig
+*.old
