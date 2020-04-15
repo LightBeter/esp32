@@ -10,12 +10,39 @@
 
 #define APP_REQ_REBOOT_BIT      BIT0
 
+#define APP_TSK_STACK_SIZE      2048
+
+typedef enum {
+    APP_TSK_WIFI_SC = 0x00,
+    APP_TSK_COUNT
+} app_tsk_type;
+
+typedef enum {
+    device_wifi_state_idle = 0x00,
+    device_wifi_state_sc,
+    device_wifi_state_sta,
+    device_wifi_state_ap,
+    device_wifi_state_stop,
+} device_wifi_state;
+
+typedef struct {
+    wifi_mode_t         mode;
+    wifi_init_config_t  init_cfg;
+    wifi_config_t       cfg;
+    device_wifi_state   state;
+    EventGroupHandle_t  event_group;
+} device_wifi_type;
+
 extern EventGroupHandle_t _app_event_group;
-extern wifi_init_config_t _wifi_init_cfg;
-extern wifi_config_t      _wifi_cfg;
+extern TaskHandle_t       _app_task_handles[APP_TSK_COUNT];
+extern device_wifi_type   _device_wifi;
 
-extern void wifi_init_sta();
-extern void wifi_deinit_sta();
-extern void network_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data);
+extern void initialise_wifi(void);
+extern void deinitialise_wifi(void);
+extern void start_wifi_smartconfig();
+extern void start_wifi_sta();
+extern void start_wifi_ap();
+extern void stop_wifi();
 
+extern void wifi_sc_task(void * parm);
 #endif
