@@ -9,7 +9,10 @@
 #define WIFI_MAX_STA_CONN           4
 
 #define WIFI_EVENT_SC_START         BIT0
-#define WIFI_EVENT_SC_DONE          BIT1
+#define WIFI_EVENT_SC_SCAN_DONE     BIT1
+#define WIFI_EVENT_SC_FOUND_CHANNE  BIT2
+#define WIFI_EVENT_SC_GOT_SSID_PSWD BIT3
+#define WIFI_EVENT_SC_DONE          BIT4
 
 void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data);
 
@@ -125,24 +128,29 @@ void wifi_sc_task(void * parm)
     EventBits_t uxBits;
     ESP_ERROR_CHECK( esp_smartconfig_set_type(SC_TYPE_ESPTOUCH_AIRKISS) );
     smartconfig_start_config_t cfg = SMARTCONFIG_START_CONFIG_DEFAULT();
-
+    const EventBits_t uxBitsToWaitFor =  (WIFI_EVENT_SC_START 
+                                            | WIFI_EVENT_SC_SCAN_DONE
+                                            | WIFI_EVENT_SC_FOUND_CHANNE 
+                                            | WIFI_EVENT_SC_GOT_SSID_PSWD
+                                            | WIFI_EVENT_SC_DONE);
     /* start wifi in smartconfig */
     start_wifi_smartconfig();
     while (1) {
-        uxBits = xEventGroupWaitBits(_device_wifi.event_group, WIFI_EVENT_SC_START | WIFI_EVENT_SC_DONE, true, false, pdMS_TO_TICKS(60000)); 
-        if(uxBits & WIFI_EVENT_SC_START) {
+        uxBits = xEventGroupWaitBits(_device_wifi.event_group, uxBitsToWaitFor, true, false, pdMS_TO_TICKS(30000)); 
+        if (uxBits & WIFI_EVENT_SC_START) {
             /* start smartconfig */
             ESP_ERROR_CHECK( esp_smartconfig_start(&cfg) );
             ESP_LOGI( TAG, "start smartconfig finished." );
             continue;
-        }
-
+        } 
+        
         if (uxBits & WIFI_EVENT_SC_DONE) {
             ESP_LOGI( TAG, "smartconfig done." );
-        } else {
+            break;
+        } else if (0 == uxBits) {
             ESP_LOGI( TAG, "smartconfig over." );
+            break;
         }
-        break;
     }
     /* stop smartconfig */
     esp_smartconfig_stop();
@@ -182,7 +190,11 @@ void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id
         }
     } else if (SC_EVENT == event_base) {
         ESP_LOGI(TAG, "%s", sc_event_desc[event_id]);
-        if (SC_EVENT_GOT_SSID_PSWD == event_id && device_wifi_state_sc == _device_wifi.state) {
+        if (SC_EVENT_SCAN_DONE == event_id && device_wifi_state_sc == _device_wifi.state) {
+            xEventGroupSetBits(_device_wifi.event_group, WIFI_EVENT_SC_SCAN_DONE);
+        } else if (SC_EVENT_FOUND_CHANNEL == event_id && device_wifi_state_sc == _device_wifi.state) {
+            xEventGroupSetBits(_device_wifi.event_group, WIFI_EVENT_SC_FOUND_CHANNE);
+        } else if (SC_EVENT_GOT_SSID_PSWD == event_id && device_wifi_state_sc == _device_wifi.state) {
             /* Got SSID and password */
             smartconfig_event_got_ssid_pswd_t *evt = (smartconfig_event_got_ssid_pswd_t *)event_data;
             wifi_config_t *wifi_config = &_device_wifi.cfg;
@@ -197,6 +209,7 @@ void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id
             ESP_LOGI( TAG, "SSID:%s", wifi_config->sta.ssid );
             ESP_LOGI( TAG, "PASSWORD:%s", wifi_config->sta.password );
             start_wifi_sta();
+            xEventGroupSetBits(_device_wifi.event_group, WIFI_EVENT_SC_GOT_SSID_PSWD);
         } else if (SC_EVENT_SEND_ACK_DONE == event_id) {
             /* smartconfig Done */
             xEventGroupSetBits(_device_wifi.event_group, WIFI_EVENT_SC_DONE);
