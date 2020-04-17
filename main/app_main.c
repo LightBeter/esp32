@@ -30,8 +30,10 @@ void app_init()
     ESP_ERROR_CHECK(esp_event_loop_create_default());
     /* Initialize tcp/ip protocol stack */
     tcpip_adapter_init();
-    /* Initialize wifi mode */
+    /* Initialize wifi */
     initialise_wifi();
+    /* Initialize webserver */
+    initialise_webserver();
     /* Initialize application event group */
     _app_event_group = xEventGroupCreate();
 }
@@ -40,7 +42,9 @@ void app_deinit()
 {
     /* deInitialize application event group */
     vEventGroupDelete(_app_event_group);
-    /* deInitialize wifi mode */
+    /* deInitialize webserver */
+    deinitialise_webserver();
+    /* deInitialize wifi */
     deinitialise_wifi();
     /* deinitial event loop */
     ESP_ERROR_CHECK(esp_event_loop_delete_default());
@@ -77,13 +81,4 @@ void app_main()
     app_init();
     /* start application task */
     app_start_tsk();
-    // /* wait exit */
-    // xEventGroupWaitBits(_app_event_group, APP_REQ_REBOOT_BIT, pdTRUE, pdTRUE, portMAX_DELAY);
-    // /* stop application task */
-    // app_stop_tsk();
-    // /* deinitialize application */
-    // app_deinit();
-    // ESP_LOGI(TAG, "Restarting now");
-    // fflush(stdout);
-    // esp_restart();
 }

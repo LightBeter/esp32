@@ -4,6 +4,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/event_groups.h"
+#include "esp_https_server.h"
 #include "esp_wifi.h"
 #include "esp_event.h"
 #include "esp_log.h"
@@ -33,9 +34,10 @@ typedef struct {
     EventGroupHandle_t  event_group;
 } device_wifi_type;
 
-extern EventGroupHandle_t _app_event_group;
-extern TaskHandle_t       _app_task_handles[APP_TSK_COUNT];
-extern device_wifi_type   _device_wifi;
+typedef struct {
+    httpd_handle_t      handle;
+    httpd_ssl_config_t  cfg;
+} device_webserver_type;
 
 extern void initialise_wifi(void);
 extern void deinitialise_wifi(void);
@@ -44,5 +46,17 @@ extern void start_wifi_sta();
 extern void start_wifi_ap();
 extern void stop_wifi();
 
+extern void initialise_webserver(void);
+extern void deinitialise_webserver(void);
+extern void start_webserver(void);
+extern void stop_webserver(void);
+extern esp_err_t root_get_handler(httpd_req_t *req);
+
 extern void wifi_sc_task(void * parm);
+
+extern EventGroupHandle_t      _app_event_group;
+extern TaskHandle_t            _app_task_handles[APP_TSK_COUNT];
+extern device_wifi_type        _device_wifi;
+extern device_webserver_type   _device_webserver;
+
 #endif

@@ -2,7 +2,7 @@
 #include "app_global.h"
 #include "esp_smartconfig.h"
 
-#define TAG                         "wifi"
+#define TAG                         "app_wifi"
 
 #define WIFI_AP_SSID_PRE            "ESP32LED_"
 #define WIFI_AP_DEFAULT_PASSWORD    "00000000"
@@ -171,14 +171,26 @@ void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id
     if (WIFI_EVENT == event_base) {
         ESP_LOGI(TAG, "%s", wifi_event_desc[event_id]);
         if (device_wifi_state_sc == _device_wifi.state) {
+            /* smartconfig */
             if (WIFI_EVENT_STA_START == event_id) {
-                /* start smartconfig */
                 xEventGroupSetBits(_device_wifi.event_group, WIFI_EVENT_SC_START);
             }
         } else if (device_wifi_state_sta == _device_wifi.state) {
-            if (WIFI_EVENT_STA_START == event_id || WIFI_EVENT_STA_DISCONNECTED == event_id) {
-                /* start/retry connection */
+            /* sta */
+            if (WIFI_EVENT_STA_START == event_id) {
                 esp_wifi_connect();
+            } else if (WIFI_EVENT_STA_CONNECTED == event_id) {
+                start_webserver();
+            } else if (WIFI_EVENT_STA_DISCONNECTED == event_id) {
+                stop_webserver();
+                esp_wifi_connect();
+            }
+        } else if (device_wifi_state_ap == _device_wifi.state) {
+            /* ap */
+            if (WIFI_EVENT_AP_START == event_id) {
+                start_webserver();
+            } else if (WIFI_EVENT_AP_STOP == event_id) {
+                stop_webserver();
             } 
         }
     } else if (IP_EVENT == event_base) {
