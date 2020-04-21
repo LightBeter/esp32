@@ -4,7 +4,6 @@
 
 #define TAG                         "app_wifi"
 
-#define WIFI_AP_SSID_PRE            "ESP32LED_"
 #define WIFI_AP_DEFAULT_PASSWORD    "00000000"
 #define WIFI_MAX_STA_CONN           4
 
@@ -105,9 +104,7 @@ void start_wifi_sta()
 
 void start_wifi_ap()
 {
-    uint8_t mac[6];
-    esp_wifi_get_mac( ESP_IF_WIFI_AP , mac );
-    sprintf( (char *)_device_wifi.cfg.ap.ssid, "%s_%02X%02X%02X" , WIFI_AP_SSID_PRE, mac[3], mac[4], mac[5] );
+    memcpy(_device_wifi.cfg.ap.ssid, _device_hostname, strlen(_device_hostname) + 1);
     _device_wifi.cfg.ap.ssid_len = strlen((const char*)_device_wifi.cfg.ap.ssid);
     _device_wifi.state = device_wifi_state_ap;
     ESP_ERROR_CHECK( esp_wifi_set_mode(WIFI_MODE_AP) );

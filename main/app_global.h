@@ -39,6 +39,11 @@ typedef struct {
     httpd_config_t      cfg;
 } Webserver_type;
 
+extern void initialise_device(void);
+extern void deinitialise_device(void);
+extern void initialise_mdns(void);
+extern void deinitialise_mdns(void);
+
 extern void initialise_wifi(void);
 extern void deinitialise_wifi(void);
 extern void start_wifi_smartconfig();
@@ -54,6 +59,7 @@ extern esp_err_t webserver_register_handlers(httpd_handle_t);
 
 extern void wifi_sc_task(void * parm);
 
+extern char*                   _device_hostname;
 extern EventGroupHandle_t      _app_event_group;
 extern TaskHandle_t            _app_task_handles[APP_TSK_COUNT];
 extern device_wifi_type        _device_wifi;

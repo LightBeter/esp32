@@ -1,21 +1,5 @@
-/* Hello World Example
-
-   This example code is in the Public Domain (or CC0 licensed, at your option.)
-
-   Unless required by applicable law or agreed to in writing, this
-   software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-   CONDITIONS OF ANY KIND, either express or implied.
-*/
-#include <stdio.h>
 #include "app_global.h"
-#include "esp_system.h"
-#include "esp_spi_flash.h"
 #include "nvs_flash.h"
-
-#define TAG   "app main"
-
-EventGroupHandle_t  _app_event_group;
-TaskHandle_t        _app_task_handles[APP_TSK_COUNT];
 
 void app_init()
 {
@@ -30,6 +14,10 @@ void app_init()
     ESP_ERROR_CHECK(esp_event_loop_create_default());
     /* Initialize tcp/ip protocol stack */
     tcpip_adapter_init();
+    /* initialize device */
+    initialise_device();
+    /* Initialize mdns */
+    initialise_mdns();
     /* Initialize wifi */
     initialise_wifi();
     /* Initialize webserver */
@@ -46,6 +34,10 @@ void app_deinit()
     deinitialise_webserver();
     /* deInitialize wifi */
     deinitialise_wifi();
+    /* deInitialize mdns */
+    deinitialise_mdns();
+    /* deInitialise device */
+    deinitialise_device();
     /* deinitial event loop */
     ESP_ERROR_CHECK(esp_event_loop_delete_default());
     /* deInitialize NVS */
@@ -66,17 +58,6 @@ void app_stop_tsk()
 
 void app_main()
 {
-    /* Print chip information */
-    // esp_chip_info_t chip_info;
-    // esp_chip_info(&chip_info);
-    // ESP_LOGI(TAG, "This is ESP32 chip with %d CPU cores, WiFi%s%s, ",
-    //         chip_info.cores,
-    //         (chip_info.features & CHIP_FEATURE_BT) ? "/BT" : "",
-    //         (chip_info.features & CHIP_FEATURE_BLE) ? "/BLE" : "");
-
-    // ESP_LOGI(TAG, "silicon revision %d, ", chip_info.revision);
-    // ESP_LOGI(TAG, "%dMB %s flash", spi_flash_get_chip_size() / (1024 * 1024),
-    //         (chip_info.features & CHIP_FEATURE_EMB_FLASH) ? "embedded" : "external");
     /* initialize application */
     app_init();
     /* start application task */
