@@ -1,4 +1,5 @@
 #include <time.h>
+#include <sys/cdefs.h>
 #include <sys/time.h>
 #include <esp_http_server.h>
 #include <cJSON.h>
@@ -203,7 +204,7 @@ esp_err_t ws_settime_handler(httpd_req_t *req)
 
     tv.tv_sec = utc->valuedouble + zone->valuedouble * 60 * 60;
     tz.tz_minuteswest = -(zone->valuedouble * 60);
-    //settimeofday(&tv, &tz);
+    settimeofday(&tv, &tz);
     ret = ESP_OK;
 exit:    
     if (root) {
