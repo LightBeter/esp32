@@ -1,6 +1,8 @@
 #include "app_global.h"
 #include "nvs_flash.h"
 
+#define TAG  "app_main"
+
 void app_init()
 {
     /* Initialize NVS */
@@ -58,8 +60,33 @@ void app_stop_tsk()
 
 void app_main()
 {
+    EventBits_t uxBits;
+    const EventBits_t uxBitsToWaitFor =  (APP_REQ_REBOOT_BIT 
+                                        | APP_REQ_RECOVERY_FACTORY_BIT);
+
+    ESP_LOGI( TAG, "device start." );
     /* initialize application */
     app_init();
     /* start application task */
     app_start_tsk();
+    while (1) {
+        uxBits = xEventGroupWaitBits(_app_event_group, uxBitsToWaitFor, true, false, pdMS_TO_TICKS(1000)); 
+        if (uxBits & APP_REQ_RECOVERY_FACTORY_BIT) {
+            ESP_LOGI( TAG, "user request recovery factory." );
+            break;
+        } 
+        
+        if (uxBits & APP_REQ_REBOOT_BIT) {
+            ESP_LOGI( TAG, "user request reboot." );
+            break;
+        } 
+    }
+    /* stop tsk */
+    ESP_LOGI( TAG, "stop task." );
+    app_stop_tsk();
+    /* deinitialize application */
+    ESP_LOGI( TAG, "application deinitialize." );
+    app_deinit();
+    ESP_LOGI( TAG, "device reboot." );
+    esp_restart();
 }

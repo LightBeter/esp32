@@ -11,9 +11,21 @@
 #include "esp_event.h"
 #include "esp_log.h"
 
-#define APP_REQ_REBOOT_BIT      BIT0
+#define APP_REQ_REBOOT_BIT               BIT0
+#define APP_REQ_RECOVERY_FACTORY_BIT     BIT1
 
 #define APP_TSK_STACK_SIZE      2048
+
+enum {
+    LED_CHL_WHITE = 0x00,
+    LED_CHL_DARK_BLUE,
+    LED_CHL_BLUE,
+    LED_CHL_RED,
+    LED_CHL_GREEN,
+    LED_CHL_UV_405,
+    LED_CHL_UV_415,
+    LED_CHL_COUNT,
+};
 
 typedef enum {
     APP_TSK_WIFI_SC = 0x00,
