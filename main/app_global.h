@@ -4,6 +4,8 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/event_groups.h"
+#include "nvs_flash.h"
+#include "nvs.h"
 #include "esp_http_server.h"
 #include "esp_wifi.h"
 #include "esp_event.h"
@@ -39,23 +41,25 @@ typedef struct {
     httpd_config_t      cfg;
 } Webserver_type;
 
-extern void initialise_device(void);
-extern void deinitialise_device(void);
-extern void initialise_mdns(void);
-extern void deinitialise_mdns(void);
+void initialise_device(void);
+void deinitialise_device(void);
+void initialise_mdns(void);
+void deinitialise_mdns(void);
 
-extern void initialise_wifi(void);
-extern void deinitialise_wifi(void);
-extern void start_wifi_smartconfig();
-extern void start_wifi_sta();
-extern void start_wifi_ap();
-extern void stop_wifi();
+void initialise_wifi(void);
+void deinitialise_wifi(void);
+void load_wifi_config(void);
+void save_wifi_config(void);
+void start_wifi_smartconfig();
+void start_wifi_sta();
+void start_wifi_ap();
+void stop_wifi();
 
-extern void initialise_webserver(void);
-extern void deinitialise_webserver(void);
-extern void start_webserver(void);
-extern void stop_webserver(void);
-extern esp_err_t webserver_register_handlers(httpd_handle_t);
+void initialise_webserver(void);
+void deinitialise_webserver(void);
+void start_webserver(void);
+void stop_webserver(void);
+esp_err_t webserver_register_handlers(httpd_handle_t);
 
 extern void wifi_sc_task(void * parm);
 

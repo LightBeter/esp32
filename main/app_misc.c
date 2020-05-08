@@ -41,4 +41,3 @@ void deinitialise_mdns(void)
     mdns_free();
     ESP_LOGI( TAG, "deinitialise mdns finished." );
 }
-

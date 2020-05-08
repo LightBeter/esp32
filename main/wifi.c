@@ -4,6 +4,7 @@
 
 #define TAG                         "app_wifi"
 
+#define NVS_WIFI_NAMESPACE          "wifi_storage"
 #define WIFI_AP_DEFAULT_PASSWORD    "00000000"
 #define WIFI_MAX_STA_CONN           4
 
@@ -71,6 +72,7 @@ void initialise_wifi(void)
     ESP_ERROR_CHECK( esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler, NULL) );
     ESP_ERROR_CHECK( esp_event_handler_register(IP_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler, NULL) );
     ESP_ERROR_CHECK( esp_event_handler_register(SC_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler, NULL) );
+    load_wifi_config();
     ESP_LOGI( TAG, "initialise wifi finished." );
 }
 
@@ -118,6 +120,113 @@ void stop_wifi()
     _device_wifi.state = device_wifi_state_stop;
     ESP_ERROR_CHECK( esp_wifi_stop() );
     ESP_LOGI( TAG, "stop wifi finished." );
+}
+
+
+void load_wifi_config(void)
+{
+    esp_err_t err;
+    nvs_handle_t handle;
+    uint8_t mode;
+    char ssid[32];
+    char passwd[64];
+    uint8_t bssid[6];
+    uint8_t bssid_set;
+    size_t  ssid_len = 32, passwd_len = 64, bssid_set_len = 6;
+
+    err = nvs_open(NVS_WIFI_NAMESPACE, NVS_READONLY, &handle);
+    if (err != ESP_OK) {
+        ESP_LOGW( TAG, "%s Error (%s) opening NVS handle!\n", __FUNCTION__, esp_err_to_name(err));
+        return;
+    }
+
+    err = nvs_get_u8(handle, "wifi_mode", &mode);
+    if (ESP_OK != err || (WIFI_MODE_AP != mode && WIFI_MODE_STA != mode)) {
+        ESP_LOGW( TAG, "%s Error (%s) wifi_mode %u!\n", __FUNCTION__, esp_err_to_name(err), mode);
+        goto default_handle;
+    }
+
+    _device_wifi.mode = mode;
+    if (WIFI_MODE_STA == mode) {
+        err = nvs_get_str(handle, "wifi_ssid", ssid, &ssid_len);
+        if (ESP_OK != err || ssid_len <= 0) {
+            ESP_LOGW( TAG, "%s Error (%s) wifi_ssid!\n", __FUNCTION__, esp_err_to_name(err));
+            goto default_handle;
+        }
+        err = nvs_get_str(handle, "wifi_passwd", passwd, &passwd_len);
+        if (ESP_OK != err || passwd_len <= 0) {
+            ESP_LOGW( TAG, "%s Error (%s) wifi_passwd!\n", __FUNCTION__, esp_err_to_name(err));
+            goto default_handle;
+        }
+        err = nvs_get_u8(handle, "wifi_bssid_set", &bssid_set);
+        if (ESP_OK != err) {
+            ESP_LOGW( TAG, "%s Error (%s) wifi_bssid_set!\n", __FUNCTION__, esp_err_to_name(err));
+            goto default_handle;
+        }
+        if (bssid_set) {
+            err = nvs_get_blob(handle, "wifi_bssid", bssid, &bssid_set_len);
+            if (ESP_OK != err || bssid_set_len != 6) {
+                ESP_LOGW( TAG, "%s Error (%s) bssid!\n", __FUNCTION__, esp_err_to_name(err));
+                goto default_handle;
+            }
+        }
+        memcpy(_device_wifi.cfg.sta.ssid, ssid, ssid_len);
+        memcpy(_device_wifi.cfg.sta.password, passwd, passwd_len);
+        _device_wifi.cfg.sta.bssid_set = bssid_set;
+        if (bssid_set) {
+            memcpy(_device_wifi.cfg.sta.bssid, bssid, 6);
+        } else {
+            memset(_device_wifi.cfg.sta.bssid, 0x00, 6);
+        }
+    }
+    nvs_close(handle);
+    return;
+
+default_handle:
+    nvs_close(handle);
+    return;    
+}
+
+void save_wifi_config(void)
+{
+    esp_err_t err;
+    nvs_handle_t handle;
+
+    err = nvs_open(NVS_WIFI_NAMESPACE, NVS_READWRITE, &handle);
+    if (err != ESP_OK) {
+        ESP_LOGW( TAG, "%s Error (%s) opening NVS handle!\n", __FUNCTION__, esp_err_to_name(err));
+        return;
+    }
+
+    err = nvs_set_u8(handle, "wifi_mode", _device_wifi.mode);
+    if (ESP_OK != err) {
+        ESP_LOGW( TAG, "%s Error (%s) wifi_mode!\n", __FUNCTION__, esp_err_to_name(err));
+    }
+
+    if (WIFI_MODE_STA == _device_wifi.mode) {
+        err = nvs_set_str(handle, "wifi_ssid", (const char*)_device_wifi.cfg.sta.ssid);
+        if (ESP_OK != err) {
+            ESP_LOGW( TAG, "%s Error (%s) wifi_ssid!\n", __FUNCTION__, esp_err_to_name(err));
+        }
+        err = nvs_set_str(handle, "wifi_passwd", (const char*)_device_wifi.cfg.sta.password);
+        if (ESP_OK != err) {
+            ESP_LOGW( TAG, "%s Error (%s) wifi_passwd!\n", __FUNCTION__, esp_err_to_name(err));
+        }
+        err = nvs_set_u8(handle, "wifi_bssid_set", _device_wifi.cfg.sta.bssid_set);
+        if (ESP_OK != err) {
+            ESP_LOGW( TAG, "%s Error (%s) wifi_bssid_set!\n", __FUNCTION__, esp_err_to_name(err));
+        }
+        err = nvs_set_blob(handle, "wifi_bssid", _device_wifi.cfg.sta.bssid, 6);
+        if (ESP_OK != err) {
+            ESP_LOGW( TAG, "%s Error (%s) wifi_bssid!\n", __FUNCTION__, esp_err_to_name(err));
+        }
+    }
+    err = nvs_commit(handle);
+    if (ESP_OK != err) {
+        ESP_LOGW( TAG, "%s Error (%s) nvs_commit!\n", __FUNCTION__, esp_err_to_name(err));
+    }
+    nvs_close(handle);
+    return;    
 }
 
 void wifi_sc_task(void * parm)
@@ -217,6 +326,7 @@ void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id
             _device_wifi.mode = WIFI_MODE_STA;
             ESP_LOGI( TAG, "SSID:%s", wifi_config->sta.ssid );
             ESP_LOGI( TAG, "PASSWORD:%s", wifi_config->sta.password );
+            save_wifi_config();
             start_wifi_sta();
             xEventGroupSetBits(_device_wifi.event_group, WIFI_EVENT_SC_GOT_SSID_PSWD);
         } else if (SC_EVENT_SEND_ACK_DONE == event_id) {
