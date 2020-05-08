@@ -72,34 +72,43 @@ esp_err_t ws_version_handler(httpd_req_t *req)
 
 esp_err_t ws_synctime_handler(httpd_req_t *req)
 {
-    char *buf;
+    esp_err_t ret;
+    char *buf = NULL;
     cJSON *root = NULL, *item = NULL;
-    int remaining = req->content_len, ret;
+    int remaining = req->content_len, retry = 0, len;
 
     buf = malloc(remaining);
     while (remaining > 0) {
-        ret = httpd_req_recv(req, buf, remaining);
-        if (ret == HTTPD_SOCK_ERR_TIMEOUT) {
+        len = httpd_req_recv(req, &buf[req->content_len - remaining], remaining);
+        if (len == HTTPD_SOCK_ERR_TIMEOUT && retry < 5) {
+            retry++;
             continue;
-        } else if (ret < 0) {
+        } else if (len < 0) {
             free(buf);
             return ESP_FAIL;
         }
-        break;
+        remaining -= len;
     }
     root = cJSON_Parse(buf);
     free(buf);
     if (!root) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad request");
-        return ESP_FAIL;
+        ret = ESP_FAIL;
+        goto exit;
     }
     item = cJSON_GetObjectItem(root, "time");
     if (!cJSON_IsNumber(item)) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad request");
-        return ESP_FAIL; 
+        ret = ESP_FAIL;
+        goto exit;
     } 
     //stime(item->valuedouble);
-    return ESP_OK;
+    ret = ESP_OK;
+exit:    
+    if (root) {
+        cJSON_Delete(root);
+    }
+    return ret;
 }
 
 esp_err_t ws_time_handler(httpd_req_t *req)
