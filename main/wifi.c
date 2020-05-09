@@ -231,6 +231,7 @@ void save_wifi_config(void)
 
 void wifi_sc_task(void * parm)
 {
+    uint32_t    tick = 0;
     EventBits_t uxBits;
     ESP_ERROR_CHECK( esp_smartconfig_set_type(SC_TYPE_ESPTOUCH_AIRKISS) );
     smartconfig_start_config_t cfg = SMARTCONFIG_START_CONFIG_DEFAULT();
@@ -242,18 +243,18 @@ void wifi_sc_task(void * parm)
     /* start wifi in smartconfig */
     start_wifi_smartconfig();
     while (1) {
-        uxBits = xEventGroupWaitBits(_device_wifi.event_group, uxBitsToWaitFor, true, false, pdMS_TO_TICKS(30000)); 
+        uxBits = xEventGroupWaitBits(_device_wifi.event_group, uxBitsToWaitFor, true, false, pdMS_TO_TICKS(1000)); 
         if (uxBits & WIFI_EVENT_SC_START) {
             /* start smartconfig */
             ESP_ERROR_CHECK( esp_smartconfig_start(&cfg) );
             ESP_LOGI( TAG, "start smartconfig finished." );
             continue;
         } 
-        
+        tick = (0 == uxBits) ? (tick + 1) : 0;
         if (uxBits & WIFI_EVENT_SC_DONE) {
             ESP_LOGI( TAG, "smartconfig done." );
             break;
-        } else if (0 == uxBits) {
+        } else if (0 == uxBits && tick >= 30) {
             ESP_LOGI( TAG, "smartconfig over." );
             break;
         }
