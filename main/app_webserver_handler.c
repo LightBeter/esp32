@@ -1,9 +1,11 @@
 #include <time.h>
 #include <sys/cdefs.h>
 #include <sys/time.h>
-#include <esp_http_server.h>
 #include <cJSON.h>
-#include "app_global.h"
+#include <esp_log.h>
+#include "app_webserver.h"
+#include "app_control.h"
+#include "app_misc.h"
 
 #define TAG  "app_webserver"
 
@@ -142,8 +144,8 @@ esp_err_t ws_info_handler(httpd_req_t *req)
     char *out = NULL;
 
     cJSON_AddStringToObject(root, "module", "esp32");
-    cJSON_AddStringToObject(root, "hw", "0.0.1");
-    cJSON_AddStringToObject(root, "sw", "0.0.1");
+    cJSON_AddStringToObject(root, "hw", "1.0.0");
+    cJSON_AddStringToObject(root, "sw", _running_app_info.version);
     out = cJSON_PrintUnformatted(root);
     cJSON_Delete(root);
 

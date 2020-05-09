@@ -1,6 +1,10 @@
 #include <string.h>
-#include "app_global.h"
-#include "esp_smartconfig.h"
+#include <esp_smartconfig.h>
+#include <nvs_flash.h>
+#include <esp_log.h>
+#include "app_wifi.h"
+#include "app_webserver.h"
+#include "app_misc.h"
 
 #define TAG                         "app_wifi"
 

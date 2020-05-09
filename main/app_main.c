@@ -1,5 +1,10 @@
-#include "app_global.h"
-#include "nvs_flash.h"
+
+#include <freertos/FreeRTOS.h>
+#include <nvs_flash.h>
+#include <esp_log.h>
+#include "app_misc.h"
+#include "app_wifi.h"
+#include "app_webserver.h"
 
 #define TAG  "app_main"
 
@@ -46,23 +51,10 @@ void app_deinit()
     ESP_ERROR_CHECK(nvs_flash_deinit());
 }
 
-void app_start_tsk()
-{
-    xTaskCreate(wifi_sc_task, "wifi_sc_task", APP_TSK_STACK_SIZE, NULL, 3, &_app_task_handles[APP_TSK_WIFI_SC]);
-}
-
-void app_stop_tsk()
-{
-    for(int i = 0; i < APP_TSK_COUNT; i++){
-        vTaskDelete(_app_task_handles[i]);   //Delete user task first (prevents the resetting of an unsubscribed task)
-    }
-}
-
 void app_main()
 {
     EventBits_t uxBits;
-    const EventBits_t uxBitsToWaitFor =  (APP_REQ_REBOOT_BIT 
-                                        | APP_REQ_RECOVERY_FACTORY_BIT);
+    const EventBits_t uxBitsToWaitFor =  (APP_REQ_REBOOT_BIT | APP_REQ_RECOVERY_FACTORY_BIT);
 
     ESP_LOGI( TAG, "device start." );
     /* initialize application */
