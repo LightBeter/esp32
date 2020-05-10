@@ -289,14 +289,14 @@ esp_err_t ws_setnetwork_handler(httpd_req_t *req)
         } 
 
         len = strlen(ssid->valuestring);
-        if (len >= 32 || len <= 0) {
+        if (len <= 0 || len >= 32) {
             ESP_LOGI(TAG, "%s invalid ssid len(%zu) failure.", __FUNCTION__, len);
             httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad request");
             ret = ESP_FAIL;
             goto exit;  
         }
         len = strlen(password->valuestring);
-        if (len <= 0|| len >= 64) {
+        if (len < 0 || len >= 64) {
             ESP_LOGI(TAG, "%s invalid password len(%zu) failure.", __FUNCTION__, len);
             httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad request");
             ret = ESP_FAIL;

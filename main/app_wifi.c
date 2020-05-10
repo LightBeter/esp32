@@ -67,6 +67,13 @@ device_wifi_type _device_wifi = {
     },
 };
 
+wifi_config_t  _sc_ap_config = {
+    .sta.ssid = { 0 },
+    .sta.password = { 0 },
+    .sta.bssid_set = 0,
+    .sta.bssid = { 0 },
+};
+
 void initialise_wifi(void)
 {
     const wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
@@ -94,25 +101,24 @@ void deinitialise_wifi(void)
 void start_wifi_smartconfig()
 {
     _device_wifi.state = device_wifi_state_sc;
+    ESP_ERROR_CHECK( esp_smartconfig_set_type(SC_TYPE_ESPTOUCH) );
     ESP_ERROR_CHECK( esp_wifi_set_mode(WIFI_MODE_STA) );
     ESP_ERROR_CHECK( esp_wifi_start() );
     ESP_LOGI( TAG, "start wifi in sc mode finished." );
 }
 
-void start_wifi_sta()
+void start_wifi_sta(wifi_config_t *conf)
 {
     _device_wifi.state = device_wifi_state_sta;
     ESP_ERROR_CHECK( esp_wifi_disconnect() );
     ESP_ERROR_CHECK( esp_wifi_set_mode(WIFI_MODE_STA) );
-    ESP_ERROR_CHECK( esp_wifi_set_config(ESP_IF_WIFI_STA, &_device_wifi.cfg) );
+    ESP_ERROR_CHECK( esp_wifi_set_config(ESP_IF_WIFI_STA, conf) );
     ESP_ERROR_CHECK( esp_wifi_connect() );
     ESP_LOGI( TAG, "start wifi in sta mode finished." );
 }
 
-void start_wifi_ap()
+void start_wifi_ap(wifi_config_t *conf)
 {
-    memcpy(_device_wifi.cfg.ap.ssid, _device_hostname, strlen(_device_hostname) + 1);
-    _device_wifi.cfg.ap.ssid_len = strlen((const char*)_device_wifi.cfg.ap.ssid);
     _device_wifi.state = device_wifi_state_ap;
     ESP_ERROR_CHECK( esp_wifi_set_mode(WIFI_MODE_AP) );
     ESP_ERROR_CHECK( esp_wifi_set_config(ESP_IF_WIFI_AP, &_device_wifi.cfg) );
@@ -139,7 +145,7 @@ void load_wifi_config(void)
     char passwd[64];
     uint8_t bssid[6];
     uint8_t bssid_set;
-    size_t  ssid_len = 32, passwd_len = 64, bssid_set_len = 6;
+    size_t  len = 0;
 
     err = nvs_open(NVS_WIFI_NAMESPACE, NVS_READONLY, &handle);
     if (err != ESP_OK) {
@@ -155,13 +161,13 @@ void load_wifi_config(void)
 
     _device_wifi.mode = mode;
     if (WIFI_MODE_STA == mode) {
-        err = nvs_get_str(handle, "wifi_ssid", ssid, &ssid_len);
-        if (ESP_OK != err || ssid_len <= 0) {
+        err = nvs_get_blob(handle, "wifi_ssid", ssid, &len);
+        if (ESP_OK != err || len != sizeof(_device_wifi.cfg.sta.ssid)) {
             ESP_LOGW( TAG, "%s Error (%s) wifi_ssid!\n", __FUNCTION__, esp_err_to_name(err));
             goto default_handle;
         }
-        err = nvs_get_str(handle, "wifi_passwd", passwd, &passwd_len);
-        if (ESP_OK != err || passwd_len <= 0) {
+        err = nvs_get_blob(handle, "wifi_passwd", passwd, &len);
+        if (ESP_OK != err || len != sizeof(_device_wifi.cfg.sta.password)) {
             ESP_LOGW( TAG, "%s Error (%s) wifi_passwd!\n", __FUNCTION__, esp_err_to_name(err));
             goto default_handle;
         }
@@ -171,25 +177,26 @@ void load_wifi_config(void)
             goto default_handle;
         }
         if (bssid_set) {
-            err = nvs_get_blob(handle, "wifi_bssid", bssid, &bssid_set_len);
-            if (ESP_OK != err || bssid_set_len != 6) {
+            err = nvs_get_blob(handle, "wifi_bssid", bssid, &len);
+            if (ESP_OK != err || len != sizeof(_device_wifi.cfg.sta.bssid)) {
                 ESP_LOGW( TAG, "%s Error (%s) bssid!\n", __FUNCTION__, esp_err_to_name(err));
                 goto default_handle;
             }
         }
-        memcpy(_device_wifi.cfg.sta.ssid, ssid, ssid_len);
-        memcpy(_device_wifi.cfg.sta.password, passwd, passwd_len);
+        memcpy(_device_wifi.cfg.sta.ssid, ssid, sizeof(_device_wifi.cfg.sta.ssid));
+        memcpy(_device_wifi.cfg.sta.password, passwd, sizeof(_device_wifi.cfg.sta.password));
         _device_wifi.cfg.sta.bssid_set = bssid_set;
         if (bssid_set) {
-            memcpy(_device_wifi.cfg.sta.bssid, bssid, 6);
+            memcpy(_device_wifi.cfg.sta.bssid, bssid, sizeof(_device_wifi.cfg.sta.bssid));
         } else {
-            memset(_device_wifi.cfg.sta.bssid, 0x00, 6);
+            memset(_device_wifi.cfg.sta.bssid, 0x00, sizeof(_device_wifi.cfg.sta.bssid));
         }
     }
     nvs_close(handle);
     return;
 
 default_handle:
+    _device_wifi.mode = WIFI_MODE_AP;
     nvs_close(handle);
     return;    
 }
@@ -211,11 +218,11 @@ void save_wifi_config(void)
     }
 
     if (WIFI_MODE_STA == _device_wifi.mode) {
-        err = nvs_set_str(handle, "wifi_ssid", (const char*)_device_wifi.cfg.sta.ssid);
+        err = nvs_set_blob(handle, "wifi_ssid", _device_wifi.cfg.sta.ssid, sizeof(_device_wifi.cfg.sta.ssid));
         if (ESP_OK != err) {
             ESP_LOGW( TAG, "%s Error (%s) wifi_ssid!\n", __FUNCTION__, esp_err_to_name(err));
         }
-        err = nvs_set_str(handle, "wifi_passwd", (const char*)_device_wifi.cfg.sta.password);
+        err = nvs_set_blob(handle, "wifi_passwd", _device_wifi.cfg.sta.password, sizeof(_device_wifi.cfg.sta.password));
         if (ESP_OK != err) {
             ESP_LOGW( TAG, "%s Error (%s) wifi_passwd!\n", __FUNCTION__, esp_err_to_name(err));
         }
@@ -238,9 +245,9 @@ void save_wifi_config(void)
 
 void wifi_sc_task(void * parm)
 {
+    bool        sc_done = false;
     uint32_t    tick = 0;
     EventBits_t uxBits;
-    ESP_ERROR_CHECK( esp_smartconfig_set_type(SC_TYPE_ESPTOUCH_AIRKISS) );
     smartconfig_start_config_t cfg = SMARTCONFIG_START_CONFIG_DEFAULT();
     const EventBits_t uxBitsToWaitFor =  (WIFI_EVENT_SC_START 
                                             | WIFI_EVENT_SC_SCAN_DONE
@@ -256,9 +263,11 @@ void wifi_sc_task(void * parm)
             ESP_ERROR_CHECK( esp_smartconfig_start(&cfg) );
             ESP_LOGI( TAG, "start smartconfig finished." );
             continue;
-        } 
+        }
+
         tick = (0 == uxBits) ? (tick + 1) : 0;
         if (uxBits & WIFI_EVENT_SC_DONE) {
+            sc_done = true;
             ESP_LOGI( TAG, "smartconfig done." );
             break;
         } else if (0 == uxBits && tick >= 30) {
@@ -268,13 +277,18 @@ void wifi_sc_task(void * parm)
     }
     /* stop smartconfig */
     esp_smartconfig_stop();
-    if (device_wifi_state_sc == _device_wifi.state) {
-        /* smart config timeout */
+    if (sc_done) {
+        _device_wifi.mode = WIFI_MODE_STA;
+        memcpy( &_device_wifi.cfg.sta, &_sc_ap_config.sta, sizeof(wifi_sta_config_t) );
+        save_wifi_config();
+    } else {
         if (WIFI_MODE_AP == _device_wifi.mode) {
+            memcpy(_device_wifi.cfg.ap.ssid, _device_hostname, strlen(_device_hostname) + 1);
+            _device_wifi.cfg.ap.ssid_len = strlen((const char*)_device_wifi.cfg.ap.ssid);
             stop_wifi();
-            start_wifi_ap();
+            start_wifi_ap(&_device_wifi.cfg);
         } else {
-            start_wifi_sta();
+            start_wifi_sta(&_device_wifi.cfg);
         }
     }
     vTaskDelete(NULL);
@@ -323,20 +337,22 @@ void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id
         } else if (SC_EVENT_GOT_SSID_PSWD == event_id && device_wifi_state_sc == _device_wifi.state) {
             /* Got SSID and password */
             smartconfig_event_got_ssid_pswd_t *evt = (smartconfig_event_got_ssid_pswd_t *)event_data;
-            wifi_config_t *wifi_config = &_device_wifi.cfg;
-            bzero( wifi_config, sizeof(wifi_config_t) );
-            memcpy( wifi_config->sta.ssid, evt->ssid, sizeof(wifi_config->sta.ssid) );
-            memcpy( wifi_config->sta.password, evt->password, sizeof(wifi_config->sta.password) );
-            wifi_config->sta.bssid_set = evt->bssid_set;
-            if (wifi_config->sta.bssid_set == true) {
-                memcpy( wifi_config->sta.bssid, evt->bssid, sizeof(wifi_config->sta.bssid) );
+            bzero( &_sc_ap_config, sizeof(wifi_config_t) );
+            memcpy( _sc_ap_config.sta.ssid, evt->ssid, sizeof(evt->ssid) );
+            memcpy( _sc_ap_config.sta.password, evt->password, sizeof(evt->password) );
+            _sc_ap_config.sta.bssid_set = evt->bssid_set;
+            if (_sc_ap_config.sta.bssid_set == true) {
+                memcpy( _sc_ap_config.sta.bssid, evt->bssid, sizeof(evt->bssid) );
             }
-            _device_wifi.mode = WIFI_MODE_STA;
-            ESP_LOGI( TAG, "SSID:%s", wifi_config->sta.ssid );
-            ESP_LOGI( TAG, "PASSWORD:%s", wifi_config->sta.password );
-            save_wifi_config();
-            start_wifi_sta();
+            start_wifi_sta(&_sc_ap_config);
             xEventGroupSetBits(_device_wifi.event_group, WIFI_EVENT_SC_GOT_SSID_PSWD);
+
+            uint8_t ssid[33] = { 0 };
+            uint8_t password[65] = { 0 };
+            memcpy(ssid, evt->ssid, sizeof(evt->ssid));
+            memcpy(password, evt->password, sizeof(evt->password));
+            ESP_LOGI(TAG, "SSID:%s", ssid);
+            ESP_LOGI(TAG, "PASSWORD:%s", password);
         } else if (SC_EVENT_SEND_ACK_DONE == event_id) {
             /* smartconfig Done */
             xEventGroupSetBits(_device_wifi.event_group, WIFI_EVENT_SC_DONE);

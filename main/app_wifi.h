@@ -27,8 +27,8 @@ void deinitialise_wifi(void);
 void load_wifi_config(void);
 void save_wifi_config(void);
 void start_wifi_smartconfig();
-void start_wifi_sta();
-void start_wifi_ap();
+void start_wifi_sta(wifi_config_t *conf);
+void start_wifi_ap(wifi_config_t *conf);
 void stop_wifi();
 void wifi_sc_task(void * parm);
 
