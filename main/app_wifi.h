@@ -8,10 +8,8 @@
 
 typedef enum {
     device_wifi_state_idle = 0x00,
-    device_wifi_state_sc,
     device_wifi_state_sta,
     device_wifi_state_ap,
-    device_wifi_state_stop,
 } device_wifi_state;
 
 typedef struct {
@@ -26,7 +24,6 @@ void initialise_wifi(void);
 void deinitialise_wifi(void);
 void load_wifi_config(void);
 void save_wifi_config(void);
-void start_wifi_smartconfig();
 void start_wifi_sta(wifi_config_t *conf);
 void start_wifi_ap(wifi_config_t *conf);
 void stop_wifi();

@@ -1,5 +1,4 @@
 #include <string.h>
-#include <esp_smartconfig.h>
 #include <nvs_flash.h>
 #include <esp_log.h>
 #include "app_wifi.h"
@@ -11,12 +10,11 @@
 #define NVS_WIFI_NAMESPACE          "wifi_storage"
 #define WIFI_AP_DEFAULT_PASSWORD    "00000000"
 #define WIFI_MAX_STA_CONN           4
-
-#define WIFI_EVENT_SC_START         BIT0
-#define WIFI_EVENT_SC_SCAN_DONE     BIT1
-#define WIFI_EVENT_SC_FOUND_CHANNE  BIT2
-#define WIFI_EVENT_SC_GOT_SSID_PSWD BIT3
-#define WIFI_EVENT_SC_DONE          BIT4
+  
+#define APP_WIFI_EVENT_STA_START       BIT0
+#define APP_WIFI_EVENT_STA_CONNECT     BIT1
+#define APP_WIFI_EVENT_STA_DISCONNECT  BIT2
+#define APP_WIFI_EVENT_STA_GOT_IP      BIT3
 
 void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data);
 
@@ -48,13 +46,6 @@ const char *ip_event_desc[] = {
     [IP_EVENT_ETH_GOT_IP] = "ESP32 ethernet got IP from connected AP",
 };
 
-const char *sc_event_desc[] = {
-    [SC_EVENT_SCAN_DONE] = "ESP32 station smartconfig has finished to scan for APs", 
-    [SC_EVENT_FOUND_CHANNEL] = "ESP32 station smartconfig has found the channel of the target AP",
-    [SC_EVENT_GOT_SSID_PSWD] = "ESP32 station smartconfig got the SSID and password",
-    [SC_EVENT_SEND_ACK_DONE] = "ESP32 station smartconfig has sent ACK to cellphone",
-};
-
 device_wifi_type _device_wifi = { 
     .mode  = WIFI_MODE_AP, 
     .state = device_wifi_state_idle,
@@ -67,13 +58,6 @@ device_wifi_type _device_wifi = {
     },
 };
 
-wifi_config_t  _sc_ap_config = {
-    .sta.ssid = { 0 },
-    .sta.password = { 0 },
-    .sta.bssid_set = 0,
-    .sta.bssid = { 0 },
-};
-
 void initialise_wifi(void)
 {
     const wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
@@ -82,7 +66,6 @@ void initialise_wifi(void)
     ESP_ERROR_CHECK( esp_wifi_init(&_device_wifi.init_cfg) );
     ESP_ERROR_CHECK( esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler, NULL) );
     ESP_ERROR_CHECK( esp_event_handler_register(IP_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler, NULL) );
-    ESP_ERROR_CHECK( esp_event_handler_register(SC_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler, NULL) );
     load_wifi_config();
     ESP_LOGI( TAG, "initialise wifi finished." );
 }
@@ -92,19 +75,9 @@ void deinitialise_wifi(void)
     stop_wifi();
     ESP_ERROR_CHECK( esp_event_handler_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler) );
     ESP_ERROR_CHECK( esp_event_handler_unregister(IP_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler) );
-    ESP_ERROR_CHECK( esp_event_handler_unregister(SC_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler) );
     ESP_ERROR_CHECK( esp_wifi_deinit() );
     vEventGroupDelete( _device_wifi.event_group );
     ESP_LOGI( TAG, "deinitialise wifi finished." );
-}
-
-void start_wifi_smartconfig()
-{
-    _device_wifi.state = device_wifi_state_sc;
-    ESP_ERROR_CHECK( esp_smartconfig_set_type(SC_TYPE_ESPTOUCH) );
-    ESP_ERROR_CHECK( esp_wifi_set_mode(WIFI_MODE_STA) );
-    ESP_ERROR_CHECK( esp_wifi_start() );
-    ESP_LOGI( TAG, "start wifi in sc mode finished." );
 }
 
 void start_wifi_sta(wifi_config_t *conf)
@@ -113,7 +86,7 @@ void start_wifi_sta(wifi_config_t *conf)
     ESP_ERROR_CHECK( esp_wifi_disconnect() );
     ESP_ERROR_CHECK( esp_wifi_set_mode(WIFI_MODE_STA) );
     ESP_ERROR_CHECK( esp_wifi_set_config(ESP_IF_WIFI_STA, conf) );
-    ESP_ERROR_CHECK( esp_wifi_connect() );
+    ESP_ERROR_CHECK( esp_wifi_start() );
     ESP_LOGI( TAG, "start wifi in sta mode finished." );
 }
 
@@ -128,8 +101,8 @@ void start_wifi_ap(wifi_config_t *conf)
 
 void stop_wifi()
 {
-    if (device_wifi_state_idle != _device_wifi.state && device_wifi_state_stop != _device_wifi.state) {
-        _device_wifi.state = device_wifi_state_stop;
+    if (device_wifi_state_idle != _device_wifi.state) {
+        _device_wifi.state = device_wifi_state_idle;
         ESP_ERROR_CHECK( esp_wifi_stop() );
     }
     ESP_LOGI( TAG, "stop wifi finished." );
@@ -245,52 +218,37 @@ void save_wifi_config(void)
 
 void wifi_sc_task(void * parm)
 {
-    bool        sc_done = false;
+    bool        sta_done = false;
     uint32_t    tick = 0;
     EventBits_t uxBits;
-    smartconfig_start_config_t cfg = SMARTCONFIG_START_CONFIG_DEFAULT();
-    const EventBits_t uxBitsToWaitFor =  (WIFI_EVENT_SC_START 
-                                            | WIFI_EVENT_SC_SCAN_DONE
-                                            | WIFI_EVENT_SC_FOUND_CHANNE 
-                                            | WIFI_EVENT_SC_GOT_SSID_PSWD
-                                            | WIFI_EVENT_SC_DONE);
-    /* start wifi in smartconfig */
-    start_wifi_smartconfig();
+    const EventBits_t uxBitsToWaitFor =  (APP_WIFI_EVENT_STA_START 
+                                          | APP_WIFI_EVENT_STA_CONNECT 
+                                          | APP_WIFI_EVENT_STA_DISCONNECT 
+                                          | APP_WIFI_EVENT_STA_GOT_IP);
+
+    if (WIFI_MODE_AP == _device_wifi.mode) {
+        start_wifi_ap(&_device_wifi.cfg);  
+        vTaskDelete(NULL);
+        goto exit;
+    }
+    
+    start_wifi_sta(&_device_wifi.cfg);  
     while (1) {
         uxBits = xEventGroupWaitBits(_device_wifi.event_group, uxBitsToWaitFor, true, false, pdMS_TO_TICKS(1000)); 
-        if (uxBits & WIFI_EVENT_SC_START) {
-            /* start smartconfig */
-            ESP_ERROR_CHECK( esp_smartconfig_start(&cfg) );
-            ESP_LOGI( TAG, "start smartconfig finished." );
-            continue;
-        }
-
-        tick = (0 == uxBits) ? (tick + 1) : 0;
-        if (uxBits & WIFI_EVENT_SC_DONE) {
-            sc_done = true;
-            ESP_LOGI( TAG, "smartconfig done." );
+        if (uxBits & APP_WIFI_EVENT_STA_START) {
+            sta_done = true;
+            ESP_LOGI( TAG, "sta connect to ap done." );
             break;
-        } else if (0 == uxBits && tick >= 30) {
-            ESP_LOGI( TAG, "smartconfig over." );
+        } else if (++tick > 30) {
+            ESP_LOGI( TAG, "sta connect to ap done time out." );
             break;
         }
     }
-    /* stop smartconfig */
-    esp_smartconfig_stop();
-    if (sc_done) {
-        _device_wifi.mode = WIFI_MODE_STA;
-        memcpy( &_device_wifi.cfg.sta, &_sc_ap_config.sta, sizeof(wifi_sta_config_t) );
-        save_wifi_config();
-    } else {
-        if (WIFI_MODE_AP == _device_wifi.mode) {
-            memcpy(_device_wifi.cfg.ap.ssid, _device_hostname, strlen(_device_hostname) + 1);
-            _device_wifi.cfg.ap.ssid_len = strlen((const char*)_device_wifi.cfg.ap.ssid);
-            stop_wifi();
-            start_wifi_ap(&_device_wifi.cfg);
-        } else {
-            start_wifi_sta(&_device_wifi.cfg);
-        }
+    if (!sta_done) {
+        stop_wifi();
+        start_wifi_ap(&_device_wifi.cfg);  
     }
+exit:
     vTaskDelete(NULL);
 }
 
@@ -298,65 +256,28 @@ void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id
 {
     if (WIFI_EVENT == event_base) {
         ESP_LOGI(TAG, "%s", wifi_event_desc[event_id]);
-        if (device_wifi_state_sc == _device_wifi.state) {
-            /* smartconfig */
-            if (WIFI_EVENT_STA_START == event_id) {
-                xEventGroupSetBits(_device_wifi.event_group, WIFI_EVENT_SC_START);
-            }
-        } else if (device_wifi_state_sta == _device_wifi.state) {
-            /* sta */
-            if (WIFI_EVENT_STA_START == event_id) {
-                esp_wifi_connect();
-            } else if (WIFI_EVENT_STA_CONNECTED == event_id) {
-                start_webserver();
-            } else if (WIFI_EVENT_STA_DISCONNECTED == event_id) {
-                stop_webserver();
-                esp_wifi_connect();
-            }
-        } else if (device_wifi_state_ap == _device_wifi.state) {
-            /* ap */
-            if (WIFI_EVENT_AP_START == event_id) {
-                start_webserver();
-            } else if (WIFI_EVENT_AP_STOP == event_id) {
-                stop_webserver();
-            } 
-        }
+        if (WIFI_EVENT_STA_START == event_id) {
+            esp_wifi_connect();
+            xEventGroupSetBits(_app_event_group, APP_WIFI_EVENT_STA_START);
+        } else if (WIFI_EVENT_STA_CONNECTED == event_id) {
+            start_webserver();
+            xEventGroupSetBits(_app_event_group, APP_WIFI_EVENT_STA_CONNECT);
+        } else if (WIFI_EVENT_STA_DISCONNECTED == event_id) {
+            stop_webserver();
+            esp_wifi_connect();
+            xEventGroupSetBits(_app_event_group, APP_WIFI_EVENT_STA_DISCONNECT);
+        } else if(WIFI_EVENT_AP_START == event_id) {
+            start_webserver();
+        } else if (WIFI_EVENT_AP_STOP == event_id) {
+            stop_webserver();
+        }   
     } else if (IP_EVENT == event_base) {
         ESP_LOGI(TAG, "%s", ip_event_desc[event_id]);
         if (IP_EVENT_STA_GOT_IP == event_id) {
-            /* Got ip address */
+            xEventGroupSetBits(_app_event_group, APP_WIFI_EVENT_STA_GOT_IP);
             ip_event_got_ip_t* event = (ip_event_got_ip_t*) event_data;
             ESP_LOGI(TAG, "got ip:%s", ip4addr_ntoa(&event->ip_info.ip));
         }
-    } else if (SC_EVENT == event_base) {
-        ESP_LOGI(TAG, "%s", sc_event_desc[event_id]);
-        if (SC_EVENT_SCAN_DONE == event_id && device_wifi_state_sc == _device_wifi.state) {
-            xEventGroupSetBits(_device_wifi.event_group, WIFI_EVENT_SC_SCAN_DONE);
-        } else if (SC_EVENT_FOUND_CHANNEL == event_id && device_wifi_state_sc == _device_wifi.state) {
-            xEventGroupSetBits(_device_wifi.event_group, WIFI_EVENT_SC_FOUND_CHANNE);
-        } else if (SC_EVENT_GOT_SSID_PSWD == event_id && device_wifi_state_sc == _device_wifi.state) {
-            /* Got SSID and password */
-            smartconfig_event_got_ssid_pswd_t *evt = (smartconfig_event_got_ssid_pswd_t *)event_data;
-            bzero( &_sc_ap_config, sizeof(wifi_config_t) );
-            memcpy( _sc_ap_config.sta.ssid, evt->ssid, sizeof(evt->ssid) );
-            memcpy( _sc_ap_config.sta.password, evt->password, sizeof(evt->password) );
-            _sc_ap_config.sta.bssid_set = evt->bssid_set;
-            if (_sc_ap_config.sta.bssid_set == true) {
-                memcpy( _sc_ap_config.sta.bssid, evt->bssid, sizeof(evt->bssid) );
-            }
-            start_wifi_sta(&_sc_ap_config);
-            xEventGroupSetBits(_device_wifi.event_group, WIFI_EVENT_SC_GOT_SSID_PSWD);
-
-            uint8_t ssid[33] = { 0 };
-            uint8_t password[65] = { 0 };
-            memcpy(ssid, evt->ssid, sizeof(evt->ssid));
-            memcpy(password, evt->password, sizeof(evt->password));
-            ESP_LOGI(TAG, "SSID:%s", ssid);
-            ESP_LOGI(TAG, "PASSWORD:%s", password);
-        } else if (SC_EVENT_SEND_ACK_DONE == event_id) {
-            /* smartconfig Done */
-            xEventGroupSetBits(_device_wifi.event_group, WIFI_EVENT_SC_DONE);
-        }
-    }
+    } 
 }
 
