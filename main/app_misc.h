@@ -9,10 +9,12 @@
 #define APP_REQ_REBOOT_BIT               BIT0
 #define APP_REQ_RECOVERY_FACTORY_BIT     BIT1
 
-#define APP_TSK_STACK_SIZE               2048
+#define APP_WIFI_TSK_STACK_SIZE          2048
+#define APP_UDP_TSK_STACK_SIZE           4096
 
 typedef enum {
-    APP_TSK_WIFI_SC = 0x00,
+    APP_TSK_WIFI = 0x00,
+    APP_TSK_UDP,
     APP_TSK_COUNT
 } app_tsk_type;
 
@@ -21,7 +23,6 @@ void initialise_device(void);
 void deinitialise_device(void);
 void initialise_mdns(void);
 void deinitialise_mdns(void);
-void app_main_tsk();
 void app_start_tsk();
 void app_stop_tsk();
 

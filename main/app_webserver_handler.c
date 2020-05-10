@@ -137,7 +137,6 @@ esp_err_t ws_temporary_led_handler(httpd_req_t *req)
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad request");
         goto exit; 
     }
-
     for (chl = 0; chl < LED_CHL_COUNT; chl++) {
         pSub = cJSON_GetArrayItem(item, chl);
         if(NULL == pSub ){ 
@@ -145,13 +144,11 @@ esp_err_t ws_temporary_led_handler(httpd_req_t *req)
             httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad request");
             goto exit; 
         }
-
         if (!cJSON_IsNumber(pSub)) {
             ESP_LOGI(TAG, "%s targ %d failure.", __FUNCTION__, chl);
             httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad request");
             goto exit; 
         }
-
         if (pSub->valueint < 0 || pSub->valueint > 100) {
             ESP_LOGI(TAG, "%s channel value %d failure.", __FUNCTION__, item->valueint);
             httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad request");

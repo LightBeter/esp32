@@ -7,6 +7,7 @@
 #include <esp_log.h>
 #include "app_misc.h"
 #include "app_wifi.h"
+#include "app_udp.h"
 
 #define TAG   "app misc"
 
@@ -61,7 +62,8 @@ void deinitialise_mdns(void)
 
 void app_start_tsk()
 {
-    xTaskCreate(wifi_sc_task, "wifi_sc_task", APP_TSK_STACK_SIZE, NULL, 3, &_app_task_handles[APP_TSK_WIFI_SC]);
+    xTaskCreate(app_wifi_tsk, "app_wifi_tsk", APP_WIFI_TSK_STACK_SIZE, NULL, 3, &_app_task_handles[APP_TSK_WIFI]);
+    xTaskCreate(app_udp_tsk, "app_udp_tsk", APP_UDP_TSK_STACK_SIZE, NULL, 3, &_app_task_handles[APP_TSK_UDP]);
 }
 
 void app_stop_tsk()

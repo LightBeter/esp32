@@ -27,7 +27,7 @@ void save_wifi_config(void);
 void start_wifi_sta(wifi_config_t *conf);
 void start_wifi_ap(wifi_config_t *conf);
 void stop_wifi();
-void wifi_sc_task(void * parm);
+void app_wifi_tsk(void * parm);
 
 extern device_wifi_type        _device_wifi;
 

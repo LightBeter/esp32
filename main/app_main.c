@@ -4,6 +4,7 @@
 #include <esp_log.h>
 #include "app_misc.h"
 #include "app_wifi.h"
+#include "app_udp.h"
 #include "app_webserver.h"
 
 #define TAG  "app_main"
@@ -29,6 +30,8 @@ void app_init()
     initialise_mdns();
     /* Initialize wifi */
     initialise_wifi();
+    /* Initialize udp */
+    initialise_udp();
     /* Initialize webserver */
     initialise_webserver();
     /* Initialize application event group */
@@ -41,6 +44,8 @@ void app_deinit()
     vEventGroupDelete(_app_event_group);
     /* deInitialize webserver */
     deinitialise_webserver();
+    /* deInitialize udp */
+    deinitialise_udp();
     /* deInitialize wifi */
     deinitialise_wifi();
     /* deInitialize mdns */

@@ -239,7 +239,7 @@ void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id
     } 
 }
 
-void wifi_sc_task(void * parm)
+void app_wifi_tsk(void * parm)
 {
     bool        sta_done = false;
     uint32_t    tick = 0;
