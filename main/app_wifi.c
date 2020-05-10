@@ -82,6 +82,7 @@ void initialise_wifi(void)
 
 void deinitialise_wifi(void)
 {
+    stop_wifi();
     ESP_ERROR_CHECK( esp_event_handler_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler) );
     ESP_ERROR_CHECK( esp_event_handler_unregister(IP_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler) );
     ESP_ERROR_CHECK( esp_event_handler_unregister(SC_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler) );
@@ -121,8 +122,10 @@ void start_wifi_ap()
 
 void stop_wifi()
 {
-    _device_wifi.state = device_wifi_state_stop;
-    ESP_ERROR_CHECK( esp_wifi_stop() );
+    if (device_wifi_state_idle != _device_wifi.state && device_wifi_state_stop != _device_wifi.state) {
+        _device_wifi.state = device_wifi_state_stop;
+        ESP_ERROR_CHECK( esp_wifi_stop() );
+    }
     ESP_LOGI( TAG, "stop wifi finished." );
 }
 

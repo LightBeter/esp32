@@ -20,7 +20,7 @@ void load_app_desc(void)
     const esp_partition_t *running = esp_ota_get_running_partition();
     ESP_LOGW(TAG, "Current running partition address 0x%08x", running->address);
     if (esp_ota_get_partition_description(running, &_running_app_info) == ESP_OK) {
-        ESP_LOGI(TAG, "Running firmware version: %s", _running_app_info.version);
+        ESP_LOGI(TAG, "Running firmware(%s) version: %s", _running_app_info.project_name, _running_app_info.version);
     } else {
         ESP_LOGW(TAG, "load firmware version failure");  
     }
@@ -66,7 +66,12 @@ void app_start_tsk()
 
 void app_stop_tsk()
 {
+    eTaskState state;
     for(int i = 0; i < APP_TSK_COUNT; i++){
-        vTaskDelete(_app_task_handles[i]);   //Delete user task first (prevents the resetting of an unsubscribed task)
+        state = eTaskGetState(_app_task_handles[i]);
+        ESP_LOGI( TAG, "Task %d state %d.", i, state );
+        if (eDeleted != state && eReady != state) {
+            vTaskDelete(_app_task_handles[i]);   //Delete user task first (prevents the resetting of an unsubscribed task)
+        }
     }
 }

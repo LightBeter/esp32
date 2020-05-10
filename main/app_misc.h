@@ -21,6 +21,7 @@ void initialise_device(void);
 void deinitialise_device(void);
 void initialise_mdns(void);
 void deinitialise_mdns(void);
+void app_main_tsk();
 void app_start_tsk();
 void app_stop_tsk();
 
