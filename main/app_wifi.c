@@ -11,10 +11,8 @@
 #define WIFI_AP_DEFAULT_PASSWORD    "00000000"
 #define WIFI_MAX_STA_CONN           4
   
-#define APP_WIFI_EVENT_STA_START       BIT0
-#define APP_WIFI_EVENT_STA_CONNECT     BIT1
-#define APP_WIFI_EVENT_STA_DISCONNECT  BIT2
-#define APP_WIFI_EVENT_STA_GOT_IP      BIT3
+#define APP_WIFI_EVENT_STA_GOT_IP      BIT0
+
 
 void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data);
 
@@ -47,15 +45,7 @@ const char *ip_event_desc[] = {
 };
 
 device_wifi_type _device_wifi = { 
-    .mode  = WIFI_MODE_AP, 
     .state = device_wifi_state_idle,
-    .cfg = {
-        .ap = {
-            .password = WIFI_AP_DEFAULT_PASSWORD,
-            .max_connection = WIFI_MAX_STA_CONN,
-            .authmode = WIFI_AUTH_WPA_WPA2_PSK
-        },
-    },
 };
 
 void initialise_wifi(void)
@@ -83,7 +73,6 @@ void deinitialise_wifi(void)
 void start_wifi_sta(wifi_config_t *conf)
 {
     _device_wifi.state = device_wifi_state_sta;
-    ESP_ERROR_CHECK( esp_wifi_disconnect() );
     ESP_ERROR_CHECK( esp_wifi_set_mode(WIFI_MODE_STA) );
     ESP_ERROR_CHECK( esp_wifi_set_config(ESP_IF_WIFI_STA, conf) );
     ESP_ERROR_CHECK( esp_wifi_start() );
@@ -93,6 +82,11 @@ void start_wifi_sta(wifi_config_t *conf)
 void start_wifi_ap(wifi_config_t *conf)
 {
     _device_wifi.state = device_wifi_state_ap;
+    memcpy(_device_wifi.cfg.ap.ssid, _device_hostname, strlen(_device_hostname) + 1);
+    _device_wifi.cfg.ap.ssid_len = strlen((const char*)_device_wifi.cfg.ap.ssid);
+    memcpy(_device_wifi.cfg.ap.password, WIFI_AP_DEFAULT_PASSWORD, strlen(WIFI_AP_DEFAULT_PASSWORD) + 1);
+    _device_wifi.cfg.ap.max_connection = WIFI_MAX_STA_CONN;
+    _device_wifi.cfg.ap.authmode = WIFI_AUTH_WPA_WPA2_PSK;
     ESP_ERROR_CHECK( esp_wifi_set_mode(WIFI_MODE_AP) );
     ESP_ERROR_CHECK( esp_wifi_set_config(ESP_IF_WIFI_AP, &_device_wifi.cfg) );
     ESP_ERROR_CHECK( esp_wifi_start() );
@@ -104,10 +98,10 @@ void stop_wifi()
     if (device_wifi_state_idle != _device_wifi.state) {
         _device_wifi.state = device_wifi_state_idle;
         ESP_ERROR_CHECK( esp_wifi_stop() );
+        ESP_ERROR_CHECK( esp_wifi_restore() );
     }
     ESP_LOGI( TAG, "stop wifi finished." );
 }
-
 
 void load_wifi_config(void)
 {
@@ -134,11 +128,13 @@ void load_wifi_config(void)
 
     _device_wifi.mode = mode;
     if (WIFI_MODE_STA == mode) {
+        len = sizeof(_device_wifi.cfg.sta.ssid);
         err = nvs_get_blob(handle, "wifi_ssid", ssid, &len);
         if (ESP_OK != err || len != sizeof(_device_wifi.cfg.sta.ssid)) {
             ESP_LOGW( TAG, "%s Error (%s) wifi_ssid!\n", __FUNCTION__, esp_err_to_name(err));
             goto default_handle;
         }
+        len = sizeof(_device_wifi.cfg.sta.password);
         err = nvs_get_blob(handle, "wifi_passwd", passwd, &len);
         if (ESP_OK != err || len != sizeof(_device_wifi.cfg.sta.password)) {
             ESP_LOGW( TAG, "%s Error (%s) wifi_passwd!\n", __FUNCTION__, esp_err_to_name(err));
@@ -150,6 +146,7 @@ void load_wifi_config(void)
             goto default_handle;
         }
         if (bssid_set) {
+            len = sizeof(_device_wifi.cfg.sta.bssid);
             err = nvs_get_blob(handle, "wifi_bssid", bssid, &len);
             if (ESP_OK != err || len != sizeof(_device_wifi.cfg.sta.bssid)) {
                 ESP_LOGW( TAG, "%s Error (%s) bssid!\n", __FUNCTION__, esp_err_to_name(err));
@@ -216,15 +213,38 @@ void save_wifi_config(void)
     return;    
 }
 
+void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data)
+{
+    if (WIFI_EVENT == event_base) {
+        ESP_LOGI(TAG, "%s", wifi_event_desc[event_id]);
+        if (WIFI_EVENT_STA_START == event_id) {
+            esp_wifi_connect();
+        } else if (WIFI_EVENT_STA_CONNECTED == event_id) {
+            start_webserver();
+        } else if (WIFI_EVENT_STA_DISCONNECTED == event_id) {
+            stop_webserver();
+            esp_wifi_connect();
+        } else if(WIFI_EVENT_AP_START == event_id) {
+            start_webserver();
+        } else if (WIFI_EVENT_AP_STOP == event_id) {
+            stop_webserver();
+        }   
+    } else if (IP_EVENT == event_base) {
+        ESP_LOGI(TAG, "%s", ip_event_desc[event_id]);
+        if (IP_EVENT_STA_GOT_IP == event_id) {
+            xEventGroupSetBits(_device_wifi.event_group, APP_WIFI_EVENT_STA_GOT_IP);
+            ip_event_got_ip_t* event = (ip_event_got_ip_t*) event_data;
+            ESP_LOGI(TAG, "got ip:%s", ip4addr_ntoa(&event->ip_info.ip));
+        }
+    } 
+}
+
 void wifi_sc_task(void * parm)
 {
     bool        sta_done = false;
     uint32_t    tick = 0;
     EventBits_t uxBits;
-    const EventBits_t uxBitsToWaitFor =  (APP_WIFI_EVENT_STA_START 
-                                          | APP_WIFI_EVENT_STA_CONNECT 
-                                          | APP_WIFI_EVENT_STA_DISCONNECT 
-                                          | APP_WIFI_EVENT_STA_GOT_IP);
+    const EventBits_t uxBitsToWaitFor =  (APP_WIFI_EVENT_STA_GOT_IP);
 
     if (WIFI_MODE_AP == _device_wifi.mode) {
         start_wifi_ap(&_device_wifi.cfg);  
@@ -235,7 +255,7 @@ void wifi_sc_task(void * parm)
     start_wifi_sta(&_device_wifi.cfg);  
     while (1) {
         uxBits = xEventGroupWaitBits(_device_wifi.event_group, uxBitsToWaitFor, true, false, pdMS_TO_TICKS(1000)); 
-        if (uxBits & APP_WIFI_EVENT_STA_START) {
+        if (uxBits & APP_WIFI_EVENT_STA_GOT_IP) {
             sta_done = true;
             ESP_LOGI( TAG, "sta connect to ap done." );
             break;
@@ -250,34 +270,5 @@ void wifi_sc_task(void * parm)
     }
 exit:
     vTaskDelete(NULL);
-}
-
-void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data)
-{
-    if (WIFI_EVENT == event_base) {
-        ESP_LOGI(TAG, "%s", wifi_event_desc[event_id]);
-        if (WIFI_EVENT_STA_START == event_id) {
-            esp_wifi_connect();
-            xEventGroupSetBits(_app_event_group, APP_WIFI_EVENT_STA_START);
-        } else if (WIFI_EVENT_STA_CONNECTED == event_id) {
-            start_webserver();
-            xEventGroupSetBits(_app_event_group, APP_WIFI_EVENT_STA_CONNECT);
-        } else if (WIFI_EVENT_STA_DISCONNECTED == event_id) {
-            stop_webserver();
-            esp_wifi_connect();
-            xEventGroupSetBits(_app_event_group, APP_WIFI_EVENT_STA_DISCONNECT);
-        } else if(WIFI_EVENT_AP_START == event_id) {
-            start_webserver();
-        } else if (WIFI_EVENT_AP_STOP == event_id) {
-            stop_webserver();
-        }   
-    } else if (IP_EVENT == event_base) {
-        ESP_LOGI(TAG, "%s", ip_event_desc[event_id]);
-        if (IP_EVENT_STA_GOT_IP == event_id) {
-            xEventGroupSetBits(_app_event_group, APP_WIFI_EVENT_STA_GOT_IP);
-            ip_event_got_ip_t* event = (ip_event_got_ip_t*) event_data;
-            ESP_LOGI(TAG, "got ip:%s", ip4addr_ntoa(&event->ip_info.ip));
-        }
-    } 
 }
 

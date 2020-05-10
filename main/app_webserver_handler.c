@@ -17,7 +17,7 @@ esp_err_t ws_temporary_led_handler(httpd_req_t *req);
 esp_err_t ws_info_handler(httpd_req_t *req);
 esp_err_t ws_gettime_handler(httpd_req_t *req);
 esp_err_t ws_settime_handler(httpd_req_t *req);
-esp_err_t ws_setnetwork_handler(httpd_req_t *req);
+esp_err_t ws_setnw_handler(httpd_req_t *req);
 esp_err_t ws_reboot_handler(httpd_req_t *req);
 esp_err_t ws_recovery_setting_handler(httpd_req_t *req);
 
@@ -43,9 +43,9 @@ const httpd_uri_t _webserver_uri_handlers[] = {
         .handler   = ws_settime_handler
     },
     {
-        .uri       = "/setnetwork",
+        .uri       = "/setnw",
         .method    = HTTP_POST,
-        .handler   = ws_setnetwork_handler
+        .handler   = ws_setnw_handler
     },
     {
         .uri       = "/reboot",
@@ -247,7 +247,7 @@ exit:
     return ret;
 }
 
-esp_err_t ws_setnetwork_handler(httpd_req_t *req)
+esp_err_t ws_setnw_handler(httpd_req_t *req)
 {
     esp_err_t ret;
     cJSON *root, *mode, *ssid = NULL, *password = NULL;
@@ -296,7 +296,7 @@ esp_err_t ws_setnetwork_handler(httpd_req_t *req)
             goto exit;  
         }
         len = strlen(password->valuestring);
-        if (len < 0 || len >= 64) {
+        if (len >= 64) {
             ESP_LOGI(TAG, "%s invalid password len(%zu) failure.", __FUNCTION__, len);
             httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad request");
             ret = ESP_FAIL;
@@ -318,6 +318,11 @@ esp_err_t ws_setnetwork_handler(httpd_req_t *req)
             strcpy( (char*)_device_wifi.cfg.sta.ssid, ssid->valuestring );
             strcpy( (char*)_device_wifi.cfg.sta.password, password->valuestring );
         }
+        ESP_LOGI(TAG, "%s save network config\r\n\tmode[%d]\r\n\tssid[%s]\r\n\tpassword[%s].", 
+                        __FUNCTION__, 
+                        _device_wifi.mode, 
+                        _device_wifi.cfg.sta.ssid,
+                        _device_wifi.cfg.sta.password);
         save_wifi_config();
     }
     httpd_resp_send(req, WS_RESP_OK, strlen(WS_RESP_OK));

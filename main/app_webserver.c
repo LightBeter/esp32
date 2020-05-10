@@ -31,7 +31,7 @@ void start_webserver(void)
 void stop_webserver(void)
 {
     if (!_webserver.handle) {
-        ESP_LOGI( TAG, "webserver has stopped ." );
+        ESP_LOGI( TAG, "webserver has stopped." );
         return;
     }
     httpd_stop(_webserver.handle);

@@ -48,8 +48,8 @@ void initialise_mdns(void)
 { 
     ESP_ERROR_CHECK( mdns_init() );
     ESP_ERROR_CHECK( mdns_hostname_set(_device_hostname) );
-    ESP_ERROR_CHECK( mdns_instance_name_set("ESP32S LED") );
-    ESP_ERROR_CHECK( mdns_service_add("ESP32-WebServer", "_http", "_tcp", 80, NULL, 0) );
+    ESP_ERROR_CHECK( mdns_instance_name_set("ESP32 LED") );
+    ESP_ERROR_CHECK( mdns_service_add("HttpServer", "_http", "_tcp", 80, NULL, 0) );
     ESP_LOGI( TAG, "initialise mdns finished." );
 }
 
