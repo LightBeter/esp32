@@ -1,0 +1,119 @@
+#include <stdio.h>
+#include <mdns.h>
+#include <esp_log.h>
+#include "device.h"
+#include "storage.h"
+#include "wifi_tsk.h"
+#include "wss_tsk.h"
+
+#define TAG                     "Device"
+#define TSK_NAME                 "DeviceTsk"
+#define DEVICE_TSK_STACK_SIZE    2048
+
+void mdns_start();
+void mdns_stop();
+void device_main_tsk(void * parm);
+
+device_type _device;
+
+const esp_app_desc_t* device_appdesc()
+{
+    return &_device.appdesc;
+}
+
+const char* device_hostname()
+{
+    return _device.hostname;
+}
+
+const wifi_config_t* device_wificonf()
+{
+    return &_device.wificonf; 
+}
+
+void mdns_start()
+{ 
+    ESP_ERROR_CHECK( mdns_init() );
+    ESP_ERROR_CHECK( mdns_hostname_set(_device.hostname) );
+    ESP_ERROR_CHECK( mdns_instance_name_set("ESP32 LED") );
+    ESP_ERROR_CHECK( mdns_service_add("ESP32 WebServer", "_websocket", "_tcp", 80, NULL, 0) );
+}
+
+void mdns_stop()
+{
+    mdns_free();
+}
+
+void device_init()
+{
+    /* Initialize tcp/ip protocol stack */
+    tcpip_adapter_init();
+    /* Initialize storage */
+    storage_init();
+    /* Initialize application desc */
+    storage_read_appdesc(&_device.appdesc);
+    /* Initialize wifi configure */
+    storage_read_wificonf(&_device.wificonf);
+    /* Initialize hostname */
+    uint8_t mac[6];
+    esp_wifi_get_mac( ESP_IF_WIFI_AP , mac );
+    sprintf( _device.hostname, "ESP32_%02X%02X%02X", mac[3], mac[4], mac[5] );
+    /* Initialize Wifi Tsk */
+    wifi_tsk_init();
+    /* Initialize WSS Tsk */
+    wss_tsk_init();
+    /* device event group */
+    _device.event_group = xEventGroupCreate();
+}
+
+void  device_run()
+{
+    xTaskCreate(device_main_tsk, TSK_NAME, DEVICE_TSK_STACK_SIZE, NULL, 3, &_device.handle);
+}
+
+void device_main_tsk(void * parm)
+{
+    EventBits_t uxBits;
+    const EventBits_t uxBitsToWaitFor = (DEVICE_REQ_REBOOT_BIT | DEVICE_REQ_RECOVERY_FACTORY_BIT);
+
+    ESP_LOGI( TAG, "Start mDNS." );
+    mdns_start();
+    ESP_LOGI( TAG, "Start Wifi Task." );
+    wifi_tsk_start();
+    ESP_LOGI( TAG, "Start WSS Task." );
+    wss_tsk_start();
+    while (1) {
+        uxBits = xEventGroupWaitBits( _device.event_group, uxBitsToWaitFor, true, false, pdMS_TO_TICKS(1000) ); 
+        if (uxBits & DEVICE_REQ_RECOVERY_FACTORY_BIT) {
+            ESP_LOGI( TAG, "user request recovery factory." );
+            break;
+        } 
+        
+        if (uxBits & DEVICE_REQ_REBOOT_BIT) {
+            ESP_LOGI( TAG, "user request reboot." );
+            break;
+        } 
+    }
+    vTaskDelay(pdMS_TO_TICKS(2000));
+    ESP_LOGI( TAG, "Stop WSS Task." );
+    wss_tsk_stop();
+    ESP_LOGI( TAG, "Deinitialise WSS Task." );
+    wss_tsk_deinit();
+    /* deInitialize mDNS */
+    ESP_LOGI( TAG, "Stop mDNS." );
+    mdns_stop();
+    /* deInitialize wifi */
+    ESP_LOGI( TAG, "Stop Wifi Task." );
+    wifi_tsk_stop();
+    ESP_LOGI( TAG, "Deinitialise Wifi Task." );
+    wifi_tsk_deinit();
+    /* deInitialize storage */
+    ESP_LOGI( TAG, "Deinitialise Storage Task." );
+    storage_deinit();
+    ESP_LOGI( TAG, "Device reboot." );
+    esp_restart();
+    vTaskDelete(NULL);
+    _device.handle = NULL;
+}
+
+
