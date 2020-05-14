@@ -5,6 +5,10 @@
 #include <freertos/task.h>
 #include <freertos/queue.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct {
     xTaskHandle     serverTsk;
     xTaskHandle     handleTsk;
@@ -16,4 +20,7 @@ void wss_tsk_deinit();
 void wss_tsk_start();
 void wss_tsk_stop();
 
+#ifdef __cplusplus
+}
+#endif
 #endif

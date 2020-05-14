@@ -1,5 +1,7 @@
 #include <stdio.h>
+#include <string.h>
 #include <mdns.h>
+#include <esp_heap_caps.h>
 #include <esp_log.h>
 #include "device.h"
 #include "storage.h"
@@ -29,6 +31,20 @@ const char* device_hostname()
 const wifi_config_t* device_wificonf()
 {
     return &_device.wificonf; 
+}
+
+void device_save_wificonf(const wifi_config_t* conf)
+{
+    if (0 == memcmp(&_device.wificonf, conf, sizeof(wifi_config_t))) {
+        return;
+    }
+    memcpy(&_device.wificonf, conf, sizeof(wifi_config_t));
+    storage_write_wificonf(&_device.wificonf);
+}
+
+void device_set_event(const EventBits_t uxBitsToSet)
+{
+    xEventGroupSetBits(_device.event_group, uxBitsToSet);
 }
 
 void mdns_start()
@@ -73,6 +89,7 @@ void  device_run()
 
 void device_main_tsk(void * parm)
 {
+    size_t freeHeapSize;
     EventBits_t uxBits;
     const EventBits_t uxBitsToWaitFor = (DEVICE_REQ_REBOOT_BIT | DEVICE_REQ_RECOVERY_FACTORY_BIT);
 
@@ -88,11 +105,13 @@ void device_main_tsk(void * parm)
             ESP_LOGI( TAG, "user request recovery factory." );
             break;
         } 
-        
         if (uxBits & DEVICE_REQ_REBOOT_BIT) {
             ESP_LOGI( TAG, "user request reboot." );
             break;
         } 
+
+        freeHeapSize = heap_caps_get_free_size(MALLOC_CAP_8BIT);
+        ESP_LOGI( TAG, "heap free size %zu.", freeHeapSize );
     }
     vTaskDelay(pdMS_TO_TICKS(2000));
     ESP_LOGI( TAG, "Stop WSS Task." );
@@ -112,8 +131,8 @@ void device_main_tsk(void * parm)
     storage_deinit();
     ESP_LOGI( TAG, "Device reboot." );
     esp_restart();
-    vTaskDelete(NULL);
     _device.handle = NULL;
+    vTaskDelete(NULL);
 }
 
 

@@ -28,6 +28,8 @@ void  device_run();
 const esp_app_desc_t* device_appdesc();
 const char*           device_hostname();
 const wifi_config_t*  device_wificonf();
+void device_save_wificonf(const wifi_config_t* conf);
+void device_set_event(const EventBits_t uxBitsToSet);
 
 #ifdef __cplusplus
 }

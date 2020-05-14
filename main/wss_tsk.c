@@ -1,8 +1,10 @@
 #include <string.h>
 #include <esp_log.h>
 #include <lwip/api.h>
+#include <cJSON.h>
 #include "websocket_server.h"
 #include "wss_tsk.h"
+#include "wss_cmd_handle.h"
 
 #define TAG                         "WSS"
 #define TSK_NAME                     TAG
@@ -72,8 +74,8 @@ void wss_server_tsk(void * parm)
     }
     netconn_close(conn);
     netconn_delete(conn);
-    vTaskDelete(NULL);
     _wss_tsk.serverTsk = NULL;
+    vTaskDelete(NULL);
 }
 
 void wss_handle_tsk(void* parm) 
@@ -118,36 +120,105 @@ void wss_handle_tsk(void* parm)
             netbuf_delete( inbuf ); 
         }
     }
-    vTaskDelete(NULL);
     _wss_tsk.handleTsk = NULL;
+    vTaskDelete(NULL);
 }
 
 void wss_callback(uint8_t num, WEBSOCKET_TYPE_t type, char* msg, uint64_t len) 
 {
-  switch(type) {
+    cJSON *request, *respone, *item;
+    wss_respond_code_t code = wss_respond_code_ok;
+    uint32_t cmd = 0;
+    char *out = NULL, *token = NULL;
+
+    switch(type) {
     case WEBSOCKET_CONNECT:
         ESP_LOGI(TAG, "client %i connected!", num);
-        break;
+        return;
     case WEBSOCKET_DISCONNECT_EXTERNAL:
         ESP_LOGI(TAG, "client %i sent a disconnect message", num);
-        break;
+        return;
     case WEBSOCKET_DISCONNECT_INTERNAL:
         ESP_LOGI(TAG, "client %i was disconnected", num);
-        break;
+        return;
     case WEBSOCKET_DISCONNECT_ERROR:
         ESP_LOGI(TAG, "client %i was disconnected due to an error", num);
-        break;
+        return;
     case WEBSOCKET_TEXT:
-        ESP_LOGI(TAG, "client %i sent test message of size %i:\n%s",num, (uint32_t)len, msg);
+        ESP_LOGI(TAG, "client %i sent message of size %i:\n%s", num, (uint32_t)len, msg);
         break;
     case WEBSOCKET_BIN:
-        ESP_LOGI(TAG, "client %i sent binary message of size %i:\n%s",num, (uint32_t)len, msg);
-        break;
+        ESP_LOGI(TAG, "client %i sent binary message of size %i", num, (uint32_t)len);
+        return;
     case WEBSOCKET_PING:
-        ESP_LOGI(TAG, "client %i pinged us with message of size %i:\n%s",num, (uint32_t)len, msg);
-        break;
+        ESP_LOGI(TAG, "client %i pinged us with message of size %i", num, (uint32_t)len);
+        return;
     case WEBSOCKET_PONG:
         ESP_LOGI(TAG,"client %i responded to the ping",num);
+        return;
+    }
+
+    msg[len] = 0;
+    respone = cJSON_CreateObject();
+    request = cJSON_Parse( msg );
+    if ( !request ) {
+        ESP_LOGI(TAG, "parse client %i sent message failure", num); 
+        code = wss_respond_code_invalid_format;
+    } else {
+        item = cJSON_GetObjectItem( request, "cmd" );
+        if ( !cJSON_IsNumber(item) ) {
+            ESP_LOGI(TAG, "get client %i sent message cmd failure", num); 
+            code = wss_respond_code_invalid_cmd;
+        } else {
+            cmd = item->valueint;
+        }
+        item = cJSON_GetObjectItem( request, "token" );
+        if (!cJSON_IsString(item)) {
+            ESP_LOGI(TAG, "parse client %i sent message token failure", num); 
+            code = wss_respond_code_invalid_token;
+        } else {
+            token = item->valuestring;
+        }
+    }
+
+    if (wss_respond_code_ok != code) {
+        goto send_respond;
+    }
+    switch (cmd)
+    {
+    case wss_cmd_r_devinfo:
+        code = read_devinfo_handle(request, respone);
         break;
-  }
+    case wss_cmd_r_devtime:
+        code = read_devtime_handle(request, respone);
+        break;
+    case wss_cmd_w_devtime:
+        code = write_devtime_handle(request, respone);
+        break;
+    case wss_cmd_w_devnetwork:
+        code = write_devnetwork_handle(request, respone);
+        break;
+    case wss_cmd_e_dev_reboot:
+        code = exec_reboot_handle(request, respone);
+        break;
+    case wss_cmd_e_dev_recovery:
+        code = exec_recovery_factory_handle(request, respone);
+        break;
+    case wss_cmd_e_ledtemporary:
+        code = exec_ledtemporary_handler(request, respone);
+        break;
+    default:
+        code = wss_respond_code_invalid_cmd;
+        break;
+    }
+
+send_respond:    
+    cJSON_AddNumberToObject(respone, "cmd",   cmd);
+    cJSON_AddStringToObject(respone, "token", token);
+    cJSON_AddNumberToObject(respone, "code",  code);
+    out = cJSON_PrintUnformatted(respone);
+    cJSON_Delete(request);
+    cJSON_Delete(respone);
+    ws_server_send_text_client_from_callback( num, out, strlen(out));
+    cJSON_free(out);
 }

@@ -51,11 +51,10 @@ void wifi_tsk_start()
 
 void wifi_tsk_stop()
 {
-    if (!_wifiTsk.handle) {
-        return;
+    if (_wifiTsk.handle) {
+        vTaskDelete(_wifiTsk.handle);
+        _wifiTsk.handle = NULL; 
     }
-	vTaskDelete(_wifiTsk.handle);
-    _wifiTsk.handle = NULL;
     wifi_stop();
 }
 
@@ -148,7 +147,7 @@ void wifi_tsk(void * parm)
         wifi_stop();
         wifi_start_ap( device_hostname(), WIFI_AP_DEFAULT_PASSWORD );  
     }
-exit:    
+exit:
+   _wifiTsk.handle = NULL;    
     vTaskDelete(NULL);
-    _wifiTsk.handle = NULL;
 }

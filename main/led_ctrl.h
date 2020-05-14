@@ -1,5 +1,5 @@
-#ifndef _APP_CONTROL_H
-#define _APP_CONTROL_H
+#ifndef _LED_CTRL_H
+#define _LED_CTRL_H
 
 enum {
     LED_CHL_WHITE = 0x00,

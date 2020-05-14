@@ -101,9 +101,9 @@ void storage_write_wificonf(const wifi_config_t *conf)
     if (ESP_OK != err) {
         ESP_LOGW( TAG, "%s Error (%s) wifi_ssid!\n", __FUNCTION__, esp_err_to_name(err));
     }
-    err = nvs_set_blob(handle, "wifi_passwd", conf->sta.password, sizeof(conf->sta.password));
+    err = nvs_set_blob(handle, "wifi_pwd", conf->sta.password, sizeof(conf->sta.password));
     if (ESP_OK != err) {
-        ESP_LOGW( TAG, "%s Error (%s) wifi_passwd!\n", __FUNCTION__, esp_err_to_name(err));
+        ESP_LOGW( TAG, "%s Error (%s) wifi_pwd!\n", __FUNCTION__, esp_err_to_name(err));
     }
     err = nvs_set_u8(handle, "wifi_bssid_set", conf->sta.bssid_set);
     if (ESP_OK != err) {
@@ -117,6 +117,7 @@ void storage_write_wificonf(const wifi_config_t *conf)
     if (ESP_OK != err) {
         ESP_LOGW( TAG, "%s Error (%s) nvs_commit!\n", __FUNCTION__, esp_err_to_name(err));
     }
+    ESP_ERROR_CHECK( nvs_commit(handle) );
     nvs_close(handle);
     return;  
 }
