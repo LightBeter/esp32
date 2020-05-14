@@ -70,14 +70,14 @@ void device_init()
     storage_read_appdesc(&_device.appdesc);
     /* Initialize wifi configure */
     storage_read_wificonf(&_device.wificonf);
-    /* Initialize hostname */
-    uint8_t mac[6];
-    esp_wifi_get_mac( ESP_IF_WIFI_AP , mac );
-    sprintf( _device.hostname, "ESP32_%02X%02X%02X", mac[3], mac[4], mac[5] );
     /* Initialize Wifi Tsk */
     wifi_tsk_init();
     /* Initialize WSS Tsk */
     wss_tsk_init();
+    /* Initialize hostname */
+    uint8_t mac[6];
+    ESP_ERROR_CHECK( esp_wifi_get_mac(ESP_IF_WIFI_AP , mac) );
+    sprintf( _device.hostname, "ESP32_%02X%02X%02X", mac[3], mac[4], mac[5] );
     /* device event group */
     _device.event_group = xEventGroupCreate();
 }
