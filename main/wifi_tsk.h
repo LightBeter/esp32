@@ -18,10 +18,11 @@ typedef enum {
 
 typedef struct {
     xTaskHandle         handle;
+    bool                isConnect;
     wifi_tsk_state      state;
-    wifi_init_config_t  initconf;
+    wifi_init_config_t  initConf;
     wifi_config_t       conf;
-    EventGroupHandle_t  event_group;
+    EventGroupHandle_t  eventGroup;  
 } wifi_tsk_type;
 
 void wifi_tsk_init();

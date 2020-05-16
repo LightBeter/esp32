@@ -5,6 +5,7 @@
 #include <esp_log.h>
 #include "device.h"
 #include "storage.h"
+#include "datetime.h"
 #include "wifi_tsk.h"
 #include "wss_tsk.h"
 
@@ -70,6 +71,8 @@ void device_init()
     storage_read_appdesc(&_device.appdesc);
     /* Initialize wifi configure */
     storage_read_wificonf(&_device.wificonf);
+    /* Initialize datetime */
+    datetime_init();
     /* Initialize Wifi Tsk */
     wifi_tsk_init();
     /* Initialize WSS Tsk */
@@ -126,8 +129,11 @@ void device_main_tsk(void * parm)
     wifi_tsk_stop();
     ESP_LOGI( TAG, "Deinitialise Wifi Task." );
     wifi_tsk_deinit();
+    /* deInitialize datetime */
+    ESP_LOGI( TAG, "Deinitialise datetime." );
+    datetime_deinit();
     /* deInitialize storage */
-    ESP_LOGI( TAG, "Deinitialise Storage Task." );
+    ESP_LOGI( TAG, "Deinitialise Storage." );
     storage_deinit();
     ESP_LOGI( TAG, "Device reboot." );
     esp_restart();

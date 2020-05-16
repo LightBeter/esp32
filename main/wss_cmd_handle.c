@@ -3,6 +3,7 @@
 #include "wss_cmd_handle.h"
 #include "wss_tsk.h"
 #include "device.h"
+#include "datetime.h"
 #include "led_ctrl.h"
 
 #define TAG        "WSS_HANDLE"
@@ -27,8 +28,6 @@ wss_respond_code_t read_devtime_handle(cJSON *request, cJSON *respone)
 
 wss_respond_code_t write_devtime_handle(cJSON *request, cJSON *respone)
 {
-    struct  timeval  tv = { 0, 0 };
-    struct  timezone tz = { 0, 0 };
     cJSON *utc, *zone;
 
     utc = cJSON_GetObjectItem(request, "utc");
@@ -41,9 +40,7 @@ wss_respond_code_t write_devtime_handle(cJSON *request, cJSON *respone)
         ESP_LOGI(TAG, "%s invalid zone.", __FUNCTION__);
         return wss_respond_code_invalid_param;
     } 
-    tv.tv_sec = utc->valuedouble;
-    tz.tz_minuteswest = -(zone->valuedouble * 60);
-    settimeofday(&tv, &tz);
+    datetime_set( utc->valuedouble, zone->valuedouble );
     return wss_respond_code_ok;
 }
 

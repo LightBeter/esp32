@@ -5,8 +5,9 @@
 #include <esp_log.h>
 #include "storage.h"
 
-#define TAG                         "app_storage"
+#define TAG                         "storage"
 #define NVS_WIFI_NAMESPACE          "app_wifi"
+#define NVS_TZ_DEFAILT              (-8)
 
 #ifdef __cplusplus
 extern "C" {
@@ -113,13 +114,46 @@ void storage_write_wificonf(const wifi_config_t *conf)
     if (ESP_OK != err) {
         ESP_LOGW( TAG, "%s Error (%s) wifi_bssid!\n", __FUNCTION__, esp_err_to_name(err));
     }
-    err = nvs_commit(handle);
-    if (ESP_OK != err) {
-        ESP_LOGW( TAG, "%s Error (%s) nvs_commit!\n", __FUNCTION__, esp_err_to_name(err));
-    }
     ESP_ERROR_CHECK( nvs_commit(handle) );
     nvs_close(handle);
     return;  
+}
+
+void storage_read_tz(int *tz)
+{
+    esp_err_t err;
+    nvs_handle handle;
+
+    err = nvs_open(NVS_WIFI_NAMESPACE, NVS_READONLY, &handle);
+    if (err != ESP_OK) {
+        ESP_LOGW( TAG, "%s Error (%s) opening NVS handle!\n", __FUNCTION__, esp_err_to_name(err));
+        return;
+    }
+    err = nvs_get_i32(handle, "time_tz", tz);
+    if (ESP_OK != err) {
+        ESP_LOGW( TAG, "%s Error (%s) time_tz!\n", __FUNCTION__, esp_err_to_name(err));
+        *tz = NVS_TZ_DEFAILT;
+    } 
+    nvs_close(handle);
+    return;
+}
+
+void storage_write_tz(int tz)
+{
+    esp_err_t err;
+    nvs_handle handle;
+    
+    err = nvs_open(NVS_WIFI_NAMESPACE, NVS_READWRITE, &handle);
+    if (err != ESP_OK) {
+        ESP_LOGW( TAG, "%s Error (%s) opening NVS handle!\n", __FUNCTION__, esp_err_to_name(err));
+        return;
+    }
+    err = nvs_set_i32(handle, "time_tz", tz);
+    if (ESP_OK != err) {
+        ESP_LOGW( TAG, "%s Error (%s) time_tz!\n", __FUNCTION__, esp_err_to_name(err));
+    } 
+    ESP_ERROR_CHECK( nvs_commit(handle) );
+    nvs_close(handle);
 }
 
 #ifdef __cplusplus

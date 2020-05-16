@@ -13,6 +13,8 @@ void storage_deinit();
 void storage_read_appdesc(esp_app_desc_t *app_info);
 void storage_read_wificonf(wifi_config_t *conf);
 void storage_write_wificonf(const wifi_config_t *conf);
+void storage_read_tz(int *tz);
+void storage_write_tz(int tz);
 
 #ifdef __cplusplus
 }
