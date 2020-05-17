@@ -8,6 +8,7 @@
 #include "datetime.h"
 #include "wifi_tsk.h"
 #include "wss_tsk.h"
+#include "temp_ctrl_tsk.h"
 
 #define TAG                     "Device"
 #define TSK_NAME                 "DeviceTsk"
@@ -73,10 +74,12 @@ void device_init()
     storage_read_wificonf(&_device.wificonf);
     /* Initialize datetime */
     datetime_init();
-    /* Initialize Wifi Tsk */
+    /* Initialize Wifi Task */
     wifi_tsk_init();
-    /* Initialize WSS Tsk */
+    /* Initialize WSS Task */
     wss_tsk_init();
+    /* Initialize Temperature Control Task */
+    temp_ctrl_tsk_init();
     /* Initialize hostname */
     uint8_t mac[6];
     ESP_ERROR_CHECK( esp_wifi_get_mac(ESP_IF_WIFI_AP , mac) );
@@ -95,13 +98,16 @@ void device_main_tsk(void * parm)
     size_t freeHeapSize;
     EventBits_t uxBits;
     const EventBits_t uxBitsToWaitFor = (DEVICE_REQ_REBOOT_BIT | DEVICE_REQ_RECOVERY_FACTORY_BIT);
-
+    /* Start Task */
     ESP_LOGI( TAG, "Start mDNS." );
     mdns_start();
+    ESP_LOGI( TAG, "Start Temperature Control Task." );
+    temp_ctrl_tsk_start();
     ESP_LOGI( TAG, "Start Wifi Task." );
     wifi_tsk_start();
-    ESP_LOGI( TAG, "Start WSS Task." );
+    ESP_LOGI( TAG, "Start Websocket Task." );
     wss_tsk_start();
+
     while (1) {
         uxBits = xEventGroupWaitBits( _device.event_group, uxBitsToWaitFor, true, false, pdMS_TO_TICKS(1000) ); 
         if (uxBits & DEVICE_REQ_RECOVERY_FACTORY_BIT) {
@@ -117,24 +123,27 @@ void device_main_tsk(void * parm)
         ESP_LOGI( TAG, "heap free size %zu.", freeHeapSize );
     }
     vTaskDelay(pdMS_TO_TICKS(2000));
-    ESP_LOGI( TAG, "Stop WSS Task." );
+    /* stop Task */
+    ESP_LOGI( TAG, "Stop Websocket Task." );
     wss_tsk_stop();
-    ESP_LOGI( TAG, "Deinitialise WSS Task." );
-    wss_tsk_deinit();
-    /* deInitialize mDNS */
-    ESP_LOGI( TAG, "Stop mDNS." );
-    mdns_stop();
-    /* deInitialize wifi */
     ESP_LOGI( TAG, "Stop Wifi Task." );
     wifi_tsk_stop();
+    ESP_LOGI( TAG, "Stop Temperature Control Task." );
+    temp_ctrl_tsk_stop();
+    ESP_LOGI( TAG, "Stop mDNS." );
+    mdns_stop();
+    /* deInitialize */
+    ESP_LOGI( TAG, "Deinitialise Websocket Task." );
+    wss_tsk_deinit();
     ESP_LOGI( TAG, "Deinitialise Wifi Task." );
     wifi_tsk_deinit();
-    /* deInitialize datetime */
+    ESP_LOGI( TAG, "Deinitialise Temperature Control Task." );
+    temp_ctrl_tsk_deinit();
     ESP_LOGI( TAG, "Deinitialise datetime." );
     datetime_deinit();
-    /* deInitialize storage */
     ESP_LOGI( TAG, "Deinitialise Storage." );
     storage_deinit();
+    /* reboot */
     ESP_LOGI( TAG, "Device reboot." );
     esp_restart();
     _device.handle = NULL;
