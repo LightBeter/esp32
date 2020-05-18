@@ -120,7 +120,7 @@ void device_main_tsk(void * parm)
         } 
 
         freeHeapSize = heap_caps_get_free_size(MALLOC_CAP_8BIT);
-        ESP_LOGI( TAG, "heap free size %zu.", freeHeapSize );
+        //ESP_LOGI( TAG, "heap free size %zu.", freeHeapSize );
     }
     vTaskDelay(pdMS_TO_TICKS(2000));
     /* stop Task */

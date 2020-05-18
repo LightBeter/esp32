@@ -82,7 +82,7 @@ wss_respond_code_t write_devnetwork_handle(cJSON *request, cJSON *respone)
             return wss_respond_code_invalid_param;
         }
         memcpy(&conf.sta.password, item->valuestring, len);
-    } else if (WIFI_MODE_STA == mode) {
+    } else if (WIFI_MODE_AP == mode) {
         /* nothing to do */
     } else {
         ESP_LOGI(TAG, "%s invalid mode %d.", __FUNCTION__, mode);

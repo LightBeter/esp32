@@ -117,7 +117,7 @@ void temp_ctrl_tsk(void * parm)
         } else if (voltage <= TEMP_CTRL_FAN_CLOSE_LIMIT) {
             gpio_set_level(TEMP_CTRL_FAN_CHL, TEMP_CTRL_FAN_CLOSE_LEVEL);
         }
-        ESP_LOGI( TAG, "voltage %u",  voltage);
+        //ESP_LOGI( TAG, "voltage %u",  voltage);
 next:        
         vTaskDelay(pdMS_TO_TICKS(TEMP_CTRL_SAMPLE_INTERVAL));
     }
