@@ -2,7 +2,6 @@
 #include <esp_log.h>
 #include <lwip/api.h>
 #include <cJSON.h>
-#include "websocket_server.h"
 #include "wss_tsk.h"
 #include "wss_cmd_handle.h"
 
@@ -10,20 +9,31 @@
 #define TSK_NAME                     TAG
 #define WS_SERVER_TSK_STACK_SIZE     3072
 #define WS_HANDLE_TSK_STACK_SIZE     4096
-#define WS_CLIENTS_QUEUE_SIZE        10 
+#define WS_CLIENT_QUEUE_SIZE         10 
+#define WS_CLIENT_LIFETIME           (30 * 1000)
 #define WS_CLIENT_RECV_TIME          1000 
 
+void wss_client_reset(int num);
 void wss_server_tsk(void * parm);
 void wss_handle_tsk(void * parm);
 void wss_callback(uint8_t num, WEBSOCKET_TYPE_t type, char* msg, uint64_t len);
 
 wss_tsk_type _wss_tsk;
 
+void wss_client_reset(int num)
+{
+    _wss_tsk.clients[num].valid = false;
+    _wss_tsk.clients[num].lifetime = 0;  
+}
+
 void wss_tsk_init()
 {
     _wss_tsk.serverTsk = NULL;
     _wss_tsk.handleTsk = NULL;
-    _wss_tsk.clientQueue = xQueueCreate(WS_CLIENTS_QUEUE_SIZE, sizeof(struct netconn*));
+    _wss_tsk.clientQueue = xQueueCreate(WS_CLIENT_QUEUE_SIZE, sizeof(struct netconn*));
+    for(int i = 0; i < WEBSOCKET_SERVER_MAX_CLIENTS; i++) {
+        wss_client_reset(i);
+    }
 }
 
 void wss_tsk_deinit()
@@ -61,7 +71,7 @@ void wss_server_tsk(void * parm)
     err_t err;
 
     conn = netconn_new( NETCONN_TCP );
-    netconn_bind( conn, NULL,80 );
+    netconn_bind( conn, NULL, 80 );
     netconn_listen(conn);
     ESP_LOGI (TAG, "WebSocket Server Start listening" );
     while (1) {
@@ -85,12 +95,23 @@ void wss_handle_tsk(void* parm)
     char* buf;
     uint16_t buflen;
     err_t err;
+    int client_num = 0;
     bool isWebSocket;
 
     ESP_LOGI(TAG, "WebSocket Server Start handle");
     while (1) {
         client = NULL;
         xQueueReceive(_wss_tsk.clientQueue, &client, pdMS_TO_TICKS(2000));
+        if (!client) {
+            for (client_num = 0; client_num < WEBSOCKET_SERVER_MAX_CLIENTS; client_num++) {
+                if (_wss_tsk.clients[client_num].valid) {
+                    _wss_tsk.clients[client_num].lifetime -= 2000;
+                    if (_wss_tsk.clients[client_num].lifetime < 0) {
+                        ESP_LOGI( TAG, "websocket client %d lifetime timeover, remove", client_num );
+                        ws_server_remove_client(client_num); 
+                    }
+                }
+            }
             continue;
         }
 
@@ -101,8 +122,11 @@ void wss_handle_tsk(void* parm)
             netbuf_data( inbuf, (void**)&buf, &buflen );
             if(buf) {
                 if(strstr(buf,"GET / ") && strstr(buf,"Upgrade: websocket")) {
-                    ESP_LOGI(TAG,"Requesting websocket on /");
-                    if (ws_server_add_client( client, buf, buflen, "/", wss_callback) >= 0) {
+                    ESP_LOGI( TAG, "Requesting websocket on /" );
+                    client_num = ws_server_add_client( client, buf, buflen, "/", wss_callback);
+                    if (client_num >= 0) {
+                        _wss_tsk.clients[client_num].valid = true;
+                        _wss_tsk.clients[client_num].lifetime = WS_CLIENT_LIFETIME;
                         netbuf_delete(inbuf);
                         isWebSocket = true;
                     } else {
@@ -140,12 +164,15 @@ void wss_callback(uint8_t num, WEBSOCKET_TYPE_t type, char* msg, uint64_t len)
         ESP_LOGI(TAG, "client %i connected!", num);
         return;
     case WEBSOCKET_DISCONNECT_EXTERNAL:
+        wss_client_reset(num);
         ESP_LOGI(TAG, "client %i sent a disconnect message", num);
         return;
     case WEBSOCKET_DISCONNECT_INTERNAL:
+        wss_client_reset(num);
         ESP_LOGI(TAG, "client %i was disconnected", num);
         return;
     case WEBSOCKET_DISCONNECT_ERROR:
+        wss_client_reset(num);
         ESP_LOGI(TAG, "client %i was disconnected due to an error", num);
         return;
     case WEBSOCKET_TEXT:
@@ -190,6 +217,9 @@ void wss_callback(uint8_t num, WEBSOCKET_TYPE_t type, char* msg, uint64_t len)
     }
     switch (cmd)
     {
+    case wss_cmd_r_heartbeat:
+        code = wss_respond_code_ok;
+        break;
     case wss_cmd_r_devinfo:
         code = read_devinfo_handle(request, respone);
         break;
@@ -215,7 +245,7 @@ void wss_callback(uint8_t num, WEBSOCKET_TYPE_t type, char* msg, uint64_t len)
         code = wss_respond_code_invalid_cmd;
         break;
     }
-
+    _wss_tsk.clients[num].lifetime = WS_CLIENT_LIFETIME;
 send_respond:    
     cJSON_AddNumberToObject(respone, "cmd",   cmd);
     cJSON_AddStringToObject(respone, "token", token);

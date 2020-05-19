@@ -16,6 +16,7 @@ typedef enum {
 } wss_respond_code_t;
 
 enum {
+    wss_cmd_r_heartbeat = 0,
     wss_cmd_r_devinfo = 1,
     wss_cmd_r_devtime = 2,
     wss_cmd_w_devtime = 3,
