@@ -2,6 +2,7 @@
 #include <esp_ota_ops.h>
 #include <esp_partition.h>
 #include <nvs_flash.h>
+#include <esp_spiffs.h>
 #include <esp_log.h>
 #include "storage.h"
 
@@ -13,20 +14,61 @@
 extern "C" {
 #endif
 
+void spiffs_init();
+void spiffs_deinit();
+
 void storage_init()
 {
+    esp_err_t ret;
     /* Initialize NVS */
-    esp_err_t ret = nvs_flash_init();
+    ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
       ESP_ERROR_CHECK(nvs_flash_erase());
       ret = nvs_flash_init();
     }
     ESP_ERROR_CHECK(ret);
+    /* Initialize spiffs */
+    spiffs_init();
 }
 
 void storage_deinit()
 {
+    /* Deinitialize spiffs */
+    spiffs_deinit();
     ESP_ERROR_CHECK(nvs_flash_deinit());
+}
+
+void spiffs_init()
+{
+    esp_err_t ret;
+    size_t total = 0, used = 0;
+    esp_vfs_spiffs_conf_t conf = {
+      .base_path = "/spiffs",
+      .partition_label = NULL,
+      .max_files = 5,
+      .format_if_mount_failed = true
+    };
+    ret = esp_vfs_spiffs_register(&conf);
+    if (ret != ESP_OK) {
+        if (ret == ESP_FAIL) {
+            ESP_LOGE(TAG, "Failed to mount or format filesystem");
+        } else if (ret == ESP_ERR_NOT_FOUND) {
+            ESP_LOGE(TAG, "Failed to find SPIFFS partition");
+        } else {
+            ESP_LOGE(TAG, "Failed to initialize SPIFFS (%s)", esp_err_to_name(ret));
+        }
+    }
+    ret = esp_spiffs_info(NULL, &total, &used);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to get SPIFFS partition information (%s)", esp_err_to_name(ret));
+    } else {
+        ESP_LOGI(TAG, "SPIFFS Partition size: total: %d, used: %d", total, used);
+    }
+}
+void spiffs_deinit()
+{
+    esp_vfs_spiffs_unregister(NULL);
+    ESP_LOGI(TAG, "SPIFFS unmounted");
 }
 
 void storage_read_appdesc(esp_app_desc_t *app_info)

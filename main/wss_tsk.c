@@ -89,9 +89,10 @@ void wss_handle_tsk(void* parm)
 
     ESP_LOGI(TAG, "WebSocket Server Start handle");
     while (1) {
-        xQueueReceive(_wss_tsk.clientQueue, &client, portMAX_DELAY);
-        if(!client) 
+        client = NULL;
+        xQueueReceive(_wss_tsk.clientQueue, &client, pdMS_TO_TICKS(2000));
             continue;
+        }
 
         isWebSocket = false;
         netconn_set_recvtimeout( client, WS_CLIENT_RECV_TIME ); 
@@ -101,9 +102,12 @@ void wss_handle_tsk(void* parm)
             if(buf) {
                 if(strstr(buf,"GET / ") && strstr(buf,"Upgrade: websocket")) {
                     ESP_LOGI(TAG,"Requesting websocket on /");
-                    ws_server_add_client( client, buf, buflen, "/", wss_callback);
-                    netbuf_delete(inbuf);
-                    isWebSocket = true;
+                    if (ws_server_add_client( client, buf, buflen, "/", wss_callback) >= 0) {
+                        netbuf_delete(inbuf);
+                        isWebSocket = true;
+                    } else {
+                        ESP_LOGI(TAG,"ws_server_add_client failure");  
+                    }
                 } else {
                     ESP_LOGI(TAG,"Unknown request");
                 }
