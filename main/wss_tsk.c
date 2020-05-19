@@ -114,34 +114,37 @@ void wss_handle_tsk(void* parm)
             }
             continue;
         }
-
+        /* recv request head */
         isWebSocket = false;
         netconn_set_recvtimeout( client, WS_CLIENT_RECV_TIME ); 
         err = netconn_recv( client, &inbuf );
-        if( err==ERR_OK ) {
-            netbuf_data( inbuf, (void**)&buf, &buflen );
-            if(buf) {
-                if(strstr(buf,"GET / ") && strstr(buf,"Upgrade: websocket")) {
-                    ESP_LOGI( TAG, "Requesting websocket on /" );
-                    client_num = ws_server_add_client( client, buf, buflen, "/", wss_callback);
-                    if (client_num >= 0) {
-                        _wss_tsk.clients[client_num].valid = true;
-                        _wss_tsk.clients[client_num].lifetime = WS_CLIENT_LIFETIME;
-                        netbuf_delete(inbuf);
-                        isWebSocket = true;
-                    } else {
-                        ESP_LOGI(TAG,"ws_server_add_client failure");  
-                    }
-                } else {
-                    ESP_LOGI(TAG,"Unknown request");
-                }
-            } else {
-                ESP_LOGI(TAG,"Unknown request (empty?...)");
-            }
-        } else { // if err==ERR_OK
+        if (ERR_OK != err) {
             ESP_LOGI(TAG,"error on read, closing connection");
+            goto next;
         }
-    
+        buf = NULL;
+        buflen = 0;
+        netbuf_data( inbuf, (void**)&buf, &buflen );
+        if (!buf) {
+            ESP_LOGI(TAG,"Unknown request (empty?...)");
+            goto next;
+        }
+        /* match request */        
+        if(strstr(buf,"GET / ") && strstr(buf,"Upgrade: websocket")) {
+            ESP_LOGI( TAG, "Requesting websocket on /" );
+            client_num = ws_server_add_client( client, buf, buflen, "/", wss_callback);
+            if (client_num >= 0) {
+                _wss_tsk.clients[client_num].valid = true;
+                _wss_tsk.clients[client_num].lifetime = WS_CLIENT_LIFETIME;
+                netbuf_delete(inbuf);
+                isWebSocket = true;
+            } else {
+                ESP_LOGI(TAG,"ws_server_add_client failure");  
+            }
+        } else {
+            ESP_LOGI(TAG,"Unknown request");
+        }    
+next:    
         if (false == isWebSocket) {
             netconn_close( client );
             netconn_delete( client );
