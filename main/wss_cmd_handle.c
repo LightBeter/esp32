@@ -4,7 +4,7 @@
 #include "wss_tsk.h"
 #include "device.h"
 #include "datetime.h"
-#include "led_ctrl.h"
+#include "led_ctrl_tsk.h"
 
 #define TAG        "WSS_HANDLE"
 
@@ -106,43 +106,62 @@ wss_respond_code_t exec_recovery_factory_handle(cJSON *request, cJSON *respone)
     return wss_respond_code_ok; 
 }
 
-wss_respond_code_t exec_ledtemporary_handler(cJSON *request, cJSON *respone)
+wss_respond_code_t read_ledctrl_mode_handle(cJSON *request, cJSON *respone)
 {
-    cJSON *item, *pSub;
-    uint8_t chl, value[LED_CHL_COUNT], active;
+    led_ctrl_get_mode(respone);
+    return wss_respond_code_ok;
+}
 
-    /* active */
-    item = cJSON_GetObjectItem(request, "active");
-    if (!cJSON_IsNumber(item)) {
-        ESP_LOGI(TAG, "%s invalid active.", __FUNCTION__);
-        return wss_respond_code_invalid_param; 
+wss_respond_code_t read_ledctrl_current_output_handle(cJSON *request, cJSON *respone)
+{
+    led_ctrl_get_current_output(respone);
+    return wss_respond_code_ok;
+}
+
+wss_respond_code_t read_ledctrl_manual_handle(cJSON *request, cJSON *respone)
+{
+    led_ctrl_get_manual(respone);
+    return wss_respond_code_ok;
+}
+
+wss_respond_code_t read_ledctrl_schedule_handle(cJSON *request, cJSON *respone)
+{
+    led_ctrl_get_schedule(respone);
+    return wss_respond_code_ok;
+}
+
+wss_respond_code_t write_ledctrl_mode_handle(cJSON *request, cJSON *respone)
+{
+    if (true == led_ctrl_set_mode(request)) {
+        return wss_respond_code_ok;
+    } else {
+        return wss_respond_code_invalid_param;
     }
-    if (item->valueint < 1 || item->valueint > 180) {
-        ESP_LOGI(TAG, "%s invalid active %d.", __FUNCTION__, item->valueint);
-        return wss_respond_code_invalid_param; 
-    }
-    active = item->valueint;
-    /* channel */
-    item = cJSON_GetObjectItem(request, "targ");
-    if (!cJSON_IsArray(item) || cJSON_GetArraySize(item) !=  LED_CHL_COUNT) {
-        ESP_LOGI(TAG, "%s invalid targ.", __FUNCTION__);
-        return wss_respond_code_invalid_param; 
-    }
-    for (chl = 0; chl < LED_CHL_COUNT; chl++) {
-        pSub = cJSON_GetArrayItem(item, chl);
-        if(NULL == pSub ){ 
-            ESP_LOGI(TAG, "%s invalid channel %d targ failure.", __FUNCTION__, chl);
-            return wss_respond_code_invalid_param; 
-        }
-        if (!cJSON_IsNumber(pSub)) {
-            ESP_LOGI(TAG, "%s invalid channel %d targ.", __FUNCTION__, chl);
-            return wss_respond_code_invalid_param; 
-        }
-        if (pSub->valueint < 0 || pSub->valueint > 100) {
-            ESP_LOGI(TAG, "%s invalid channel %d targ %d.", __FUNCTION__, chl, item->valueint);
-            return wss_respond_code_invalid_param;  
-        }
-        value[chl] = pSub->valueint;
-    }
-    return wss_respond_code_ok; 
+}
+
+wss_respond_code_t write_ledctrl_demo_output_handle(cJSON *request, cJSON *respone)
+{
+    if (true == led_ctrl_set_demo(request)) {
+        return wss_respond_code_ok;
+    } else {
+        return wss_respond_code_invalid_param;
+    }  
+}
+
+wss_respond_code_t write_ledctrl_manual_handle(cJSON *request, cJSON *respone)
+{
+    if (true == led_ctrl_set_manual(request)) {
+        return wss_respond_code_ok;
+    } else {
+        return wss_respond_code_invalid_param;
+    }  
+}
+
+wss_respond_code_t write_ledctrl_schedule_handle(cJSON *request, cJSON *respone)
+{
+    if (true == led_ctrl_set_schedule(request)) {
+        return wss_respond_code_ok;
+    } else {
+        return wss_respond_code_invalid_param;
+    } 
 }

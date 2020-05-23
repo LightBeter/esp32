@@ -9,6 +9,7 @@
 #include "wifi_tsk.h"
 #include "wss_tsk.h"
 #include "temp_ctrl_tsk.h"
+#include "led_ctrl_tsk.h"
 
 #define TAG                     "Device"
 #define TSK_NAME                 "DeviceTsk"
@@ -80,6 +81,8 @@ void device_init()
     wss_tsk_init();
     /* Initialize Temperature Control Task */
     temp_ctrl_tsk_init();
+    /* Initialize Led Control Task */
+    led_ctrl_tsk_init();
     /* Initialize hostname */
     uint8_t mac[6];
     ESP_ERROR_CHECK( esp_wifi_get_mac(ESP_IF_WIFI_AP , mac) );
@@ -103,6 +106,8 @@ void device_main_tsk(void * parm)
     mdns_start();
     ESP_LOGI( TAG, "Start Temperature Control Task." );
     temp_ctrl_tsk_start();
+    ESP_LOGI( TAG, "Start Led Control Task." );
+    led_ctrl_tsk_start();
     ESP_LOGI( TAG, "Start Wifi Task." );
     wifi_tsk_start();
     ESP_LOGI( TAG, "Start Websocket Task." );
@@ -128,6 +133,8 @@ void device_main_tsk(void * parm)
     wss_tsk_stop();
     ESP_LOGI( TAG, "Stop Wifi Task." );
     wifi_tsk_stop();
+    ESP_LOGI( TAG, "Stop Led Control Task." );
+    led_ctrl_tsk_stop();
     ESP_LOGI( TAG, "Stop Temperature Control Task." );
     temp_ctrl_tsk_stop();
     ESP_LOGI( TAG, "Stop mDNS." );
@@ -137,6 +144,8 @@ void device_main_tsk(void * parm)
     wss_tsk_deinit();
     ESP_LOGI( TAG, "Deinitialise Wifi Task." );
     wifi_tsk_deinit();
+    ESP_LOGI( TAG, "Deinitialise Led Control Task." );
+    led_ctrl_tsk_deinit();
     ESP_LOGI( TAG, "Deinitialise Temperature Control Task." );
     temp_ctrl_tsk_deinit();
     ESP_LOGI( TAG, "Deinitialise datetime." );

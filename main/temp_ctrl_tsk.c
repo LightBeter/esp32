@@ -8,7 +8,7 @@
 
 #define TAG                         "TempCtrlTsk"
 #define TSK_NAME                    TAG
-#define TEMP_CTRL_TSK_STACK_SIZE    2048
+#define TSK_STACK_SIZE              2048
 #define TEMP_CTRL_SAMPLE_INTERVAL   20
 #define TEMP_CTRL_INTERVAL          (1000 / TEMP_CTRL_SAMPLE_INTERVAL)
 
@@ -59,7 +59,7 @@ void temp_ctrl_tsk_deinit()
 void temp_ctrl_tsk_start()
 {
     if (!_tempCtrlTsk.handle) {
-        xTaskCreate(temp_ctrl_tsk, TAG, TEMP_CTRL_TSK_STACK_SIZE, NULL, 3, &_tempCtrlTsk.handle);
+        xTaskCreate(temp_ctrl_tsk, TSK_NAME, TSK_STACK_SIZE, NULL, 3, &_tempCtrlTsk.handle);
     }
 }
 
@@ -69,6 +69,7 @@ void temp_ctrl_tsk_stop()
         vTaskDelete(_tempCtrlTsk.handle);
         _tempCtrlTsk.handle = NULL; 
     }
+    gpio_set_level(TEMP_CTRL_FAN_CHL, TEMP_CTRL_FAN_CLOSE_LEVEL);
 }
 
 void temp_ctrl_tsk(void * parm)

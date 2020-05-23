@@ -7,8 +7,8 @@
 
 #define TAG                         "WSS"
 #define TSK_NAME                     TAG
-#define WS_SERVER_TSK_STACK_SIZE     3072
-#define WS_HANDLE_TSK_STACK_SIZE     4096
+#define SERVER_TSK_STACK_SIZE       3072
+#define HANDLE_TSK_STACK_SIZE       4096
 #define WS_CLIENT_QUEUE_SIZE         10 
 #define WS_CLIENT_LIFETIME           (30 * 1000)
 #define WS_CLIENT_RECV_TIME          1000 
@@ -44,10 +44,10 @@ void wss_tsk_deinit()
 void wss_tsk_start()
 {
     if (!_wss_tsk.serverTsk) {
-        xTaskCreate(wss_server_tsk, "ws_server_tsk", WS_SERVER_TSK_STACK_SIZE, NULL, 3, &_wss_tsk.serverTsk);
+        xTaskCreate(wss_server_tsk, "ws_server_tsk", SERVER_TSK_STACK_SIZE, NULL, 3, &_wss_tsk.serverTsk);
     }
     if (!_wss_tsk.handleTsk) {
-        xTaskCreate(wss_handle_tsk, "ws_handle_tsk", WS_HANDLE_TSK_STACK_SIZE, NULL, 3, &_wss_tsk.handleTsk);
+        xTaskCreate(wss_handle_tsk, "ws_handle_tsk", HANDLE_TSK_STACK_SIZE, NULL, 3, &_wss_tsk.handleTsk);
     }
     ws_server_start();
 }
@@ -218,8 +218,7 @@ void wss_callback(uint8_t num, WEBSOCKET_TYPE_t type, char* msg, uint64_t len)
     if (wss_respond_code_ok != code) {
         goto send_respond;
     }
-    switch (cmd)
-    {
+    switch (cmd) {
     case wss_cmd_r_heartbeat:
         code = wss_respond_code_ok;
         break;
@@ -241,9 +240,30 @@ void wss_callback(uint8_t num, WEBSOCKET_TYPE_t type, char* msg, uint64_t len)
     case wss_cmd_e_dev_recovery:
         code = exec_recovery_factory_handle(request, respone);
         break;
-    case wss_cmd_e_ledtemporary:
-        code = exec_ledtemporary_handler(request, respone);
+    case wss_cmd_r_ledctrl_mode:
+        code = read_ledctrl_mode_handle(request, respone);
         break;
+    case wss_cmd_w_ledctrl_mode:
+        code = write_ledctrl_mode_handle(request, respone);
+        break;
+    case wss_cmd_r_ledctrl_current_output:
+        code = read_ledctrl_current_output_handle(request, respone);
+        break;
+    case wss_cmd_w_ledctrl_demo_output:
+        code = write_ledctrl_demo_output_handle(request, respone);
+        break;  
+    case wss_cmd_r_ledctrl_manual:
+        code = read_ledctrl_manual_handle(request, respone);
+        break;  
+    case wss_cmd_w_ledctrl_manual:
+        code = write_ledctrl_manual_handle(request, respone);
+        break;
+    case wss_cmd_r_ledctrl_schedule:
+        code = read_ledctrl_schedule_handle(request, respone);
+        break;  
+    case wss_cmd_w_ledctrl_schedule:
+        code = write_ledctrl_schedule_handle(request, respone);
+        break;       
     default:
         code = wss_respond_code_invalid_cmd;
         break;

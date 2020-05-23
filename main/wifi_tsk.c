@@ -12,7 +12,7 @@
 
 #define TAG                         "WifiTsk"
 #define TSK_NAME                    TAG
-#define WIFI_TSK_STACK_SIZE         3072
+#define TSK_STACK_SIZE              3072
 #define WIFI_AP_DEFAULT_PASSWORD    "00000000"
 #define WIFI_AP_MAX_STA_CONN        4
 
@@ -48,7 +48,7 @@ void wifi_tsk_deinit()
 void wifi_tsk_start()
 {
     if (!_wifiTsk.handle) {
-        xTaskCreate(wifi_tsk, TAG, WIFI_TSK_STACK_SIZE, NULL, 3, &_wifiTsk.handle);
+        xTaskCreate(wifi_tsk, TAG, TSK_STACK_SIZE, NULL, 3, &_wifiTsk.handle);
     }
 }
 
