@@ -50,7 +50,7 @@ void datetime_set(time_t t, int tz)
 {
     struct  timeval  tv = { 0, 0 };
     char str_buf[64];
-	struct tm tm;
+	struct tm *tm;
     /* update datatime */
     tv.tv_sec = t;
     tv.tv_usec = 0;
@@ -64,9 +64,8 @@ void datetime_set(time_t t, int tz)
     /* save timezone */
     storage_write_tz(tz);
     /* output new datetime */
-    gmtime_r(&t, &tm);
-    strftime(str_buf, sizeof(str_buf), "%c", &tm);
-    ESP_LOGI( TAG, "%s: set new date/time %s", __FUNCTION__, str_buf );
+    tm = localtime(&t);
+    ESP_LOGI( TAG, "%s: set new date/time %s, tz %d", __FUNCTION__, asctime(tm), tz );
 }
 
 void datetime_sntp_init()
@@ -88,13 +87,12 @@ void datetime_sntp_stop()
 
 void sntp_sync_cb(struct timeval *tv) 
 {
-    struct tm timeinfo;
-    char strftime_buf[64];
-    _datetime.sync.doneTime = tv->tv_sec;
+    struct tm *tm;
+    time_t  t = tv->tv_sec;
+    _datetime.sync.doneTime = t;
     _datetime.sync.reqTime = 0;
-    localtime_r(&tv->tv_sec, &timeinfo);
-    strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
-    ESP_LOGI(TAG, "sntp complete, New York date/time is: %s", strftime_buf);
+    tm = localtime(&t);
+    ESP_LOGI(TAG, "sntp complete, New York date/time is: %s", asctime(tm));
 }
 
 void datetime_sync_sntp()

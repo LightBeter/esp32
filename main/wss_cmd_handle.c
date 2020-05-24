@@ -22,7 +22,7 @@ wss_respond_code_t read_devtime_handle(cJSON *request, cJSON *respone)
     struct  timezone tz;
     gettimeofday(&tv, &tz);
     cJSON_AddNumberToObject(respone, "utc", tv.tv_sec);
-    cJSON_AddNumberToObject(respone, "zone", (-tz.tz_minuteswest / 60));
+    cJSON_AddNumberToObject(respone, "tz", (-tz.tz_minuteswest / 60));
     return wss_respond_code_ok;
 }
 
@@ -35,9 +35,9 @@ wss_respond_code_t write_devtime_handle(cJSON *request, cJSON *respone)
         ESP_LOGI(TAG, "%s invalid utc.", __FUNCTION__);
         return wss_respond_code_invalid_param;
     } 
-    zone = cJSON_GetObjectItem(request, "zone");
+    zone = cJSON_GetObjectItem(request, "tz");
     if (!cJSON_IsNumber(zone)) {
-        ESP_LOGI(TAG, "%s invalid zone.", __FUNCTION__);
+        ESP_LOGI(TAG, "%s invalid timezone.", __FUNCTION__);
         return wss_respond_code_invalid_param;
     } 
     datetime_set( utc->valuedouble, zone->valuedouble );

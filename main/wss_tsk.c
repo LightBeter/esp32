@@ -269,9 +269,9 @@ void wss_callback(uint8_t num, WEBSOCKET_TYPE_t type, char* msg, uint64_t len)
         break;
     }
     _wss_tsk.clients[num].lifetime = WS_CLIENT_LIFETIME;
-send_respond:    
+send_respond: 
+    cJSON_AddStringToObject(respone, "token", token);   
     cJSON_AddNumberToObject(respone, "cmd",   cmd);
-    cJSON_AddStringToObject(respone, "token", token);
     cJSON_AddNumberToObject(respone, "code",  code);
     out = cJSON_PrintUnformatted(respone);
     cJSON_Delete(request);

@@ -75,14 +75,14 @@ void led_ctrl_read_config(led_ctrl_mode_t *mode, led_value_t *manual, led_ctrl_s
     FILE* file;
     int index, chl;
 
-    file = fopen("/spiffs/config.json", "r");
+    file = fopen("/spiffs/config.json", "rb");
     if (file == NULL) {
         ESP_LOGE(TAG, "Failed to open file for read");
-        return;
+        goto default_handle;
     }
     /* mode */
     ret = fread( mode, sizeof(led_ctrl_mode_t), 1, file);
-    if (ret != 1 || is_vaild_mode(*mode)) {
+    if (ret != 1 || !is_vaild_mode(*mode)) {
         ESP_LOGE(TAG, "Failed to read config param mode");
         goto default_handle;
     }
@@ -97,12 +97,12 @@ void led_ctrl_read_config(led_ctrl_mode_t *mode, led_value_t *manual, led_ctrl_s
             goto default_handle;
     }
     /* schedule */
-    ret = fread( schedule, sizeof(led_ctrl_sch_item_t), LED_CTRL_SCH_TIME_MAX, file);
-    if (ret != LED_CTRL_SCH_TIME_MAX) {
+    ret = fread( schedule, sizeof(led_ctrl_sch_item_t), LED_CTRL_SCH_MAX, file);
+    if (ret != LED_CTRL_SCH_MAX) {
         ESP_LOGE(TAG, "Failed to read config param schedule");
         goto default_handle;
     }
-    for (index = 0; index < LED_CTRL_SCH_TIME_MAX; index++) {
+    for (index = 0; index < LED_CTRL_SCH_MAX; index++) {
         if (!schedule[index].valid)
             continue;
         if (!is_vaild_sch_time(schedule[index].time))
@@ -115,9 +115,9 @@ void led_ctrl_read_config(led_ctrl_mode_t *mode, led_value_t *manual, led_ctrl_s
     return;
 default_handle:
     /* default manual */
-    memset(manual, 0x00, sizeof(led_value_t) * LED_CHAN_COUNT);
+    memset(manual, 50, sizeof(led_value_t) * LED_CHAN_COUNT);
     /* default schedule */
-    memset(schedule, 0x00, sizeof(led_ctrl_sch_item_t) * LED_CTRL_SCH_TIME_MAX);
+    memset(schedule, 0x00, sizeof(led_ctrl_sch_item_t) * LED_CTRL_SCH_MAX);
     schedule[0].valid = true;
     schedule[0].time  = 6 * 60;
     memset(schedule[0].targ, 0, sizeof(led_value_t) * LED_CHAN_COUNT);
@@ -132,7 +132,7 @@ default_handle:
     memset(schedule[3].targ, 0, sizeof(led_value_t)  * LED_CHAN_COUNT);
     /* default mode */
     *mode = LED_CTRL_MODE_MANUAL;
-    fclose(file);
+    if (file) fclose(file);
     return;
 }
 
@@ -159,8 +159,8 @@ void led_ctrl_write_config(led_ctrl_mode_t mode, const led_value_t *manual, cons
         goto exit;
     }
     /* schedule */
-    ret = fread( &schedule, sizeof(led_ctrl_sch_item_t), LED_CTRL_SCH_TIME_MAX, file);
-    if (ret != LED_CTRL_SCH_TIME_MAX) {
+    ret = fwrite( schedule, sizeof(led_ctrl_sch_item_t), LED_CTRL_SCH_MAX, file);
+    if (ret != LED_CTRL_SCH_MAX) {
         ESP_LOGE(TAG, "Failed to write config param schedule");
         goto exit;
     }

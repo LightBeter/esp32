@@ -86,7 +86,7 @@ bool led_ctrl_set_mode(const cJSON *packet)
      if (!cJSON_IsNumber(pItem)) {
         ESP_LOGI(TAG, "%s invalid param mode.", __FUNCTION__);
         return false;
-    } else if (!is_vaild_mode(packet->valueint)) {
+    } else if (!is_vaild_mode(pItem->valueint)) {
         ESP_LOGI(TAG, "%s invalid param mode value %d.", __FUNCTION__, pItem->valueint );
         return false;  
     } 
@@ -147,7 +147,7 @@ bool led_ctrl_set_manual(const cJSON *packet)
 
 void led_ctrl_get_schedule(cJSON *packet)
 {
-    cJSON *pArray = cJSON_CreateArray();
+    cJSON *pSchedule = cJSON_CreateArray();
     cJSON *pSub;
 
     led_ctrl_lock();
@@ -155,20 +155,20 @@ void led_ctrl_get_schedule(cJSON *packet)
         if (!_led_ctrl_schedule[index].valid)
             continue;
         pSub = cJSON_CreateObject();
-        led_ctrl_write_time(packet, "t", _led_ctrl_schedule[index].time);
-        led_ctrl_write_targ(packet, "values", _led_ctrl_schedule[index].targ);
-        cJSON_AddItemToArray(pArray, pSub);
+        led_ctrl_write_time(pSub, "t", _led_ctrl_schedule[index].time);
+        led_ctrl_write_targ(pSub, "values", _led_ctrl_schedule[index].targ);
+        cJSON_AddItemToArray(pSchedule, pSub);
     }
     led_ctrl_unlock();
-    cJSON_AddItemToObject(packet, "schedule", pArray);
+    cJSON_AddItemToObject(packet, "schedule", pSchedule);
 }
 
 bool led_ctrl_set_schedule(const cJSON *packet)
 {
     cJSON *pSchedule, *pSub;
-    uint16_t    time = 0;
     led_value_t targ[LED_CHAN_COUNT];
-    int index, count;
+    uint16_t    t[LED_CTRL_SCH_MAX];
+    int index, tIndex, count;
     /* check schedule */
     pSchedule = cJSON_GetObjectItem(packet, "schedule");
     count     = cJSON_GetArraySize(pSchedule);
@@ -182,10 +182,17 @@ bool led_ctrl_set_schedule(const cJSON *packet)
     } 
     for (index = 0; index < count; index++) {
         pSub = cJSON_GetArrayItem(pSchedule, index);
-        if (true != led_ctrl_read_time(pSub, "t", &time, LED_CTRL_SCH_TIME_MAX)) 
+        if (true != led_ctrl_read_time(pSub, "t", &t[index], LED_CTRL_SCH_TIME_MAX)) 
             return false;
         if (true != led_ctrl_read_targ(pSub, "values", targ))
             return false;
+        for (tIndex = 0; tIndex < index; tIndex++) {
+            if (t[index] == t[tIndex]) {
+                ESP_LOGI(TAG, "%s invalid schedule, time %d repeat Existing.", 
+                         __FUNCTION__, t[index]);
+                return false;
+            }
+        }
     }
     /* update schedule */
     led_ctrl_lock();

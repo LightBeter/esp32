@@ -24,7 +24,7 @@ enum {
 
     wss_cmd_r_ledctrl_mode = 11,
     wss_cmd_w_ledctrl_mode = 12,
-    wss_cmd_r_ledctrl_current_output = 113,
+    wss_cmd_r_ledctrl_current_output = 13,
     wss_cmd_w_ledctrl_demo_output = 14, 
     wss_cmd_r_ledctrl_manual = 15,
     wss_cmd_w_ledctrl_manual = 16,
