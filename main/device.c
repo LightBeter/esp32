@@ -11,7 +11,7 @@
 #include "temp_ctrl_tsk.h"
 #include "led_ctrl_tsk.h"
 
-#define TAG                     "Device"
+#define TAG                      "Device"
 #define TSK_NAME                 "DeviceTsk"
 #define DEVICE_TSK_STACK_SIZE    2048
 
@@ -24,6 +24,11 @@ device_type _device;
 const esp_app_desc_t* device_appdesc()
 {
     return &_device.appdesc;
+}
+
+const char* device_serialnum()
+{
+    return _device.serialnum;
 }
 
 const char* device_hostname()
@@ -54,8 +59,8 @@ void mdns_start()
 { 
     ESP_ERROR_CHECK( mdns_init() );
     ESP_ERROR_CHECK( mdns_hostname_set(_device.hostname) );
-    ESP_ERROR_CHECK( mdns_instance_name_set("ESP32 LED") );
-    ESP_ERROR_CHECK( mdns_service_add("ESP32 WebServer", "_websocket", "_tcp", 80, NULL, 0) );
+    ESP_ERROR_CHECK( mdns_instance_name_set(DEVICE_MODEL) );
+    ESP_ERROR_CHECK( mdns_service_add("WebServer", "_websocket", "_tcp", 80, NULL, 0) );
 }
 
 void mdns_stop()
@@ -86,7 +91,9 @@ void device_init()
     /* Initialize hostname */
     uint8_t mac[6];
     ESP_ERROR_CHECK( esp_wifi_get_mac(ESP_IF_WIFI_AP , mac) );
-    sprintf( _device.hostname, "ESP32_%02X%02X%02X", mac[3], mac[4], mac[5] );
+    sprintf( _device.serialnum, "%02X%02X%02X%02X%02X%02X", 
+            mac[0], mac[1], mac[2], mac[3], mac[4], mac[5] );
+    sprintf( _device.hostname, DEVICE_MODEL "_%02X%02X%02X", mac[3], mac[4], mac[5] );
     /* device event group */
     _device.event_group = xEventGroupCreate();
 }

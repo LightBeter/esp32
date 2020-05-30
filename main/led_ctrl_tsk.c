@@ -216,10 +216,9 @@ bool led_ctrl_set_schedule(const cJSON *packet)
 void led_ctrl_tsk(void * parm)
 {
     led_chan_t index = 0;
-    const EventBits_t uxBitsToWaitFor = LED_CTRL_EVENT_UPDATE;
-    EventBits_t uxBits;
 
-    while (1) {
+    while (1) 
+    {
         led_ctrl_lock();
         /* save new config */
         if (_led_ctrl_tsk.preSaveToken != _led_ctrl_tsk.curSaveToken) {

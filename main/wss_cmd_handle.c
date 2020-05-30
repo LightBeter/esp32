@@ -10,9 +10,10 @@
 
 wss_respond_code_t read_devinfo_handle(cJSON *request, cJSON *respone)
 {
-    cJSON_AddStringToObject(respone, "module", "esp32");
-    cJSON_AddStringToObject(respone, "hw", "1.0.0");
-    cJSON_AddStringToObject(respone, "sw", device_appdesc()->version);
+    cJSON_AddStringToObject(respone, "model", DEVICE_MODEL);
+    cJSON_AddStringToObject(respone, "serial ", device_serialnum());
+    cJSON_AddStringToObject(respone, "firmware ", device_appdesc()->version);
+    cJSON_AddNumberToObject(respone, "group", LED_CHAN_COUNT);
     return wss_respond_code_ok;
 }
 

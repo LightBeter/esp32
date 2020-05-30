@@ -10,6 +10,7 @@
 #define LED_PWM_TIMER               LEDC_TIMER_0
 #define LED_PWM_DUTY_RESOLUTION     LEDC_TIMER_8_BIT
 #define LED_PWM_DUTY_MAX            ((0x1 << LED_PWM_DUTY_RESOLUTION) - 1)
+#define LED_PWM_FADE_ENABLE         1
 #define LED_PWM_FADE_TIME           (800)
 
 #define LED_DUTY_MAX_CFG(_limit_)          (LED_PWM_DUTY_MAX * _limit_)
@@ -52,6 +53,9 @@ void led_pwm_initialise()
         .timer_num  = LED_PWM_TIMER
     };
     ESP_ERROR_CHECK( ledc_timer_config(&ledc_timer) );
+#if defined(LED_PWM_FADE_ENABLE) && (LED_PWM_FADE_ENABLE == 1)
+    ESP_ERROR_CHECK( ledc_fade_func_install(0) );
+#endif
     for(int i = 0; i < LED_CHAN_COUNT; i++) {
         ESP_ERROR_CHECK( ledc_channel_config(&led_pwm_channel[i]) );
     }
@@ -66,6 +70,11 @@ void led_pwm_output(led_chan_t ch, led_value_t percent)
         percent = LED_VALUE_MAX;
     } 
     targ = led_pwm_channel_max[ch] * percent / LED_VALUE_MAX;
+#if defined(LED_PWM_FADE_ENABLE) && (LED_PWM_FADE_ENABLE == 1)
+    ledc_set_fade_with_time(led_pwm_channel[ch].speed_mode, led_pwm_channel[ch].channel, targ, LED_PWM_FADE_TIME);
+    ledc_fade_start(led_pwm_channel[ch].speed_mode,  led_pwm_channel[ch].channel, LEDC_FADE_NO_WAIT);
+#else   
     ledc_set_duty(led_pwm_channel[ch].speed_mode, led_pwm_channel[ch].channel, targ);
     ledc_update_duty(led_pwm_channel[ch].speed_mode, led_pwm_channel[ch].channel);
+#endif
 }

@@ -51,10 +51,10 @@
 ## 返回
 | 返回字段 | 字段类型 | 说明 |
 | :----- | :----- | :----- |
-| module | string | 设备型号 |
-| sn     | string | 终端SN码 |
-| sw     | string | 软件版本号 |
-| hw     | string | 硬件版本号 |
+| model | string | 设备型号 |
+| serial | string | 设备序列号 |
+| firmware | string | 固件版本号 |
+| group  | number | led分组数 |
 
 ## 备注
 无
