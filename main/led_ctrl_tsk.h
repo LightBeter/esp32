@@ -2,6 +2,7 @@
 #define _LED_CTRL_TSK_H
 
 #include <freertos/FreeRTOS.h>
+#include <freertos/event_groups.h>
 #include <freertos/semphr.h>
 #include <freertos/task.h>
 #include <cJSON.h>
@@ -22,8 +23,6 @@ typedef enum led_ctrl_mode_tag {
     LED_CTRL_MODE_COUNT
 } led_ctrl_mode_t;
 
-typedef uint8_t  led_value_t;
-
 typedef struct led_ctrl_sch_item_tag {
     bool        valid;
     led_value_t targ[LED_CHAN_COUNT];
@@ -36,12 +35,12 @@ typedef struct led_ctrl_demo_tag {
 } led_ctrl_demo_t;
 
 typedef struct led_ctrl_tsk_tag {
-    xTaskHandle       handle;
-    SemaphoreHandle_t mutex;
-    led_ctrl_mode_t   mode;
-    led_value_t       output[LED_CHAN_COUNT];
-    uint32_t          curSaveToken;
-    uint32_t          preSaveToken;
+    xTaskHandle         handle; 
+    SemaphoreHandle_t   mutex;
+    led_ctrl_mode_t     mode;
+    led_value_t         output[LED_CHAN_COUNT];
+    uint32_t            curSaveToken;
+    uint32_t            preSaveToken;
 } led_ctrl_tsk_t;
 
 void led_ctrl_tsk_init();

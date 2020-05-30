@@ -7,6 +7,11 @@
 extern "C" {
 #endif
 
+#define LED_VALUE_MIN       0
+#define LED_VALUE_MAX       10000
+
+typedef int16_t  led_value_t;
+
 typedef enum {
     LED_CHAN_WHITE = 0x00,
     LED_CHAN_DARK_BLUE,
@@ -19,7 +24,7 @@ typedef enum {
 } led_chan_t;
 
 void led_pwm_initialise();
-void led_pwm_output(led_chan_t ch, uint8_t percent);
+void led_pwm_output(led_chan_t ch, led_value_t percent);
 
 #ifdef __cplusplus
 }

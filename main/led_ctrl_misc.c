@@ -47,7 +47,7 @@ bool led_ctrl_read_targ(const cJSON *packet, const char *name, led_value_t *targ
                      __FUNCTION__, index, pSub->valueint);
             return false;  
         }
-        targ[index] = pSub->valueint;
+        targ[index] = pSub->valueint * 100;
     }
     return true;
 }
@@ -63,7 +63,7 @@ void led_ctrl_write_targ(cJSON *packet, const char *name, const led_value_t *tar
     cJSON *array;
 
     for (int i = 0; i < LED_CHAN_COUNT; i++) {
-       values[i] =  targ[i];
+       values[i] =  targ[i] / 100;
     }
     array = cJSON_CreateIntArray(values, LED_CHAN_COUNT);
     cJSON_AddItemToObject(packet, name, array);
@@ -115,23 +115,26 @@ void led_ctrl_read_config(led_ctrl_mode_t *mode, led_value_t *manual, led_ctrl_s
     return;
 default_handle:
     /* default manual */
-    memset(manual, 50, sizeof(led_value_t) * LED_CHAN_COUNT);
+    for (index = 0; index < LED_CHAN_COUNT; index++) manual[index] = LED_VALUE_MAX / 2;
     /* default schedule */
-    memset(schedule, 0x00, sizeof(led_ctrl_sch_item_t) * LED_CTRL_SCH_MAX);
+    for (index = 0; index < LED_CTRL_SCH_MAX; index++ ) {
+        schedule[index].valid = false;
+        schedule[index].time  = 0;   
+    }
     schedule[0].valid = true;
     schedule[0].time  = 6 * 60;
-    memset(schedule[0].targ, 0, sizeof(led_value_t) * LED_CHAN_COUNT);
+    for (index = 0; index < LED_CHAN_COUNT; index++) schedule[0].targ[index] = LED_VALUE_MIN;
     schedule[1].valid = true;
     schedule[1].time  = 12 * 60;
-    memset(schedule[1].targ, 100, sizeof(led_value_t)  * LED_CHAN_COUNT);
+    for (index = 0; index < LED_CHAN_COUNT; index++) schedule[1].targ[index] = LED_VALUE_MAX;
     schedule[2].valid = true;
     schedule[2].time  = 15 * 60;
-    memset(schedule[2].targ, 100, sizeof(led_value_t)  * LED_CHAN_COUNT);
+    for (index = 0; index < LED_CHAN_COUNT; index++) schedule[2].targ[index] = LED_VALUE_MAX;
     schedule[3].valid = true;
     schedule[3].time  = 19 * 60;
-    memset(schedule[3].targ, 0, sizeof(led_value_t)  * LED_CHAN_COUNT);
+    for (index = 0; index < LED_CHAN_COUNT; index++) schedule[3].targ[index] = LED_VALUE_MIN;
     /* default mode */
-    *mode = LED_CTRL_MODE_MANUAL;
+    *mode = LED_CTRL_MODE_SCHEDULE;
     if (file) fclose(file);
     return;
 }

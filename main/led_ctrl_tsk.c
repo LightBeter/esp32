@@ -13,6 +13,7 @@
 
 void led_ctrl_lock();
 void led_ctrl_unlock();
+uint16_t led_ctrl_current_time();
 void led_ctrl_get_by_sch();
 void led_ctrl_tsk(void * parm);
 
@@ -215,6 +216,9 @@ bool led_ctrl_set_schedule(const cJSON *packet)
 void led_ctrl_tsk(void * parm)
 {
     led_chan_t index = 0;
+    const EventBits_t uxBitsToWaitFor = LED_CTRL_EVENT_UPDATE;
+    EventBits_t uxBits;
+
     while (1) {
         led_ctrl_lock();
         /* save new config */
@@ -235,22 +239,102 @@ void led_ctrl_tsk(void * parm)
                 _led_ctrl_tsk.output[index] = _led_ctrl_manual[index];
         } else if(LED_CTRL_MODE_ALL_OFF == _led_ctrl_tsk.mode) {
             /* all off */
-            memset(_led_ctrl_tsk.output, 0, sizeof(led_value_t)  * LED_CHAN_COUNT); 
+            for (index = 0; index < LED_CHAN_COUNT; index++)
+                _led_ctrl_tsk.output[index] = LED_VALUE_MIN; 
         } else if (LED_CTRL_MODE_ALL_ON == _led_ctrl_tsk.mode) {
             /* all in */
-            memset(_led_ctrl_tsk.output, 100, sizeof(led_value_t)  * LED_CHAN_COUNT); 
+            for (index = 0; index < LED_CHAN_COUNT; index++)
+                    _led_ctrl_tsk.output[index] = LED_VALUE_MAX; 
         } else {   
             /* schedule */
             led_ctrl_get_by_sch();
         }
         led_ctrl_unlock();
-       
         for (index = 0; index < LED_CHAN_COUNT; index++)
-            led_pwm_output(index, _led_ctrl_tsk.output[index]) ;
+            led_pwm_output(index, _led_ctrl_tsk.output[index]);
         vTaskDelay(pdMS_TO_TICKS(1000 * 1));
     }
 }
 
+uint16_t led_ctrl_current_time()
+{
+    time_t t;
+    struct tm* stime;
+    t = time(NULL);
+    stime = localtime(&t);
+    return stime->tm_hour * 60 + stime->tm_min;
+}
+
 void led_ctrl_get_by_sch()
 {
+    uint32_t now, diff, leftDiff = 0, rightDiff = 0; 
+    int32_t  index, left = -1, right = -1;
+    float  percent;
+    led_value_t offset;
+
+    now = led_ctrl_current_time();
+    for (index = 0 ; index < LED_CTRL_SCH_MAX; index++) {
+        if (false == _led_ctrl_schedule[index].valid) 
+            continue;
+        /* left */
+        if (now > _led_ctrl_schedule[index].time) {
+            diff = now - _led_ctrl_schedule[index].time;
+        } else {
+            diff = LED_CTRL_SCH_TIME_MAX - (_led_ctrl_schedule[index].time - now);
+        }
+        if (diff < leftDiff || left == -1) {
+            left = index;
+            leftDiff = diff;
+        }
+        /* right */
+        if (_led_ctrl_schedule[index].time > now) {
+            diff = _led_ctrl_schedule[index].time - now;
+        } else {
+            diff = LED_CTRL_SCH_TIME_MAX - (now - _led_ctrl_schedule[index].time);
+        }
+        if (diff < rightDiff || right == -1) {
+            right = index;
+            rightDiff = diff;
+        }
+    }
+
+    if (left == -1 || right == -1) {
+        for (index = 0; index < LED_CHAN_COUNT; index++)
+            _led_ctrl_tsk.output[index] = 0; 
+    } else if (leftDiff == 0) {
+        for (index = 0; index < LED_CHAN_COUNT; index++)
+            _led_ctrl_tsk.output[index] = _led_ctrl_schedule[left].targ[index];  
+    } else if (rightDiff == 0) {
+        for (index = 0; index < LED_CHAN_COUNT; index++)
+            _led_ctrl_tsk.output[index] = _led_ctrl_schedule[right].targ[index];  
+    } else {
+        if (_led_ctrl_schedule[right].time > _led_ctrl_schedule[left].time) {
+            diff = _led_ctrl_schedule[right].time - _led_ctrl_schedule[left].time;
+        } else {
+            diff = LED_CTRL_SCH_TIME_MAX - (_led_ctrl_schedule[left].time - _led_ctrl_schedule[right].time);
+        }
+        percent = (leftDiff * 1.0) / diff;
+        for (index = 0; index < LED_CHAN_COUNT; index++) {
+            offset = _led_ctrl_schedule[right].targ[index] - _led_ctrl_schedule[left].targ[index];
+            offset *= percent;
+            _led_ctrl_tsk.output[index] = _led_ctrl_schedule[left].targ[index] + offset; 
+        }
+#if 1        
+        ESP_LOGI(TAG, "left[%u] output: %d, %d, %d, %d, %d, %d, %d", 
+            _led_ctrl_schedule[left].time, _led_ctrl_schedule[left].targ[0], 
+            _led_ctrl_schedule[left].targ[1], _led_ctrl_schedule[left].targ[2],
+            _led_ctrl_schedule[left].targ[3], _led_ctrl_schedule[left].targ[4],
+            _led_ctrl_schedule[left].targ[5], _led_ctrl_schedule[left].targ[6]);
+        ESP_LOGI(TAG, "right[%u] output: %d, %d, %d, %d, %d, %d, %d", 
+            _led_ctrl_schedule[right].time, _led_ctrl_schedule[right].targ[0], 
+            _led_ctrl_schedule[right].targ[1], _led_ctrl_schedule[right].targ[2],
+            _led_ctrl_schedule[right].targ[3], _led_ctrl_schedule[right].targ[4],
+            _led_ctrl_schedule[right].targ[5], _led_ctrl_schedule[right].targ[6]);
+        ESP_LOGI(TAG, "now[%u] output: %d, %d, %d, %d, %d, %d, %d", 
+            now, _led_ctrl_tsk.output[0], 
+            _led_ctrl_tsk.output[1], _led_ctrl_tsk.output[2],
+            _led_ctrl_tsk.output[3], _led_ctrl_tsk.output[4],
+            _led_ctrl_tsk.output[5], _led_ctrl_tsk.output[6]);
+#endif
+    }
 }

@@ -12,7 +12,7 @@
 #define LED_PWM_DUTY_MAX            ((0x1 << LED_PWM_DUTY_RESOLUTION) - 1)
 #define LED_PWM_FADE_TIME           (800)
 
-#define LED_DUTY_RATIO_CFG(_limit_)          (LED_PWM_DUTY_MAX * _limit_ / 100 )
+#define LED_DUTY_MAX_CFG(_limit_)          (LED_PWM_DUTY_MAX * _limit_)
 #define LED_CHANNEL_CFG(_chl, _gpio_num)     { \
     .gpio_num   = _gpio_num,               \
     .channel    = _chl,                    \
@@ -23,14 +23,14 @@
     .hpoint     = 0,                       \
 }
 
-const uint32_t led_pwm_channel_ratio[LED_CHAN_COUNT] = {
-    [LED_CHAN_WHITE] = LED_DUTY_RATIO_CFG( 0.5 ),
-    [LED_CHAN_DARK_BLUE] = LED_DUTY_RATIO_CFG( 0.5 ),
-    [LED_CHAN_BLUE]      = LED_DUTY_RATIO_CFG( 0.5 ),
-    [LED_CHAN_RED]       = LED_DUTY_RATIO_CFG( 0.33 ),
-    [LED_CHAN_GREEN]     = LED_DUTY_RATIO_CFG( 0.33 ),
-    [LED_CHAN_UV_405]    = LED_DUTY_RATIO_CFG( 0.33 ),
-    [LED_CHAN_UV_415]    = LED_DUTY_RATIO_CFG( 0.33 ),
+const uint32_t led_pwm_channel_max[LED_CHAN_COUNT] = {
+    [LED_CHAN_WHITE]     = LED_DUTY_MAX_CFG( 0.5 ),
+    [LED_CHAN_DARK_BLUE] = LED_DUTY_MAX_CFG( 0.5 ),
+    [LED_CHAN_BLUE]      = LED_DUTY_MAX_CFG( 0.5 ),
+    [LED_CHAN_RED]       = LED_DUTY_MAX_CFG( 0.33 ),
+    [LED_CHAN_GREEN]     = LED_DUTY_MAX_CFG( 0.33 ),
+    [LED_CHAN_UV_405]    = LED_DUTY_MAX_CFG( 0.33 ),
+    [LED_CHAN_UV_415]    = LED_DUTY_MAX_CFG( 0.33 ),
 };
 
 ledc_channel_config_t led_pwm_channel[LED_CHAN_COUNT] = {
@@ -57,9 +57,15 @@ void led_pwm_initialise()
     }
 }
 
-void led_pwm_output(led_chan_t ch, uint8_t percent)
+void led_pwm_output(led_chan_t ch, led_value_t percent)
 {
-    uint32_t targ = led_pwm_channel_ratio[ch] * percent;
+    uint32_t targ;
+    if (percent < LED_VALUE_MIN) {
+        percent = LED_VALUE_MIN;
+    } else if (percent > LED_VALUE_MAX) {
+        percent = LED_VALUE_MAX;
+    } 
+    targ = led_pwm_channel_max[ch] * percent / LED_VALUE_MAX;
     ledc_set_duty(led_pwm_channel[ch].speed_mode, led_pwm_channel[ch].channel, targ);
     ledc_update_duty(led_pwm_channel[ch].speed_mode, led_pwm_channel[ch].channel);
 }
