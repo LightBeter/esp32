@@ -22,7 +22,8 @@ void wifi_start_sta(const wifi_config_t *conf);
 void wifi_start_ap(const char* hostname, const char* password);
 void wifi_stop();
 void wifi_tsk(void * parm);
-esp_err_t wifi_eventHandler(void* ctx, system_event_t* event);
+void wifi_eventHandler(void* arg, esp_event_base_t event_base,
+                       int32_t event_id, void* event_data);
 
 wifi_tsk_type _wifiTsk;
 
@@ -35,7 +36,8 @@ void wifi_tsk_init()
     _wifiTsk.initConf  = initconf;
     _wifiTsk.eventGroup= xEventGroupCreate();
     ESP_ERROR_CHECK( esp_wifi_init(&_wifiTsk.initConf) );
-    ESP_ERROR_CHECK( esp_event_loop_init(wifi_eventHandler, NULL) );
+    ESP_ERROR_CHECK( esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_eventHandler, NULL));
+    ESP_ERROR_CHECK( esp_event_handler_register(IP_EVENT,   IP_EVENT_STA_GOT_IP, &wifi_eventHandler, NULL));
     ESP_LOGI( TAG, " initialise wifi finished." );
 }
 
@@ -105,37 +107,29 @@ void wifi_stop()
     }   
 }
 
-esp_err_t wifi_eventHandler(void* ctx, system_event_t* event)
+void wifi_eventHandler(void* arg, esp_event_base_t event_base,
+                            int32_t event_id, void* event_data)
 {
-    switch (event->event_id) {
-    case SYSTEM_EVENT_STA_START:
-        esp_wifi_connect();
-        ESP_LOGI( TAG, "station start" );
-        break;
-    case SYSTEM_EVENT_STA_STOP:
-        _wifiTsk.isConnect = false;
-        ESP_LOGI( TAG, "sstation start" );
-        break;
-    case SYSTEM_EVENT_STA_CONNECTED:
-        ESP_LOGI( TAG, "station connected from AP" );
-        break;
-    case SYSTEM_EVENT_STA_DISCONNECTED:
-        _wifiTsk.isConnect = false;
-        if (wifi_tsk_state_sta == _wifiTsk.state) {
+    if (event_base == WIFI_EVENT) {
+        if (WIFI_EVENT_STA_START == event_id) {
             esp_wifi_connect();
+            ESP_LOGI( TAG, "station start" );
+        } else if (WIFI_EVENT_STA_STOP == event_id) {
+            _wifiTsk.isConnect = false;
+            ESP_LOGI( TAG, "sstation start" );
+        } else if (WIFI_EVENT_STA_CONNECTED == event_id) {
+            ESP_LOGI( TAG, "station connected from AP" );
+        } else if (WIFI_EVENT_STA_DISCONNECTED == event_id) {
+            _wifiTsk.isConnect = false;
+            if (wifi_tsk_state_sta == _wifiTsk.state) esp_wifi_connect();
+            ESP_LOGI( TAG, "station disconnected from AP" );
         }
-        ESP_LOGI( TAG, "station disconnected from AP" );
-
-        break;
-    case SYSTEM_EVENT_STA_GOT_IP:
+    } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
         _wifiTsk.isConnect = true;
         xEventGroupSetBits(_wifiTsk.eventGroup, WIFI_TSK_EVENT_STA_GOT_IP);
-        ESP_LOGI(TAG, "station got ip:%s", ip4addr_ntoa(&event->event_info.got_ip.ip_info.ip));
-        break;
-    default:
-        break;
+        ip_event_got_ip_t* event = (ip_event_got_ip_t*) event_data;
+        ESP_LOGI( TAG, "station got ip:%s", ip4addr_ntoa(&event->ip_info.ip));
     }
-    return mdns_handle_system_event(ctx, event);
 }
 
 void wifi_tsk(void * parm)

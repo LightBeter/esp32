@@ -1,6 +1,6 @@
 <center><font face="黑体" size=10>光谱海缸灯</font></center>
 <center><font face="黑体" size=10>设备端API说明文档</font></center>
-<center><font face="黑体" size=10>version: 1.2</font></center>
+<center><font face="黑体" size=10>version: 1.3</font></center>
 ------
 [TOC]
 
@@ -154,7 +154,7 @@
 ## 返回
 | 返回字段 | 字段类型 | 说明 |
 | :----- | :----- | :----- |
-| mode | number | 0 - 全开， 1 - 全关，2 - 手动，3 - 自动  |
+| mode | number | 0 - 手动，1 - 自动, 0 - 全开， 1 - 全关   |
 
 ## 备注
 无
@@ -165,7 +165,7 @@
 ## 请求
 | 参数 | 必选 | 类型 | 说明 |
 | :----- | :-----: | :----- | :----- |
-| mode | true | number | 0 - 全开， 1 - 全关，2 - 手动，3 - 自动  |
+| mode | true | number | 0 - 手动，1 - 自动, 0 - 全开， 1 - 全关 |
 
 ## 返回
 | 返回字段 | 字段类型 | 说明 |

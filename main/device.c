@@ -72,6 +72,8 @@ void device_init()
 {
     /* Initialize tcp/ip protocol stack */
     tcpip_adapter_init();
+    /* Initialize event loop */
+    ESP_ERROR_CHECK( esp_event_loop_create_default() );
     /* Initialize storage */
     storage_init();
     /* Initialize application desc */

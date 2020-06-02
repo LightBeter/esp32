@@ -1,5 +1,5 @@
 # Enable C++ exceptions 
-CONFIG_CXX_EXCEPTIONS=n
+CONFIG_COMPILER_CXX_EXCEPTIONS=n
 # Flash size
 CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
 # Default sdkconfig parameters to use the OTA
