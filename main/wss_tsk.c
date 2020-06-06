@@ -4,6 +4,7 @@
 #include <cJSON.h>
 #include "wss_tsk.h"
 #include "wss_cmd_handle.h"
+#include "ota.h"
 
 #define TAG                         "WSS"
 #define TSK_NAME                     TAG
@@ -17,6 +18,8 @@ void wss_client_reset(int num);
 void wss_server_tsk(void * parm);
 void wss_handle_tsk(void * parm);
 void wss_callback(uint8_t num, WEBSOCKET_TYPE_t type, char* msg, uint64_t len);
+void wss_callback_text(uint8_t num, char* msg, uint64_t len);
+void wss_callback_disconnect(uint8_t num);
 
 wss_tsk_type _wss_tsk;
 
@@ -157,30 +160,11 @@ next:
 
 void wss_callback(uint8_t num, WEBSOCKET_TYPE_t type, char* msg, uint64_t len) 
 {
-    cJSON *request, *respone, *item;
-    wss_respond_code_t code = wss_respond_code_ok;
-    uint32_t cmd = 0;
-    char *out = NULL, *token = NULL;
-
     switch(type) {
     case WEBSOCKET_CONNECT:
         ESP_LOGI(TAG, "client %i connected!", num);
+        _wss_tsk.clients[num].lifetime = WS_CLIENT_LIFETIME;
         return;
-    case WEBSOCKET_DISCONNECT_EXTERNAL:
-        wss_client_reset(num);
-        ESP_LOGI(TAG, "client %i sent a disconnect message", num);
-        return;
-    case WEBSOCKET_DISCONNECT_INTERNAL:
-        wss_client_reset(num);
-        ESP_LOGI(TAG, "client %i was disconnected", num);
-        return;
-    case WEBSOCKET_DISCONNECT_ERROR:
-        wss_client_reset(num);
-        ESP_LOGI(TAG, "client %i was disconnected due to an error", num);
-        return;
-    case WEBSOCKET_TEXT:
-        ESP_LOGI(TAG, "client %i sent message of size %i:\n%s", num, (uint32_t)len, msg);
-        break;
     case WEBSOCKET_BIN:
         ESP_LOGI(TAG, "client %i sent binary message of size %i", num, (uint32_t)len);
         return;
@@ -190,7 +174,38 @@ void wss_callback(uint8_t num, WEBSOCKET_TYPE_t type, char* msg, uint64_t len)
     case WEBSOCKET_PONG:
         ESP_LOGI(TAG,"client %i responded to the ping",num);
         return;
+    case WEBSOCKET_DISCONNECT_EXTERNAL:
+        ESP_LOGI(TAG, "client %i sent a disconnect message", num);
+        wss_callback_disconnect(num);
+        break;
+    case WEBSOCKET_DISCONNECT_INTERNAL:
+        ESP_LOGI(TAG, "client %i was disconnected", num);
+        wss_callback_disconnect(num);
+        break;
+    case WEBSOCKET_DISCONNECT_ERROR:
+        ESP_LOGI(TAG, "client %i was disconnected due to an error", num);
+        wss_callback_disconnect(num);
+        break;
+    case WEBSOCKET_TEXT:
+        ESP_LOGI(TAG, "client %i sent message of size %i:\n%s", num, (uint32_t)len, msg);
+        wss_callback_text(num, msg, len);
+        break;
     }
+}
+
+void wss_callback_disconnect(uint8_t num)
+{
+    wss_client_reset(num);
+    if (is_ota_client(num)) 
+        ota_end(num);
+}
+
+void wss_callback_text(uint8_t num, char* msg, uint64_t len)
+{
+    cJSON *request, *respone, *item;
+    wss_respond_code_t code = wss_respond_code_ok;
+    uint32_t cmd = 0;
+    char *out = NULL, *token = NULL;
 
     msg[len] = 0;
     respone = cJSON_CreateObject();
@@ -263,7 +278,16 @@ void wss_callback(uint8_t num, WEBSOCKET_TYPE_t type, char* msg, uint64_t len)
         break;  
     case wss_cmd_w_ledctrl_schedule:
         code = write_ledctrl_schedule_handle(request, respone);
-        break;       
+        break;   
+    case wss_cmd_e_ota_begin:
+        code = exec_ota_begin_handle(num, request, respone);
+        break;   
+    case wss_cmd_e_ota_done:
+        code = exec_ota_done_handle(num, request, respone);
+        break;    
+    case wss_cmd_e_ota_write:
+        code = exec_ota_write_handle(num, request, respone);
+        break;  
     default:
         code = wss_respond_code_invalid_cmd;
         break;

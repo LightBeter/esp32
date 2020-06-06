@@ -1,0 +1,34 @@
+#ifndef _OTA_UPDATE_H
+#define _OTA_UPDATE_H
+
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
+#include <esp_ota_ops.h>
+
+#define OTA_BUFFER_LEN          1024
+
+typedef enum {
+    OTA_IDLE,
+    OTA_IN_PROGRESS,
+    OTA_DONE,
+} ota_state_t;
+
+typedef struct {
+    SemaphoreHandle_t mutex;
+    ota_state_t       state;
+    esp_ota_handle_t        handle;
+    const esp_partition_t  *partition;
+    char              buffer[OTA_BUFFER_LEN];
+    char              new_fw_ver[32];           /*!< Application version */
+    int               new_fw_len;
+    int               client;
+} ota_t;
+
+void ota_init();
+void ota_deinit();
+bool is_ota_client(int client);
+bool ota_begin(int client);
+bool ota_write(int client, const char *base64_buff, size_t base64_len);
+bool ota_end(int client);
+
+#endif

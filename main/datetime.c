@@ -51,12 +51,24 @@ void datetime_set(time_t t, int tz)
     struct  timeval  tv = { 0, 0 };
     char str_buf[64];
 	struct tm *tm;
+    uint8_t tz_hh, tz_mm;
+    const char *tz_symbol;
+
     /* update datatime */
     tv.tv_sec = t;
     tv.tv_usec = 0;
     settimeofday(&tv, NULL);
     /* update timezone */
-    snprintf(str_buf, sizeof(str_buf), "UTC%s%d", tz >= 0 ? "+" : "", tz);
+    if (tz > 0) {
+        tz_symbol = "+";
+        tz_hh = tz / 60;
+        tz_mm = tz % 60;
+    } else {
+        tz_symbol = "-";
+        tz_hh = (-tz) / 60;
+        tz_mm = (-tz) % 60;
+    }
+    snprintf(str_buf, sizeof(str_buf), "UTC%s%d:%02d", tz_symbol, tz_hh, tz_mm);
     setenv("TZ", str_buf, 1);
     tzset();
     /* update ext rtc */
@@ -65,9 +77,18 @@ void datetime_set(time_t t, int tz)
     storage_write_tz(tz);
     /* output new datetime */
     tm = localtime(&t);
+    _datetime.tz = tz;
     ESP_LOGI( TAG, "%s: set new date/time %s, tz %d", __FUNCTION__, asctime(tm), tz );
 }
 
+void datetime_get(time_t *t, int *tz)
+{
+    struct  timeval  tv;
+    gettimeofday(&tv, &tz);
+    
+    *t = tv.tv_sec;
+    *tz = _datetime.tz;
+}
 void datetime_sntp_init()
 {
     sntp_setoperatingmode( SNTP_OPMODE_POLL );

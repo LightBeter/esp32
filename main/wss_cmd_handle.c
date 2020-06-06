@@ -5,6 +5,7 @@
 #include "device.h"
 #include "datetime.h"
 #include "led_ctrl_tsk.h"
+#include "ota.h"
 
 #define TAG        "WSS_HANDLE"
 
@@ -19,11 +20,11 @@ wss_respond_code_t read_devinfo_handle(cJSON *request, cJSON *respone)
 
 wss_respond_code_t read_devtime_handle(cJSON *request, cJSON *respone)
 {
-    struct  timeval  tv;
-    struct  timezone tz;
-    gettimeofday(&tv, &tz);
-    cJSON_AddNumberToObject(respone, "utc", tv.tv_sec);
-    cJSON_AddNumberToObject(respone, "tz", (-tz.tz_minuteswest / 60));
+    time_t  utc;
+    int tz;
+    datetime_get(&utc, &tz);
+    cJSON_AddNumberToObject(respone, "utc", utc);
+    cJSON_AddNumberToObject(respone, "tz", tz);
     return wss_respond_code_ok;
 }
 
@@ -165,4 +166,45 @@ wss_respond_code_t write_ledctrl_schedule_handle(cJSON *request, cJSON *respone)
     } else {
         return wss_respond_code_invalid_param;
     } 
+}
+
+wss_respond_code_t exec_ota_begin_handle(int client, cJSON *request, cJSON *respone)
+{
+    if (true == ota_begin(client)) {
+        return wss_respond_code_ok;
+    } else {
+        return wss_respond_code_exec_failure;
+    } 
+}
+
+wss_respond_code_t exec_ota_done_handle(int client, cJSON *request, cJSON *respone)
+{
+    if (true == ota_end(client)) {
+        return wss_respond_code_ok;
+    } else {
+        return wss_respond_code_exec_failure;
+    } 
+}
+
+wss_respond_code_t exec_ota_write_handle(int client, cJSON *request, cJSON *respone)
+{
+    cJSON *item;
+    size_t len; 
+
+    item = cJSON_GetObjectItem(request, "data");
+    if (!cJSON_IsString(item)) {
+        ESP_LOGI(TAG, "%s invalid data.", __FUNCTION__);
+        return wss_respond_code_invalid_param;
+    } 
+
+    len = strlen(item->valuestring);
+    if (len <= 0) {
+        ESP_LOGI(TAG, "%s invalid data len.", __FUNCTION__);
+        return wss_respond_code_invalid_param;
+    }
+
+    if (true != ota_write(client, item->valuestring, len)) {
+        return wss_respond_code_exec_failure;
+    } 
+    return wss_respond_code_ok;
 }

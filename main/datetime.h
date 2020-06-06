@@ -14,6 +14,7 @@ typedef struct {
 } datetime_sync_type;
 
 typedef struct {
+    int32_t            tz;
     datetime_sync_type sync;
 } datetime_type;
 
@@ -21,6 +22,7 @@ typedef struct {
 void datetime_init();
 void datetime_deinit();
 void datetime_set(time_t t, int tz);
+void datetime_get(time_t *t, int *tz);
 void datetime_sync_sntp();
 void datetime_sync_extrtc();
 /* SNTP Api */

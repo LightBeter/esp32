@@ -8,7 +8,7 @@
 
 #define TAG                         "storage"
 #define NVS_WIFI_NAMESPACE          "app_wifi"
-#define NVS_TZ_DEFAILT              (-8)
+#define NVS_TZ_DEFAILT              (-8 * 60)
 
 #ifdef __cplusplus
 extern "C" {

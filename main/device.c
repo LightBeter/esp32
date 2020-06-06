@@ -10,6 +10,7 @@
 #include "wss_tsk.h"
 #include "temp_ctrl_tsk.h"
 #include "led_ctrl_tsk.h"
+#include "ota.h"
 
 #define TAG                      "Device"
 #define TSK_NAME                 "DeviceTsk"
@@ -82,6 +83,8 @@ void device_init()
     storage_read_wificonf(&_device.wificonf);
     /* Initialize datetime */
     datetime_init();
+    /* Initialize ota */
+    ota_init();
     /* Initialize Wifi Task */
     wifi_tsk_init();
     /* Initialize WSS Task */
@@ -90,6 +93,7 @@ void device_init()
     temp_ctrl_tsk_init();
     /* Initialize Led Control Task */
     led_ctrl_tsk_init();
+
     /* Initialize hostname */
     uint8_t mac[6];
     ESP_ERROR_CHECK( esp_wifi_get_mac(ESP_IF_WIFI_AP , mac) );
@@ -157,6 +161,8 @@ void device_main_tsk(void * parm)
     led_ctrl_tsk_deinit();
     ESP_LOGI( TAG, "Deinitialise Temperature Control Task." );
     temp_ctrl_tsk_deinit();
+    ESP_LOGI( TAG, "Deinitialise ota." );
+    ota_deinit();
     ESP_LOGI( TAG, "Deinitialise datetime." );
     datetime_deinit();
     ESP_LOGI( TAG, "Deinitialise Storage." );
