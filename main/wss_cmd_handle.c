@@ -4,6 +4,7 @@
 #include "wss_tsk.h"
 #include "device.h"
 #include "datetime.h"
+#include "temp_ctrl_tsk.h"
 #include "led_ctrl_tsk.h"
 #include "ota.h"
 
@@ -20,11 +21,7 @@ wss_respond_code_t read_devinfo_handle(cJSON *request, cJSON *respone)
 
 wss_respond_code_t read_devtime_handle(cJSON *request, cJSON *respone)
 {
-    time_t  utc;
-    int tz;
-    datetime_get(&utc, &tz);
-    cJSON_AddNumberToObject(respone, "utc", utc);
-    cJSON_AddNumberToObject(respone, "tz", tz);
+    datetime_resp(respone);
     return wss_respond_code_ok;
 }
 
@@ -106,6 +103,18 @@ wss_respond_code_t exec_recovery_factory_handle(cJSON *request, cJSON *respone)
 {
     device_set_event(DEVICE_REQ_RECOVERY_FACTORY_BIT);
     return wss_respond_code_ok; 
+}
+
+wss_respond_code_t read_ledctrl_state_handle(cJSON *request, cJSON *respone)
+{
+    /* time */
+    datetime_resp(respone);
+    /* temperature */
+    temp_ctrl_temperature_resp(respone);
+    /* switch & mode & current output */
+    led_ctrl_get_mode(respone); 
+    led_ctrl_get_current_output(respone); 
+    return wss_respond_code_ok;
 }
 
 wss_respond_code_t read_ledctrl_mode_handle(cJSON *request, cJSON *respone)

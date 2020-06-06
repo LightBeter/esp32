@@ -3,6 +3,7 @@
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+#include <cJSON.h>
 #include "ringbuffer.h"
 
 #ifdef __cplusplus
@@ -24,6 +25,7 @@ void temp_ctrl_tsk_init();
 void temp_ctrl_tsk_deinit();
 void temp_ctrl_tsk_start();
 void temp_ctrl_tsk_stop();
+void temp_ctrl_temperature_resp(cJSON *respone);
 
 #ifdef __cplusplus
 }

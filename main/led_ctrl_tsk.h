@@ -18,8 +18,6 @@ extern "C" {
 typedef enum led_ctrl_mode_tag {
     LED_CTRL_MODE_MANUAL = 0,
     LED_CTRL_MODE_SCHEDULE,
-    LED_CTRL_MODE_ALL_OFF,
-    LED_CTRL_MODE_ALL_ON,
     LED_CTRL_MODE_COUNT
 } led_ctrl_mode_t;
 
@@ -34,10 +32,14 @@ typedef struct led_ctrl_demo_tag {
     led_value_t targ[LED_CHAN_COUNT];
 } led_ctrl_demo_t;
 
+typedef int led_ctrl_sch_id_t;
+
 typedef struct led_ctrl_tsk_tag {
     xTaskHandle         handle; 
     SemaphoreHandle_t   mutex;
     led_ctrl_mode_t     mode;
+    bool                sw;
+    led_ctrl_sch_id_t   schId;
     led_value_t         output[LED_CHAN_COUNT];
     uint32_t            curSaveToken;
     uint32_t            preSaveToken;

@@ -49,6 +49,11 @@ void temp_ctrl_tsk_init()
     /* initial tsk */
 }
 
+void temp_ctrl_temperature_resp(cJSON *respone)
+{
+    cJSON_AddNumberToObject(respone, "temperature", 0);
+}
+
 void temp_ctrl_tsk_deinit()
 {
     for (int index = 0; index < TEMP_SENSOR_COUNT; index++) {

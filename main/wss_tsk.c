@@ -255,6 +255,9 @@ void wss_callback_text(uint8_t num, char* msg, uint64_t len)
     case wss_cmd_e_dev_recovery:
         code = exec_recovery_factory_handle(request, respone);
         break;
+    case wss_cmd_r_ledctrl_state:
+        code = read_ledctrl_state_handle(request, respone);
+        break;  
     case wss_cmd_r_ledctrl_mode:
         code = read_ledctrl_mode_handle(request, respone);
         break;

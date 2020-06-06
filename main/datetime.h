@@ -3,6 +3,7 @@
 
 #include <time.h>
 #include <esp_sntp.h>
+#include <cJSON.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -23,6 +24,8 @@ void datetime_init();
 void datetime_deinit();
 void datetime_set(time_t t, int tz);
 void datetime_get(time_t *t, int *tz);
+void datetime_resp(cJSON *respone);
+
 void datetime_sync_sntp();
 void datetime_sync_extrtc();
 /* SNTP Api */

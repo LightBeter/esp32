@@ -15,6 +15,7 @@ void led_ctrl_lock();
 void led_ctrl_unlock();
 uint16_t led_ctrl_current_time();
 void led_ctrl_get_by_sch();
+void led_ctrl_save_config();
 void led_ctrl_tsk(void * parm);
 
 led_ctrl_tsk_t      _led_ctrl_tsk;
@@ -30,20 +31,22 @@ void led_ctrl_tsk_init()
     _led_ctrl_tsk.handle = NULL;
     _led_ctrl_tsk.mutex  = xSemaphoreCreateMutex();
     _led_ctrl_tsk.mode   = LED_CTRL_MODE_SCHEDULE;
+    _led_ctrl_tsk.sw     = false;
+    _led_ctrl_tsk.schId  = 0;
     _led_ctrl_tsk.preSaveToken = 0;
     _led_ctrl_tsk.curSaveToken = 0;
     memset(&_led_ctrl_demo, 0x00, sizeof(led_ctrl_demo_t));
     /* load config  */
-    led_ctrl_read_config(&_led_ctrl_tsk.mode,
+    led_ctrl_read_config(&_led_ctrl_tsk.sw,
+                         &_led_ctrl_tsk.mode,
                          _led_ctrl_manual,
+                         &_led_ctrl_tsk.schId,
                          _led_ctrl_schedule);
 }
 
 void led_ctrl_tsk_deinit()
 {
-    led_ctrl_write_config(_led_ctrl_tsk.mode,
-                          _led_ctrl_manual,
-                          _led_ctrl_schedule);
+    led_ctrl_save_config();
     vSemaphoreDelete(_led_ctrl_tsk.mutex);
 }
 
@@ -78,21 +81,31 @@ void led_ctrl_unlock()
 
 void led_ctrl_get_mode(cJSON *packet)
 {
+    cJSON_AddNumberToObject(packet, "switch", _led_ctrl_tsk.sw);
     cJSON_AddNumberToObject(packet, "mode", _led_ctrl_tsk.mode);
 }
 
 bool led_ctrl_set_mode(const cJSON *packet)
 {
-    cJSON *pItem = cJSON_GetObjectItem(packet, "mode");
-     if (!cJSON_IsNumber(pItem)) {
+    cJSON *sw, *mode = cJSON_GetObjectItem(packet, "mode");
+
+    sw = cJSON_GetObjectItem(packet, "switch");
+    if (!cJSON_IsNumber(sw)) {
+        ESP_LOGI(TAG, "%s invalid param switch.", __FUNCTION__);
+        return false;
+    }
+
+    mode = cJSON_GetObjectItem(packet, "mode");
+     if (!cJSON_IsNumber(mode)) {
         ESP_LOGI(TAG, "%s invalid param mode.", __FUNCTION__);
         return false;
-    } else if (!is_vaild_mode(pItem->valueint)) {
-        ESP_LOGI(TAG, "%s invalid param mode value %d.", __FUNCTION__, pItem->valueint );
+    } else if (!is_vaild_mode(mode->valueint)) {
+        ESP_LOGI(TAG, "%s invalid param mode value %d.", __FUNCTION__, mode->valueint );
         return false;  
     } 
     led_ctrl_lock();
-    _led_ctrl_tsk.mode = pItem->valueint;
+    _led_ctrl_tsk.sw = sw->valueint != 0 ? true : false;
+    _led_ctrl_tsk.mode = mode->valueint;
     _led_ctrl_tsk.curSaveToken++;
     led_ctrl_unlock();
     return true;
@@ -160,16 +173,24 @@ void led_ctrl_get_schedule(cJSON *packet)
         led_ctrl_write_targ(pSub, "values", _led_ctrl_schedule[index].targ);
         cJSON_AddItemToArray(pSchedule, pSub);
     }
+    cJSON_AddNumberToObject(packet, "id", _led_ctrl_tsk.schId);
     led_ctrl_unlock();
     cJSON_AddItemToObject(packet, "schedule", pSchedule);
 }
 
 bool led_ctrl_set_schedule(const cJSON *packet)
 {
-    cJSON *pSchedule, *pSub;
+    cJSON *pId, *pSchedule, *pSub;
     led_value_t targ[LED_CHAN_COUNT];
     uint16_t    t[LED_CTRL_SCH_MAX];
     int index, tIndex, count;
+
+    /* check schedule Id */
+    pId = cJSON_GetObjectItem(packet, "id");
+    if (!cJSON_IsNumber(pId)) {
+        ESP_LOGI(TAG, "%s invalid param id.", __FUNCTION__);
+        return false;
+    }
     /* check schedule */
     pSchedule = cJSON_GetObjectItem(packet, "schedule");
     count     = cJSON_GetArraySize(pSchedule);
@@ -208,9 +229,22 @@ bool led_ctrl_set_schedule(const cJSON *packet)
         }
     }
     _led_ctrl_demo.remaining = 0;
+    _led_ctrl_tsk.schId = pId->valueint;
     _led_ctrl_tsk.curSaveToken++;
     led_ctrl_unlock();
     return true;
+}
+
+void led_ctrl_save_config()
+{
+    if (_led_ctrl_tsk.preSaveToken != _led_ctrl_tsk.curSaveToken) {
+        led_ctrl_write_config(_led_ctrl_tsk.sw,
+                              _led_ctrl_tsk.mode,
+                              _led_ctrl_manual,
+                              _led_ctrl_tsk.schId,
+                              _led_ctrl_schedule);
+        _led_ctrl_tsk.preSaveToken = _led_ctrl_tsk.curSaveToken;
+    }
 }
 
 void led_ctrl_tsk(void * parm)
@@ -221,32 +255,22 @@ void led_ctrl_tsk(void * parm)
     {
         led_ctrl_lock();
         /* save new config */
-        if (_led_ctrl_tsk.preSaveToken != _led_ctrl_tsk.curSaveToken) {
-            led_ctrl_write_config(_led_ctrl_tsk.mode,
-                          _led_ctrl_manual,
-                          _led_ctrl_schedule);
-            _led_ctrl_tsk.preSaveToken = _led_ctrl_tsk.curSaveToken;
-        }
+        led_ctrl_save_config();
+        /* update output */
         if (_led_ctrl_demo.remaining > 0) {
-            /* demo */
             _led_ctrl_demo.remaining -= 1;
             for (index = 0; index < LED_CHAN_COUNT; index++)
                 _led_ctrl_tsk.output[index] = _led_ctrl_demo.targ[index];
-        } else if(LED_CTRL_MODE_MANUAL == _led_ctrl_tsk.mode) {
-            /* manual */
-            for (index = 0; index < LED_CHAN_COUNT; index++)
-                _led_ctrl_tsk.output[index] = _led_ctrl_manual[index];
-        } else if(LED_CTRL_MODE_ALL_OFF == _led_ctrl_tsk.mode) {
-            /* all off */
-            for (index = 0; index < LED_CHAN_COUNT; index++)
-                _led_ctrl_tsk.output[index] = LED_VALUE_MIN; 
-        } else if (LED_CTRL_MODE_ALL_ON == _led_ctrl_tsk.mode) {
-            /* all in */
-            for (index = 0; index < LED_CHAN_COUNT; index++)
-                    _led_ctrl_tsk.output[index] = LED_VALUE_MAX; 
-        } else {   
-            /* schedule */
-            led_ctrl_get_by_sch();
+        } else {
+            if (false == _led_ctrl_tsk.sw) {
+                for (index = 0; index < LED_CHAN_COUNT; index++)
+                    _led_ctrl_tsk.output[index] = LED_VALUE_MIN; 
+            } else if(LED_CTRL_MODE_MANUAL == _led_ctrl_tsk.mode) {
+                for (index = 0; index < LED_CHAN_COUNT; index++)
+                    _led_ctrl_tsk.output[index] = _led_ctrl_manual[index];
+            } else {   
+                led_ctrl_get_by_sch();
+            }
         }
         led_ctrl_unlock();
         for (index = 0; index < LED_CHAN_COUNT; index++)

@@ -89,6 +89,16 @@ void datetime_get(time_t *t, int *tz)
     *t = tv.tv_sec;
     *tz = _datetime.tz;
 }
+
+void datetime_resp(cJSON *respone)
+{
+    time_t  utc;
+    int tz;
+    datetime_get(&utc, &tz);
+    cJSON_AddNumberToObject(respone, "utc", utc);
+    cJSON_AddNumberToObject(respone, "tz", tz);
+}
+
 void datetime_sntp_init()
 {
     sntp_setoperatingmode( SNTP_OPMODE_POLL );

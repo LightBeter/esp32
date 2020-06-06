@@ -23,6 +23,7 @@ enum {
     wss_cmd_w_devtime = 3,
     wss_cmd_w_devnetwork = 4,
 
+    wss_cmd_r_ledctrl_state = 10,
     wss_cmd_r_ledctrl_mode = 11,
     wss_cmd_w_ledctrl_mode = 12,
     wss_cmd_r_ledctrl_current_output = 13,
@@ -45,6 +46,7 @@ wss_respond_code_t read_devtime_handle(cJSON *request, cJSON *respone);
 wss_respond_code_t write_devtime_handle(cJSON *request, cJSON *respone);
 wss_respond_code_t write_devnetwork_handle(cJSON *request, cJSON *respone);
 
+wss_respond_code_t read_ledctrl_state_handle(cJSON *request, cJSON *respone);
 wss_respond_code_t read_ledctrl_mode_handle(cJSON *request, cJSON *respone);
 wss_respond_code_t read_ledctrl_current_output_handle(cJSON *request, cJSON *respone);
 wss_respond_code_t read_ledctrl_manual_handle(cJSON *request, cJSON *respone);
