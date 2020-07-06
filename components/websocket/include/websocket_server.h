@@ -79,6 +79,7 @@ int ws_server_send_bin_all(char* msg,uint64_t len);
 
 // these versions can be sent from the callback ONLY
 
+int ws_server_send_bin_client_from_callback(int num, char* msg, uint64_t len); // send bin to client with the set number
 int ws_server_send_text_client_from_callback(int num,char* msg,uint64_t len); // send text to client with the set number
 int ws_server_send_text_clients_from_callback(char* url,char* msg,uint64_t len); // sends text to all clients with the set number
 int ws_server_send_text_all_from_callback(char* msg,uint64_t len); // sends text to all clients

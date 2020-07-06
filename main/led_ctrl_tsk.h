@@ -50,6 +50,7 @@ void led_ctrl_tsk_deinit();
 void led_ctrl_tsk_start();
 void led_ctrl_tsk_stop();
 
+bool led_ctrl_is_close();
 void led_ctrl_get_mode(cJSON *packet);
 bool led_ctrl_set_mode(const cJSON *packet);
 void led_ctrl_get_current_output(cJSON *packet);

@@ -13,8 +13,8 @@
 wss_respond_code_t read_devinfo_handle(cJSON *request, cJSON *respone)
 {
     cJSON_AddStringToObject(respone, "model", DEVICE_MODEL);
-    cJSON_AddStringToObject(respone, "serial ", device_serialnum());
-    cJSON_AddStringToObject(respone, "firmware ", device_appdesc()->version);
+    cJSON_AddStringToObject(respone, "serial", device_serialnum());
+    cJSON_AddStringToObject(respone, "firmware", device_appdesc()->version);
     cJSON_AddNumberToObject(respone, "group", LED_CHAN_COUNT);
     return wss_respond_code_ok;
 }
@@ -179,7 +179,15 @@ wss_respond_code_t write_ledctrl_schedule_handle(cJSON *request, cJSON *respone)
 
 wss_respond_code_t exec_ota_begin_handle(int client, cJSON *request, cJSON *respone)
 {
-    if (true == ota_begin(client)) {
+    cJSON *item;
+
+    item = cJSON_GetObjectItem(request, "img_size");
+    if (!cJSON_IsNumber(item)) {
+        ESP_LOGI(TAG, "%s invalid img_size.", __FUNCTION__);
+        return wss_respond_code_invalid_param;
+    } 
+
+    if (true == ota_begin(client, item->valueint)) {
         return wss_respond_code_ok;
     } else {
         return wss_respond_code_exec_failure;

@@ -2,6 +2,7 @@
 #include <string.h>
 #include <mdns.h>
 #include <esp_heap_caps.h>
+#include <driver/gpio.h>
 #include <esp_log.h>
 #include "device.h"
 #include "storage.h"
@@ -15,6 +16,10 @@
 #define TAG                      "Device"
 #define TSK_NAME                 "DeviceTsk"
 #define DEVICE_TSK_STACK_SIZE    2048
+#define GPIO_CHAN_LED_1          GPIO_NUM_22
+#define GPIO_CHAN_LED_2          GPIO_NUM_22
+#define LED_OPEN_LEVEL           1
+#define LED_CLOSE_LEVEL          0
 
 void mdns_start();
 void mdns_stop();
@@ -35,6 +40,16 @@ const char* device_serialnum()
 const char* device_hostname()
 {
     return _device.hostname;
+}
+
+void device_set_led(device_led_t led)
+{
+    _device.curLed = led;
+}
+
+void device_set_led_mode(device_led_mode_t mode)
+{
+    _device.curLedMode = mode;
 }
 
 const wifi_config_t* device_wificonf()
@@ -93,7 +108,6 @@ void device_init()
     temp_ctrl_tsk_init();
     /* Initialize Led Control Task */
     led_ctrl_tsk_init();
-
     /* Initialize hostname */
     uint8_t mac[6];
     ESP_ERROR_CHECK( esp_wifi_get_mac(ESP_IF_WIFI_AP , mac) );
@@ -102,6 +116,18 @@ void device_init()
     sprintf( _device.hostname, DEVICE_MODEL "_%02X%02X%02X", mac[3], mac[4], mac[5] );
     /* device event group */
     _device.event_group = xEventGroupCreate();
+    /* initial LEDs */
+    gpio_config_t io_conf;
+    io_conf.intr_type = GPIO_PIN_INTR_DISABLE;
+    io_conf.mode = GPIO_MODE_INPUT_OUTPUT;
+    io_conf.pin_bit_mask = (1ULL << GPIO_CHAN_LED_1) | (1ULL << GPIO_CHAN_LED_2);
+    io_conf.pull_down_en = 0;
+    io_conf.pull_up_en = 0;
+    gpio_config(&io_conf);
+    gpio_set_level(GPIO_CHAN_LED_1, LED_CLOSE_LEVEL);
+    gpio_set_level(GPIO_CHAN_LED_2, LED_CLOSE_LEVEL);
+    _device.curLed = DEVICE_LED_1;
+    _device.curLedMode = DEVICE_LED_MODE_CLOSE;
 }
 
 void  device_run()
@@ -113,6 +139,8 @@ void device_main_tsk(void * parm)
 {
     size_t freeHeapSize;
     EventBits_t uxBits;
+    gpio_num_t  led;
+    uint32_t    level;
     const EventBits_t uxBitsToWaitFor = (DEVICE_REQ_REBOOT_BIT | DEVICE_REQ_RECOVERY_FACTORY_BIT);
     /* Start Task */
     ESP_LOGI( TAG, "Start mDNS." );
@@ -137,6 +165,23 @@ void device_main_tsk(void * parm)
             break;
         } 
 
+        if (DEVICE_LED_1 == _device.curLed) {
+            gpio_set_level(GPIO_CHAN_LED_2, LED_CLOSE_LEVEL);
+            led = GPIO_CHAN_LED_1;
+        } else {
+            gpio_set_level(GPIO_CHAN_LED_1, LED_CLOSE_LEVEL);
+            led = GPIO_CHAN_LED_2;
+        }
+
+        if (DEVICE_LED_MODE_OPEN == _device.curLedMode) {
+            level = LED_OPEN_LEVEL;              
+        } else if (DEVICE_LED_MODE_CLOSE == _device.curLedMode) {
+            level = LED_CLOSE_LEVEL;
+        } else {
+            level = gpio_get_level(led);
+            level = ~level & 0x1;
+        }
+        gpio_set_level(led, level);   
         freeHeapSize = heap_caps_get_free_size(MALLOC_CAP_8BIT);
         //ESP_LOGI( TAG, "heap free size %zu.", freeHeapSize );
     }

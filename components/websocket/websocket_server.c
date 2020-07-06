@@ -317,6 +317,22 @@ int ws_server_send_text_all(char* msg,uint64_t len) {
 // the following functions should be used inside of the callback. The regular versions
 // grab the mutex, but it is already grabbed from inside the callback so it will hang.
 
+int ws_server_send_bin_client_from_callback(int num, char* msg, uint64_t len)
+{
+  int ret = 0;
+  int err;
+  if( ws_is_connected(clients[num]) ) {
+    err = ws_send(&clients[num], WEBSOCKET_OPCODE_BIN, msg, len, 0);
+    ret = 1;
+    if (err) {
+      clients[num].scallback(num, WEBSOCKET_DISCONNECT_ERROR, NULL, 0);
+      ws_disconnect_client(&clients[num], 0);
+      ret = 0;
+    }
+  }
+  return ret;
+}
+
 int ws_server_send_text_client_from_callback(int num,char* msg,uint64_t len) {
   int ret = 0;
   int err;

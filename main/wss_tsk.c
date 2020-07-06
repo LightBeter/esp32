@@ -18,6 +18,7 @@ void wss_client_reset(int num);
 void wss_server_tsk(void * parm);
 void wss_handle_tsk(void * parm);
 void wss_callback(uint8_t num, WEBSOCKET_TYPE_t type, char* msg, uint64_t len);
+void wss_callback_bin(uint8_t num, char *msg, uint64_t len);
 void wss_callback_text(uint8_t num, char* msg, uint64_t len);
 void wss_callback_disconnect(uint8_t num);
 
@@ -167,6 +168,7 @@ void wss_callback(uint8_t num, WEBSOCKET_TYPE_t type, char* msg, uint64_t len)
         return;
     case WEBSOCKET_BIN:
         ESP_LOGI(TAG, "client %i sent binary message of size %i", num, (uint32_t)len);
+        wss_callback_bin(num, msg, len);
         return;
     case WEBSOCKET_PING:
         ESP_LOGI(TAG, "client %i pinged us with message of size %i", num, (uint32_t)len);
@@ -193,14 +195,35 @@ void wss_callback(uint8_t num, WEBSOCKET_TYPE_t type, char* msg, uint64_t len)
     }
 }
 
-void wss_callback_disconnect(uint8_t num)
+void wss_callback_disconnect(uint8_t client)
 {
-    wss_client_reset(num);
-    if (is_ota_client(num)) 
-        ota_end(num);
+    wss_client_reset(client);
+    if (is_ota_client(client)) 
+        ota_end(client);
 }
 
-void wss_callback_text(uint8_t num, char* msg, uint64_t len)
+void wss_callback_bin(uint8_t client, char *msg, uint64_t len)
+{
+    char  resp[2];
+
+    if (wss_cmd_e_ota_write != msg[0]) {
+        resp[1] = 1;
+    } else if (len <= 1) {
+        resp[1] = 2;
+    } else {
+        if (true != ota_write(client, &msg[1], len - 1)) {
+            ESP_LOGI(TAG, "ota_write OK");
+            resp[1] = 3;
+        } else {
+            resp[1] = 0;
+        }
+    }
+    _wss_tsk.clients[client].lifetime = WS_CLIENT_LIFETIME;  
+    resp[0] = msg[0];
+    ws_server_send_bin_client_from_callback( client, resp, 2 );
+}
+
+void wss_callback_text(uint8_t client, char* msg, uint64_t len)
 {
     cJSON *request, *respone, *item;
     wss_respond_code_t code = wss_respond_code_ok;
@@ -211,19 +234,19 @@ void wss_callback_text(uint8_t num, char* msg, uint64_t len)
     respone = cJSON_CreateObject();
     request = cJSON_Parse( msg );
     if ( !request ) {
-        ESP_LOGI(TAG, "parse client %i sent message failure", num); 
+        ESP_LOGI(TAG, "parse client %i sent message failure", client); 
         code = wss_respond_code_invalid_format;
     } else {
         item = cJSON_GetObjectItem( request, "cmd" );
         if ( !cJSON_IsNumber(item) ) {
-            ESP_LOGI(TAG, "get client %i sent message cmd failure", num); 
+            ESP_LOGI(TAG, "get client %i sent message cmd failure", client); 
             code = wss_respond_code_invalid_cmd;
         } else {
             cmd = item->valueint;
         }
         item = cJSON_GetObjectItem( request, "token" );
         if (!cJSON_IsString(item)) {
-            ESP_LOGI(TAG, "parse client %i sent message token failure", num); 
+            ESP_LOGI(TAG, "parse client %i sent message token failure", client); 
             code = wss_respond_code_invalid_token;
         } else {
             token = item->valuestring;
@@ -283,19 +306,19 @@ void wss_callback_text(uint8_t num, char* msg, uint64_t len)
         code = write_ledctrl_schedule_handle(request, respone);
         break;   
     case wss_cmd_e_ota_begin:
-        code = exec_ota_begin_handle(num, request, respone);
+        code = exec_ota_begin_handle(client, request, respone);
         break;   
     case wss_cmd_e_ota_done:
-        code = exec_ota_done_handle(num, request, respone);
+        code = exec_ota_done_handle(client, request, respone);
         break;    
-    case wss_cmd_e_ota_write:
-        code = exec_ota_write_handle(num, request, respone);
-        break;  
+    // case wss_cmd_e_ota_write:
+    //     code = exec_ota_write_handle(client, request, respone);
+    //     break;  
     default:
         code = wss_respond_code_invalid_cmd;
         break;
     }
-    _wss_tsk.clients[num].lifetime = WS_CLIENT_LIFETIME;
+    _wss_tsk.clients[client].lifetime = WS_CLIENT_LIFETIME;
 send_respond: 
     cJSON_AddStringToObject(respone, "token", token);   
     cJSON_AddNumberToObject(respone, "cmd",   cmd);
@@ -303,6 +326,6 @@ send_respond:
     out = cJSON_PrintUnformatted(respone);
     cJSON_Delete(request);
     cJSON_Delete(respone);
-    ws_server_send_text_client_from_callback( num, out, strlen(out));
+    ws_server_send_text_client_from_callback( client, out, strlen(out));
     cJSON_free(out);
 }

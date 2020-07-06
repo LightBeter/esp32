@@ -4,6 +4,7 @@
 #include <driver/ledc.h>
 #include <driver/gpio.h>
 #include <esp_log.h>
+#include "device.h"
 #include "led_ctrl_tsk.h"
 #include "led_ctrl_misc.h"
 
@@ -42,6 +43,7 @@ void led_ctrl_tsk_init()
                          _led_ctrl_manual,
                          &_led_ctrl_tsk.schId,
                          _led_ctrl_schedule);
+    device_set_led(LED_CTRL_MODE_MANUAL == _led_ctrl_tsk.mode ? DEVICE_LED_1 : DEVICE_LED_2);
 }
 
 void led_ctrl_tsk_deinit()
@@ -85,6 +87,11 @@ void led_ctrl_get_mode(cJSON *packet)
     cJSON_AddNumberToObject(packet, "mode", _led_ctrl_tsk.mode);
 }
 
+bool led_ctrl_is_close()
+{
+    return _led_ctrl_tsk.sw == false;
+}
+
 bool led_ctrl_set_mode(const cJSON *packet)
 {
     cJSON *sw, *mode = cJSON_GetObjectItem(packet, "mode");
@@ -107,6 +114,7 @@ bool led_ctrl_set_mode(const cJSON *packet)
     _led_ctrl_tsk.sw = sw->valueint != 0 ? true : false;
     _led_ctrl_tsk.mode = mode->valueint;
     _led_ctrl_tsk.curSaveToken++;
+    device_set_led(LED_CTRL_MODE_MANUAL == _led_ctrl_tsk.mode ? DEVICE_LED_1 : DEVICE_LED_2);
     led_ctrl_unlock();
     return true;
 }
@@ -251,21 +259,22 @@ void led_ctrl_tsk(void * parm)
 {
     led_chan_t index = 0;
 
+    vTaskDelay(pdMS_TO_TICKS(1000 * 3));
     while (1) 
     {
         led_ctrl_lock();
         /* save new config */
         led_ctrl_save_config();
         /* update output */
-        if (_led_ctrl_demo.remaining > 0) {
+        if (false == _led_ctrl_tsk.sw) { 
+            for (index = 0; index < LED_CHAN_COUNT; index++)
+                _led_ctrl_tsk.output[index] = LED_VALUE_MIN; 
+        } else if (_led_ctrl_demo.remaining > 0) {
             _led_ctrl_demo.remaining -= 1;
             for (index = 0; index < LED_CHAN_COUNT; index++)
                 _led_ctrl_tsk.output[index] = _led_ctrl_demo.targ[index];
         } else {
-            if (false == _led_ctrl_tsk.sw) {
-                for (index = 0; index < LED_CHAN_COUNT; index++)
-                    _led_ctrl_tsk.output[index] = LED_VALUE_MIN; 
-            } else if(LED_CTRL_MODE_MANUAL == _led_ctrl_tsk.mode) {
+            if(LED_CTRL_MODE_MANUAL == _led_ctrl_tsk.mode) {
                 for (index = 0; index < LED_CHAN_COUNT; index++)
                     _led_ctrl_tsk.output[index] = _led_ctrl_manual[index];
             } else {   

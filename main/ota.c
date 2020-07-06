@@ -47,7 +47,7 @@ bool is_ota_client(int client)
     return ret;
 }
 
-bool ota_begin(int client)
+bool ota_begin(int client, size_t img_size)
 {
     bool ret = false;
     esp_err_t err;
@@ -59,14 +59,15 @@ bool ota_begin(int client)
         goto exit; 
     } 
 
-    err = esp_ota_begin(ota.partition, OTA_SIZE_UNKNOWN, &ota.handle);
+    err = esp_ota_begin(ota.partition, img_size, &ota.handle);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "esp_ota_begin failed (%s)", esp_err_to_name(err));
         goto exit; 
     }
 
     memset(ota.new_fw_ver, 0x00, sizeof(ota.new_fw_ver));
-    ota.new_fw_len = 0;
+    ota.new_fw_size = img_size;
+    ota.new_fw_recv_size = 0;
     ota.client = client;
     ota.state = OTA_IN_PROGRESS;
     ret = true;
@@ -100,21 +101,20 @@ bool ota_end(int client)
             goto exit; 
         }
     } else {
-        ESP_LOGE(TAG, "esp_ota_begin failed (%s)", esp_err_to_name(err));
+        ESP_LOGE(TAG, "esp_ota_end failed (%s)", esp_err_to_name(err));
         goto exit; 
     }
-    ESP_LOGD(TAG, "update done, bin file size is %d", ota.new_fw_len);
+    ESP_LOGI(TAG, "update done, bin file size is %d", ota.new_fw_size);
     ret = true;
 exit:
     ota_unlock();
     return ret;
 }
 
-bool ota_write(int client, const char *base64_buff, size_t base64_len)
+bool ota_write(int client, const char *data, size_t data_len)
 {
     bool ret = false;
     esp_err_t err;
-    size_t olen = 0;
  
     ota_lock();
     
@@ -128,22 +128,20 @@ bool ota_write(int client, const char *base64_buff, size_t base64_len)
         goto exit;    
     }
 
-    err = mbedtls_base64_decode((unsigned char*)ota.buffer, OTA_BUFFER_LEN, &olen, 
-                                (const unsigned char*)base64_buff, base64_len);
-    if (0 != err){
-        ESP_LOGE(TAG, "base64 decode failure %d", err);
-        goto exit; 
+    if (data_len + ota.new_fw_recv_size > ota.new_fw_size) {
+        ESP_LOGE(TAG, "recv data beyond firmware size");
+        goto exit;    
     }
 
-    err = esp_ota_write(ota.handle, ota.buffer, olen);
+    err = esp_ota_write(ota.handle, data, data_len);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "Error: esp_ota_write failed %d", err);
         goto exit; 
     } 
 
-    if (olen > sizeof(esp_image_header_t) + sizeof(esp_image_segment_header_t) + sizeof(esp_app_desc_t)) {
+    if (data_len > sizeof(esp_image_header_t) + sizeof(esp_image_segment_header_t) + sizeof(esp_app_desc_t) && ota.new_fw_recv_size == 0) {
         esp_app_desc_t new_app_info;
-        memcpy(&new_app_info, &ota.buffer[sizeof(esp_image_header_t) + sizeof(esp_image_segment_header_t)], sizeof(esp_app_desc_t));
+        memcpy(&new_app_info, &data[sizeof(esp_image_header_t) + sizeof(esp_image_segment_header_t)], sizeof(esp_app_desc_t));
         if (ESP_APP_DESC_MAGIC_WORD == new_app_info.magic_word) {
             memcpy(ota.new_fw_ver, new_app_info.version, sizeof(ota.new_fw_ver));
             ESP_LOGI(TAG, "New firmware version: %s", ota.new_fw_ver);
@@ -152,8 +150,8 @@ bool ota_write(int client, const char *base64_buff, size_t base64_len)
         }
     }
 
-    ESP_LOGD(TAG, "Written binary file offset[%d] length[%d]", ota.new_fw_len, olen);
-    ota.new_fw_len += olen;
+    ESP_LOGD(TAG, "Written binary file offset[%d] length[%d]", ota.new_fw_recv_size, data_len);
+    ota.new_fw_recv_size += data_len;
     ret = true;
 exit:
     ota_unlock();

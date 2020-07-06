@@ -5,6 +5,7 @@
 #include <esp_err.h>
 #include <esp_log.h>
 #include "temp_ctrl_tsk.h"
+#include "led_ctrl_tsk.h"
 
 #define TAG                         "TempCtrlTsk"
 #define TSK_NAME                    TAG
@@ -17,16 +18,43 @@
 #define TEMP_CTRL_ADC_UNIT          ADC_UNIT_1
 #define TEMP_CTRL_ADC_WIDTH_BIT     ADC_WIDTH_BIT_12
 #define TEMP_CTRL_ADC_ATTEN         ADC_ATTEN_DB_11
+#define TEMP_CTRL_ADC_CHL           ADC1_CHANNEL_0 //ADC1_CHANNEL_3
 
-#define TEMP_CTRL_FAN_OPEN_LIMIT    1234
-#define TEMP_CTRL_FAN_CLOSE_LIMIT   1234
-#define TEMP_CTRL_FAN_CHL           (1ULL << GPIO_NUM_2)
+#define TEMP_CTRL_FAN_OPEN_LIMIT    45
+#define TEMP_CTRL_FAN_CLOSE_LIMIT   15
+#define GPIO_CHAN_FAN               GPIO_NUM_2
 #define TEMP_CTRL_FAN_OPEN_LEVEL    1
 #define TEMP_CTRL_FAN_CLOSE_LEVEL   0
 
+#define TEMP_MAX                    (120)
+#define TEMP_MIN                    (-40)
+#define TEMP_MAP_SIZE               (TEMP_MAX - (TEMP_MIN) + 1)
+
 void temp_ctrl_tsk(void * parm);
 
-const adc1_channel_t _sensor_conf[TEMP_SENSOR_COUNT] = {  ADC1_CHANNEL_0, ADC1_CHANNEL_3 };
+const adc1_channel_t   _sensorConf[TEMP_SENSOR_COUNT] = {  
+    ADC1_CHANNEL_0, 
+    ADC1_CHANNEL_3 
+};
+const uint32_t _tempMapTable[TEMP_MAP_SIZE] = {
+    264279,  250344,  237130,  224603,  212733,  201487,  190836,  180750,  171201,  162163, 
+    153610,  145516,  137858,  130614,  123761,  117280,  111149,  105351,  99867,   94681, 
+    89776,   85137,   80750,   76600,   72676,   68963,   65451,   62129,   58986,   56012, 
+    53198,   50534,   48013,   45627,   43368,   41229,   39204,   37285,   35468,   33747, 
+    32116,   30570,   29105,   27716,   26399,   25150,   23965,   22842,   21776,   20764, 
+    19783,   18892,   18026,   17204,   16423,   15681,   14976,   14306,   13669,   13063, 
+    12487,   11939,   11418,   10921,   10449,   10000,   9571,    9164,    8775,    8405, 
+    8052,    7716,    7396,    7090,    6798,    6520,    6255,    6002,    5760,    5529, 
+    5309,    5098,    4897,    4704,    4521,    4345,    4177,    4016,    3863,    3716, 
+    3588,    3440,    3311,    3188,    3069,    2956,    2848,    2744,    2644,    2548, 
+    2457,    2369,    2284,    2204,    2126,    2051,    1980,    1911,    1845,    1782, 
+    1721,    1663,    1606,    1552,    1500,    1450,    1402,    1356,    1312,    1269, 
+    1228,    1188,    1150,    1113,    1078,    1044,    1011,    979,     948,     919, 
+    891,     863,     837,     811,     787,     763,     740,     718,     697,     676, 
+    657,     637,     619,     601,     584,     567,     551,     535,     520,     505, 
+    491,     477,     464,     451,     439,     427,     415,     404,     393,     383, 
+    373, 
+};
 temp_ctrl_tsk_type   _tempCtrlTsk;
 
 void temp_ctrl_tsk_init()
@@ -41,17 +69,17 @@ void temp_ctrl_tsk_init()
     gpio_config_t io_conf;
     io_conf.intr_type = GPIO_PIN_INTR_DISABLE;
     io_conf.mode = GPIO_MODE_OUTPUT;
-    io_conf.pin_bit_mask = TEMP_CTRL_FAN_CHL;
+    io_conf.pin_bit_mask = (1ULL << GPIO_CHAN_FAN);
     io_conf.pull_down_en = 0;
     io_conf.pull_up_en = 0;
     gpio_config(&io_conf);
-    gpio_set_level(TEMP_CTRL_FAN_CHL, TEMP_CTRL_FAN_CLOSE_LEVEL);
+    gpio_set_level(GPIO_CHAN_FAN, TEMP_CTRL_FAN_CLOSE_LEVEL);
     /* initial tsk */
 }
 
 void temp_ctrl_temperature_resp(cJSON *respone)
 {
-    cJSON_AddNumberToObject(respone, "temperature", 0);
+    cJSON_AddNumberToObject(respone, "temperature", _tempCtrlTsk.temperature);
 }
 
 void temp_ctrl_tsk_deinit()
@@ -74,19 +102,42 @@ void temp_ctrl_tsk_stop()
         vTaskDelete(_tempCtrlTsk.handle);
         _tempCtrlTsk.handle = NULL; 
     }
-    gpio_set_level(TEMP_CTRL_FAN_CHL, TEMP_CTRL_FAN_CLOSE_LEVEL);
+    gpio_set_level(GPIO_CHAN_FAN, TEMP_CTRL_FAN_CLOSE_LEVEL);
+}
+
+int16_t SearchTableConvert(const uint32_t r) {
+    uint32_t left = 0, right = TEMP_MAP_SIZE - 1, mid = 0;
+
+    if ( r > _tempMapTable[0] ) {
+        return 0 + TEMP_MIN;
+    } else if ( r < _tempMapTable[TEMP_MAP_SIZE - 1] ) {
+        return TEMP_MAX;
+    }
+
+    mid = ( left + right ) / 2;
+    while( left < right ) {
+        if ( _tempMapTable[mid] == r ) {
+            break;
+        } else if( _tempMapTable[mid] < r ) {
+            right = mid - 1;
+        } else if( _tempMapTable[mid] > r ) {
+            left = mid + 1;
+        }
+        mid = ( left + right ) / 2;
+    }
+    return mid + TEMP_MIN;
 }
 
 void temp_ctrl_tsk(void * parm)
 {
-    uint16_t tick = 0, index = 0, adc_max, temp;
-    uint32_t voltage;
+    int temp;
+    uint16_t tick = 0, index, value;
+    uint32_t Vref, Vntc, Rntc;
     esp_adc_cal_value_t val_type;
     esp_adc_cal_characteristics_t adc_chars;
+    float tmp;
     
-    for (index = 0; index < TEMP_SENSOR_COUNT; index++) {
-        ESP_ERROR_CHECK( adc1_config_channel_atten(_sensor_conf[index], TEMP_CTRL_ADC_ATTEN) );
-    }
+    ESP_ERROR_CHECK( adc1_config_channel_atten(TEMP_CTRL_ADC_CHL, TEMP_CTRL_ADC_ATTEN) );
     //Characterize ADC
     memset(&adc_chars, 0x00, sizeof(esp_adc_cal_characteristics_t));
     val_type = esp_adc_cal_characterize(TEMP_CTRL_ADC_UNIT, 
@@ -104,24 +155,30 @@ void temp_ctrl_tsk(void * parm)
     
     while (1) {
         for (index = 0; index < TEMP_SENSOR_COUNT; index++) {
-            temp = adc1_get_raw(_sensor_conf[index]);
+            temp = adc1_get_raw(_sensorConf[index]);
             ringbuffer_enter(&_tempCtrlTsk.sensor[index], temp);
         }
-
         if (tick++ < TEMP_CTRL_INTERVAL) 
             goto next;
         
         tick = 0;
-        for (adc_max = 0, index = 0; index < TEMP_SENSOR_COUNT; index++) {
-            temp = ringbuffer_avg(&_tempCtrlTsk.sensor[index]);
-            if (temp > adc_max) adc_max = temp;
+        value = ringbuffer_avg(&_tempCtrlTsk.sensor[TEMP_SENSOR_REF]);        
+        Vref = esp_adc_cal_raw_to_voltage(value, &adc_chars);
+        value = ringbuffer_avg(&_tempCtrlTsk.sensor[TEMP_SENSOR_NTC]);        
+        Vntc = esp_adc_cal_raw_to_voltage(value, &adc_chars);
+        tmp = (15100.0/10000) * Vntc - Vref;
+        if (tmp <= 0) {
+            Rntc = 0;
+        } else {
+            Rntc = (Vref * 5100) / tmp;
         }
-        
-        voltage = esp_adc_cal_raw_to_voltage(adc_max, &adc_chars);
-        if (voltage >= TEMP_CTRL_FAN_OPEN_LIMIT) {
-            gpio_set_level(TEMP_CTRL_FAN_CHL, TEMP_CTRL_FAN_OPEN_LEVEL);
-        } else if (voltage <= TEMP_CTRL_FAN_CLOSE_LIMIT) {
-            gpio_set_level(TEMP_CTRL_FAN_CHL, TEMP_CTRL_FAN_CLOSE_LEVEL);
+        _tempCtrlTsk.temperature = SearchTableConvert(Rntc);
+        if (led_ctrl_is_close()) {
+            gpio_set_level(GPIO_CHAN_FAN, TEMP_CTRL_FAN_CLOSE_LEVEL);
+        } else if (_tempCtrlTsk.temperature >= TEMP_CTRL_FAN_OPEN_LIMIT) {
+            gpio_set_level(GPIO_CHAN_FAN, TEMP_CTRL_FAN_OPEN_LEVEL);
+        } else if (_tempCtrlTsk.temperature <= TEMP_CTRL_FAN_CLOSE_LIMIT) {
+            gpio_set_level(GPIO_CHAN_FAN, TEMP_CTRL_FAN_CLOSE_LEVEL);
         }
         //ESP_LOGI( TAG, "voltage %u",  voltage);
 next:        

@@ -77,7 +77,7 @@ void wifi_start_ap(const char* hostname, const char* password)
 {
     tcpip_adapter_ip_info_t ipInfo;
 
-    _wifiTsk.state = wifi_tsk_state_sta;
+    _wifiTsk.state = wifi_tsk_state_ap;
     memset( &_wifiTsk.conf, 0x00, sizeof(wifi_config_t) );
     memcpy( _wifiTsk.conf.ap.password, password, strlen(password) + 1 );
     memcpy( _wifiTsk.conf.ap.ssid, hostname, strlen(hostname) + 1 );
@@ -105,6 +105,11 @@ void wifi_stop()
         ESP_ERROR_CHECK( esp_wifi_restore() );
         _wifiTsk.state = wifi_tsk_state_idle;
     }   
+}
+
+wifi_tsk_state wifi_state()
+{
+    return _wifiTsk.state;
 }
 
 void wifi_eventHandler(void* arg, esp_event_base_t event_base,
@@ -146,6 +151,7 @@ void wifi_tsk(void * parm)
         goto time_sync_handle;
     }
     
+    device_set_led_mode(DEVICE_LED_MODE_FLASH);
     wifi_start_sta(conf);  
     while (tick++ < 30 && !sta_done) {
         uxBits = xEventGroupWaitBits(_wifiTsk.eventGroup, uxBitsToWaitFor, true, false, pdMS_TO_TICKS(1000)); 
@@ -162,6 +168,7 @@ void wifi_tsk(void * parm)
     } 
 
 time_sync_handle:
+    device_set_led_mode(DEVICE_LED_MODE_OPEN);
     /* sntp handle */
     while(1) {
         if (wifi_tsk_state_sta == _wifiTsk.state && _wifiTsk.isConnect) {

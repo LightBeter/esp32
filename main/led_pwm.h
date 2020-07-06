@@ -23,6 +23,11 @@ typedef enum {
     LED_CHAN_COUNT,
 } led_chan_t;
 
+typedef struct {
+    uint32_t   min;
+    uint32_t   max;
+} led_output_cfg_t;
+
 void led_pwm_initialise();
 void led_pwm_output(led_chan_t ch, led_value_t percent);
 
