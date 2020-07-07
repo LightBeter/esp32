@@ -9,8 +9,8 @@ extern "C" {
 #endif
 
 #define is_vaild_mode(_mode)     (_mode >= 0 && _mode < LED_CTRL_MODE_COUNT)
-#define is_vaild_output(_val)    (_val >= 0 && _val < 101)
-#define is_vaild_sch_time(_t)    (_t >= 0 && _t < (LED_CTRL_SCH_TIME_MAX + 1))
+#define is_vaild_output(_val)    (_val >= 0 && _val <= LED_VALUE_MAX)
+#define is_vaild_sch_time(_t)    (_t >= 0 && _t <= LED_CTRL_SCH_TIME_MAX)
 
 
 bool led_ctrl_read_time(const cJSON *packet, const char *name, uint16_t *value, uint16_t max);

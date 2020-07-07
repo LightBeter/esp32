@@ -120,6 +120,9 @@ void sntp_sync_cb(struct timeval *tv)
 {
     struct tm *tm;
     time_t  t = tv->tv_sec;
+
+
+    datetime_extrtc_write(t);
     _datetime.sync.doneTime = t;
     _datetime.sync.reqTime = 0;
     tm = localtime(&t);

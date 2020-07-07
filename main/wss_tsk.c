@@ -172,6 +172,7 @@ void wss_callback(uint8_t num, WEBSOCKET_TYPE_t type, char* msg, uint64_t len)
         return;
     case WEBSOCKET_PING:
         ESP_LOGI(TAG, "client %i pinged us with message of size %i", num, (uint32_t)len);
+        _wss_tsk.clients[num].lifetime = WS_CLIENT_LIFETIME;
         return;
     case WEBSOCKET_PONG:
         ESP_LOGI(TAG,"client %i responded to the ping",num);
@@ -326,6 +327,7 @@ send_respond:
     out = cJSON_PrintUnformatted(respone);
     cJSON_Delete(request);
     cJSON_Delete(respone);
+    ESP_LOGI(TAG, "send client %i message:\n%s", client, out);
     ws_server_send_text_client_from_callback( client, out, strlen(out));
     cJSON_free(out);
 }

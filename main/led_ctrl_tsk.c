@@ -351,7 +351,7 @@ void led_ctrl_get_by_sch()
             offset *= percent;
             _led_ctrl_tsk.output[index] = _led_ctrl_schedule[left].targ[index] + offset; 
         }
-#if 1        
+#if 0        
         ESP_LOGI(TAG, "left[%u] output: %d, %d, %d, %d, %d, %d, %d", 
             _led_ctrl_schedule[left].time, _led_ctrl_schedule[left].targ[0], 
             _led_ctrl_schedule[left].targ[1], _led_ctrl_schedule[left].targ[2],
