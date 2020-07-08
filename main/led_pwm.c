@@ -14,9 +14,8 @@
 #define LED_CURRENT_MAX                 (1500)
 #define LED_CURRENT_2_DUTY(_c_)         (_c_ * LED_PWM_DUTY_MAX / LED_CURRENT_MAX)
 #define LED_OUTPUT_CFG(_min_, _max_)    { \
-    .min = LED_CURRENT_2_DUTY(_min_),     \
-    .max = LED_CURRENT_2_DUTY(_max_),     \
-    .range = LED_CURRENT_2_DUTY(_max_) - LED_CURRENT_2_DUTY(_min_),     \
+    .min = _min_,                         \
+    .range = _max_ - _min_,               \
 }
 
 #define LED_CHANNEL_CFG(_chl, _gpio_num)     { \
@@ -75,8 +74,8 @@ void led_pwm_output(led_chan_t ch, led_value_t percent)
     if (percent < 1) {
        targ = 0; 
     } else {
-       targ = led_output_cfg[ch].range * (percent - 1) / LED_VALUE_MAX + led_output_cfg[ch].min;
+       targ = led_output_cfg[ch].range * percent / 100 + led_output_cfg[ch].min;
     }   
-    ledc_set_duty(led_pin_cfg[ch].speed_mode, led_pin_cfg[ch].channel, targ);
+    ledc_set_duty(led_pin_cfg[ch].speed_mode, led_pin_cfg[ch].channel, LED_CURRENT_2_DUTY(targ));
     ledc_update_duty(led_pin_cfg[ch].speed_mode, led_pin_cfg[ch].channel);
 }
