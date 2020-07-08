@@ -47,7 +47,7 @@ bool led_ctrl_read_targ(const cJSON *packet, const char *name, led_value_t *targ
                      __FUNCTION__, index, pSub->valueint);
             return false;  
         }
-        targ[index] = pSub->valueint * 100;
+        targ[index] = pSub->valueint;
     }
     return true;
 }
@@ -63,7 +63,7 @@ void led_ctrl_write_targ(cJSON *packet, const char *name, const led_value_t *tar
     cJSON *array;
 
     for (int i = 0; i < LED_CHAN_COUNT; i++) {
-       values[i] =  targ[i] / 100;
+       values[i] =  targ[i];
     }
     array = cJSON_CreateIntArray(values, LED_CHAN_COUNT);
     cJSON_AddItemToObject(packet, name, array);

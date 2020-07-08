@@ -258,13 +258,17 @@ void led_ctrl_save_config()
 void led_ctrl_tsk(void * parm)
 {
     led_chan_t index = 0;
-
+    uint8_t save_tick = 0;
+    
     vTaskDelay(pdMS_TO_TICKS(1000 * 3));
     while (1) 
     {
         led_ctrl_lock();
         /* save new config */
-        led_ctrl_save_config();
+        if (save_tick++ > 3) {
+            save_tick = 0;
+            led_ctrl_save_config();
+        }
         /* update output */
         if (false == _led_ctrl_tsk.sw) { 
             for (index = 0; index < LED_CHAN_COUNT; index++)

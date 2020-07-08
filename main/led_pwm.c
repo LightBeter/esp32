@@ -4,17 +4,20 @@
 #include <esp_log.h>
 #include "led_pwm.h"
 
-#define TAG                         "LedPwm"
-#define LED_PWM_FREQ                5000
-#define LED_PWM_SPEED_MODE          LEDC_HIGH_SPEED_MODE
-#define LED_PWM_TIMER               LEDC_TIMER_0
-#define LED_PWM_DUTY_RESOLUTION     LEDC_TIMER_8_BIT
-#define LED_PWM_DUTY_MAX            ((0x1 << LED_PWM_DUTY_RESOLUTION) - 1)
-#define LED_PWM_FADE_ENABLE         0
-#define LED_PWM_FADE_TIME           (2000)
+#define TAG                             "LedPwm"
+#define LED_PWM_FREQ                    5000
+#define LED_PWM_SPEED_MODE              LEDC_HIGH_SPEED_MODE
+#define LED_PWM_TIMER                   LEDC_TIMER_0
+#define LED_PWM_DUTY_RESOLUTION         LEDC_TIMER_11_BIT
+#define LED_PWM_DUTY_MAX                ((0x1 << LED_PWM_DUTY_RESOLUTION) - 1)
 
-#define LED_CURRENT_MAX             (1500)
-#define LED_CURRENT_2_DUTY(_c_)     (_c_ * LED_PWM_DUTY_MAX / LED_CURRENT_MAX)
+#define LED_CURRENT_MAX                 (1500)
+#define LED_CURRENT_2_DUTY(_c_)         (_c_ * LED_PWM_DUTY_MAX / LED_CURRENT_MAX)
+#define LED_OUTPUT_CFG(_min_, _max_)    { \
+    .min = LED_CURRENT_2_DUTY(_min_),     \
+    .max = LED_CURRENT_2_DUTY(_max_),     \
+    .range = LED_CURRENT_2_DUTY(_max_) - LED_CURRENT_2_DUTY(_min_),     \
+}
 
 #define LED_CHANNEL_CFG(_chl, _gpio_num)     { \
     .gpio_num   = _gpio_num,               \
@@ -26,17 +29,7 @@
     .hpoint     = 0,                       \
 }
 
-const led_output_cfg_t led_output_cfg[LED_CHAN_COUNT] = {
-    [LED_CHAN_WHITE]     = { LED_CURRENT_2_DUTY(120),  LED_CURRENT_2_DUTY(1300) },
-    [LED_CHAN_DARK_BLUE] = { LED_CURRENT_2_DUTY(120),  LED_CURRENT_2_DUTY(1000) }, 
-    [LED_CHAN_BLUE]      = { LED_CURRENT_2_DUTY(120),  LED_CURRENT_2_DUTY(1000) }, 
-    [LED_CHAN_RED]       = { LED_CURRENT_2_DUTY(120),  LED_CURRENT_2_DUTY(600) },    
-    [LED_CHAN_GREEN]     = { LED_CURRENT_2_DUTY(120),  LED_CURRENT_2_DUTY(600) },
-    [LED_CHAN_UV_405]    = { LED_CURRENT_2_DUTY(120),  LED_CURRENT_2_DUTY(700) },
-    [LED_CHAN_UV_415]    = { LED_CURRENT_2_DUTY(120),  LED_CURRENT_2_DUTY(700) },
-};
-
-ledc_channel_config_t led_pwm_channel[LED_CHAN_COUNT] = {
+const ledc_channel_config_t led_pin_cfg[LED_CHAN_COUNT] = {
     [LED_CHAN_WHITE]     = LED_CHANNEL_CFG(LEDC_CHANNEL_0, GPIO_NUM_32),
     [LED_CHAN_DARK_BLUE] = LED_CHANNEL_CFG(LEDC_CHANNEL_1, GPIO_NUM_25),
     [LED_CHAN_BLUE]      = LED_CHANNEL_CFG(LEDC_CHANNEL_2, GPIO_NUM_33),
@@ -44,6 +37,16 @@ ledc_channel_config_t led_pwm_channel[LED_CHAN_COUNT] = {
     [LED_CHAN_GREEN]     = LED_CHANNEL_CFG(LEDC_CHANNEL_4, GPIO_NUM_12),
     [LED_CHAN_UV_405]    = LED_CHANNEL_CFG(LEDC_CHANNEL_5, GPIO_NUM_26),
     [LED_CHAN_UV_415]    = LED_CHANNEL_CFG(LEDC_CHANNEL_6, GPIO_NUM_27),
+};
+
+const led_output_cfg_t led_output_cfg[LED_CHAN_COUNT] = {
+    [LED_CHAN_WHITE]     = LED_OUTPUT_CFG( 120, 1300 ),
+    [LED_CHAN_DARK_BLUE] = LED_OUTPUT_CFG( 120, 1000 ), 
+    [LED_CHAN_BLUE]      = LED_OUTPUT_CFG( 120, 1000 ),  
+    [LED_CHAN_RED]       = LED_OUTPUT_CFG( 120, 600 ),     
+    [LED_CHAN_GREEN]     = LED_OUTPUT_CFG( 120, 600 ), 
+    [LED_CHAN_UV_405]    = LED_OUTPUT_CFG( 120, 700 ), 
+    [LED_CHAN_UV_415]    = LED_OUTPUT_CFG( 120, 700 ), 
 };
 
 void led_pwm_initialise()
@@ -55,11 +58,8 @@ void led_pwm_initialise()
         .timer_num  = LED_PWM_TIMER
     };
     ESP_ERROR_CHECK( ledc_timer_config(&ledc_timer) );
-#if defined(LED_PWM_FADE_ENABLE) && (LED_PWM_FADE_ENABLE == 1)
-    ESP_ERROR_CHECK( ledc_fade_func_install(0) );
-#endif
     for(int i = 0; i < LED_CHAN_COUNT; i++) {
-        ESP_ERROR_CHECK( ledc_channel_config(&led_pwm_channel[i]) );
+        ESP_ERROR_CHECK( ledc_channel_config(&led_pin_cfg[i]) );
     }
 }
 
@@ -72,16 +72,11 @@ void led_pwm_output(led_chan_t ch, led_value_t percent)
         percent = LED_VALUE_MAX;
     } 
 
-    if (percent < 100) {
+    if (percent < 1) {
        targ = 0; 
     } else {
-       targ = (led_output_cfg[ch].max - led_output_cfg[ch].min)  * (percent - 100) / LED_VALUE_MAX + led_output_cfg[ch].min;
-    }
-#if defined(LED_PWM_FADE_ENABLE) && (LED_PWM_FADE_ENABLE == 1)
-    ledc_set_fade_with_time(led_pwm_channel[ch].speed_mode, led_pwm_channel[ch].channel, targ, LED_PWM_FADE_TIME);
-    ledc_fade_start(led_pwm_channel[ch].speed_mode,  led_pwm_channel[ch].channel, LEDC_FADE_NO_WAIT);
-#else   
-    ledc_set_duty(led_pwm_channel[ch].speed_mode, led_pwm_channel[ch].channel, targ);
-    ledc_update_duty(led_pwm_channel[ch].speed_mode, led_pwm_channel[ch].channel);
-#endif
+       targ = led_output_cfg[ch].range * (percent - 1) / LED_VALUE_MAX + led_output_cfg[ch].min;
+    }   
+    ledc_set_duty(led_pin_cfg[ch].speed_mode, led_pin_cfg[ch].channel, targ);
+    ledc_update_duty(led_pin_cfg[ch].speed_mode, led_pin_cfg[ch].channel);
 }
