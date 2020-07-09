@@ -166,11 +166,11 @@ void temp_ctrl_tsk(void * parm)
         Vref = esp_adc_cal_raw_to_voltage(value, &adc_chars);
         value = ringbuffer_avg(&_tempCtrlTsk.sensor[TEMP_SENSOR_NTC]);        
         Vntc = esp_adc_cal_raw_to_voltage(value, &adc_chars);
-        tmp = (15100.0/10000) * Vntc - Vref;
+        tmp = (15100.0/10000) * Vref - Vntc;
         if (tmp <= 0) {
             Rntc = 0;
         } else {
-            Rntc = (Vref * 5100) / tmp;
+            Rntc = (Vntc * 5100) / tmp;
         }
         _tempCtrlTsk.temperature = SearchTableConvert(Rntc);
         if (led_ctrl_is_close()) {
@@ -180,7 +180,6 @@ void temp_ctrl_tsk(void * parm)
         } else if (_tempCtrlTsk.temperature <= TEMP_CTRL_FAN_CLOSE_LIMIT) {
             gpio_set_level(GPIO_CHAN_FAN, TEMP_CTRL_FAN_CLOSE_LEVEL);
         }
-        //ESP_LOGI( TAG, "voltage %u",  voltage);
 next:        
         vTaskDelay(pdMS_TO_TICKS(TEMP_CTRL_SAMPLE_INTERVAL));
     }

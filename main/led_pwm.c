@@ -5,7 +5,7 @@
 #include "led_pwm.h"
 
 #define TAG                             "LedPwm"
-#define LED_PWM_FREQ                    5000
+#define LED_PWM_FREQ                    20000
 #define LED_PWM_SPEED_MODE              LEDC_HIGH_SPEED_MODE
 #define LED_PWM_TIMER                   LEDC_TIMER_0
 #define LED_PWM_DUTY_RESOLUTION         LEDC_TIMER_11_BIT
