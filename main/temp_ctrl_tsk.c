@@ -180,6 +180,8 @@ void temp_ctrl_tsk(void * parm)
         } else if (_tempCtrlTsk.temperature <= TEMP_CTRL_FAN_CLOSE_LIMIT) {
             gpio_set_level(GPIO_CHAN_FAN, TEMP_CTRL_FAN_CLOSE_LEVEL);
         }
+
+        //ESP_LOGI( TAG, "temperature %d", _tempCtrlTsk.temperature );
 next:        
         vTaskDelay(pdMS_TO_TICKS(TEMP_CTRL_SAMPLE_INTERVAL));
     }

@@ -16,7 +16,7 @@
 #define TAG                      "Device"
 #define TSK_NAME                 "DeviceTsk"
 #define DEVICE_TSK_STACK_SIZE    2048
-#define GPIO_CHAN_LED_1          GPIO_NUM_22
+#define GPIO_CHAN_LED_1          GPIO_NUM_23
 #define GPIO_CHAN_LED_2          GPIO_NUM_22
 #define LED_OPEN_LEVEL           1
 #define LED_CLOSE_LEVEL          0

@@ -5,17 +5,17 @@
 #include "led_pwm.h"
 
 #define TAG                             "LedPwm"
-#define LED_PWM_FREQ                    20000
+#define MPS24833                        1
 #define LED_PWM_SPEED_MODE              LEDC_HIGH_SPEED_MODE
 #define LED_PWM_TIMER                   LEDC_TIMER_0
 #define LED_PWM_DUTY_RESOLUTION         LEDC_TIMER_11_BIT
 #define LED_PWM_DUTY_MAX                ((0x1 << LED_PWM_DUTY_RESOLUTION) - 1)
 
-#define LED_CURRENT_MAX                 (1500)
-#define LED_CURRENT_2_DUTY(_c_)         (_c_ * LED_PWM_DUTY_MAX / LED_CURRENT_MAX)
-#define LED_OUTPUT_CFG(_min_, _max_)    { \
+#define LED_CURRENT_2_DUTY(_c_, _max_)         (_c_ * LED_PWM_DUTY_MAX / _max_)
+#define LED_OUTPUT_CFG(_min_, _range, _max)    { \
     .min = _min_,                         \
-    .range = _max_ - _min_,               \
+    .range = _range,               \
+    .max = _max,                          \
 }
 
 #define LED_CHANNEL_CFG(_chl, _gpio_num)     { \
@@ -38,16 +38,29 @@ const ledc_channel_config_t led_pin_cfg[LED_CHAN_COUNT] = {
     [LED_CHAN_UV_415]    = LED_CHANNEL_CFG(LEDC_CHANNEL_6, GPIO_NUM_27),
 };
 
+#if defined(MPS24833) && (MPS24833 == 1)
+#define LED_PWM_FREQ                    1000
 const led_output_cfg_t led_output_cfg[LED_CHAN_COUNT] = {
-    [LED_CHAN_WHITE]     = LED_OUTPUT_CFG( 120, 1300 ),
-    [LED_CHAN_DARK_BLUE] = LED_OUTPUT_CFG( 120, 1000 ), 
-    [LED_CHAN_BLUE]      = LED_OUTPUT_CFG( 120, 1000 ),  
-    [LED_CHAN_RED]       = LED_OUTPUT_CFG( 120, 600 ),     
-    [LED_CHAN_GREEN]     = LED_OUTPUT_CFG( 120, 600 ), 
-    [LED_CHAN_UV_405]    = LED_OUTPUT_CFG( 120, 700 ), 
-    [LED_CHAN_UV_415]    = LED_OUTPUT_CFG( 120, 700 ), 
+    [LED_CHAN_WHITE]     = LED_OUTPUT_CFG( 120, 1200 - 120, 1400 ),
+    [LED_CHAN_DARK_BLUE] = LED_OUTPUT_CFG( 120, 1000 - 120, 1000 ), 
+    [LED_CHAN_BLUE]      = LED_OUTPUT_CFG( 120, 1000 - 120, 1000 ),  
+    [LED_CHAN_RED]       = LED_OUTPUT_CFG( 120, 800 - 120, 1000 ),     
+    [LED_CHAN_GREEN]     = LED_OUTPUT_CFG( 120, 800 - 120, 1000 ), 
+    [LED_CHAN_UV_405]    = LED_OUTPUT_CFG( 120, 700 - 120, 800 ), 
+    [LED_CHAN_UV_415]    = LED_OUTPUT_CFG( 120, 700 - 120, 1000 ), 
 };
-
+#else
+#define LED_PWM_FREQ                    24000
+const led_output_cfg_t led_output_cfg[LED_CHAN_COUNT] = {
+    [LED_CHAN_WHITE]     = LED_OUTPUT_CFG( 120, 1200 - 120, 1200 ),
+    [LED_CHAN_DARK_BLUE] = LED_OUTPUT_CFG( 120, 1000 - 120, 1000 ), 
+    [LED_CHAN_BLUE]      = LED_OUTPUT_CFG( 120, 1000 - 120, 1000 ),  
+    [LED_CHAN_RED]       = LED_OUTPUT_CFG( 120, 800 - 120,  1000 ),     
+    [LED_CHAN_GREEN]     = LED_OUTPUT_CFG( 120, 800 - 120,  1000 ), 
+    [LED_CHAN_UV_405]    = LED_OUTPUT_CFG( 120, 700 - 120,  800 ), 
+    [LED_CHAN_UV_415]    = LED_OUTPUT_CFG( 120, 700 - 120,  1000 ), 
+};
+#endif
 void led_pwm_initialise()
 {
     ledc_timer_config_t ledc_timer = {
@@ -74,8 +87,8 @@ void led_pwm_output(led_chan_t ch, led_value_t percent)
     if (percent < 1) {
        targ = 0; 
     } else {
-       targ = led_output_cfg[ch].range * percent / 100 + led_output_cfg[ch].min;
+       targ = led_output_cfg[ch].range * (percent - 1) / 100 + led_output_cfg[ch].min;
     }   
-    ledc_set_duty(led_pin_cfg[ch].speed_mode, led_pin_cfg[ch].channel, LED_CURRENT_2_DUTY(targ));
+    ledc_set_duty(led_pin_cfg[ch].speed_mode, led_pin_cfg[ch].channel, LED_CURRENT_2_DUTY(targ, led_output_cfg[ch].max));
     ledc_update_duty(led_pin_cfg[ch].speed_mode, led_pin_cfg[ch].channel);
 }
