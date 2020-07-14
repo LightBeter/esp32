@@ -327,7 +327,7 @@ send_respond:
     out = cJSON_PrintUnformatted(respone);
     cJSON_Delete(request);
     cJSON_Delete(respone);
-    ESP_LOGI(TAG, "send client %i message:\n%s", client, out);
+    //ESP_LOGI(TAG, "send client %i message:\n%s", client, out);
     ws_server_send_text_client_from_callback( client, out, strlen(out));
     cJSON_free(out);
 }

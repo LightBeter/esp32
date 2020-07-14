@@ -20,12 +20,14 @@ typedef struct {
     xTaskHandle         handle;
     ringbuffer_type     sensor[TEMP_SENSOR_COUNT];
     int16_t             temperature;
+    bool                over;
 } temp_ctrl_tsk_type;
 
 void temp_ctrl_tsk_init();
 void temp_ctrl_tsk_deinit();
 void temp_ctrl_tsk_start();
 void temp_ctrl_tsk_stop();
+bool temp_is_over();
 void temp_ctrl_temperature_resp(cJSON *respone);
 
 #ifdef __cplusplus

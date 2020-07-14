@@ -36,6 +36,7 @@ void wifi_tsk_init()
     _wifiTsk.initConf  = initconf;
     _wifiTsk.eventGroup= xEventGroupCreate();
     ESP_ERROR_CHECK( esp_wifi_init(&_wifiTsk.initConf) );
+    ESP_ERROR_CHECK( esp_wifi_set_ps(WIFI_PS_NONE) );
     ESP_ERROR_CHECK( esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_eventHandler, NULL));
     ESP_ERROR_CHECK( esp_event_handler_register(IP_EVENT,   IP_EVENT_STA_GOT_IP, &wifi_eventHandler, NULL));
     ESP_LOGI( TAG, " initialise wifi finished." );
@@ -67,6 +68,8 @@ void wifi_start_sta(const wifi_config_t *conf)
 {
     _wifiTsk.state = wifi_tsk_state_sta;
     memcpy( &_wifiTsk.conf, conf, sizeof(wifi_config_t) );
+    _wifiTsk.conf.sta.pmf_cfg.capable = true;
+    _wifiTsk.conf.sta.pmf_cfg.required = false;
     ESP_ERROR_CHECK( esp_wifi_set_mode(WIFI_MODE_STA) );
     ESP_ERROR_CHECK( esp_wifi_set_config(ESP_IF_WIFI_STA, &_wifiTsk.conf) );
     ESP_ERROR_CHECK( esp_wifi_start() );
@@ -153,7 +156,7 @@ void wifi_tsk(void * parm)
     
     device_set_led_mode(DEVICE_LED_MODE_FLASH);
     wifi_start_sta(conf);  
-    while (tick++ < 30 && !sta_done) {
+    while (tick++ < 60 && !sta_done) {
         uxBits = xEventGroupWaitBits(_wifiTsk.eventGroup, uxBitsToWaitFor, true, false, pdMS_TO_TICKS(1000)); 
         if (uxBits & WIFI_TSK_EVENT_STA_GOT_IP) {
             sta_done = true;

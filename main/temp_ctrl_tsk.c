@@ -20,8 +20,10 @@
 #define TEMP_CTRL_ADC_ATTEN         ADC_ATTEN_DB_11
 #define TEMP_CTRL_ADC_CHL           ADC1_CHANNEL_0 //ADC1_CHANNEL_3
 
+#define TEMP_OVER_LIMIT             64
+#define TEMP_OVER_CANCEL            40
 #define TEMP_CTRL_FAN_OPEN_LIMIT    45
-#define TEMP_CTRL_FAN_CLOSE_LIMIT   15
+#define TEMP_CTRL_FAN_CLOSE_LIMIT   30
 #define GPIO_CHAN_FAN               GPIO_NUM_2
 #define TEMP_CTRL_FAN_OPEN_LEVEL    1
 #define TEMP_CTRL_FAN_CLOSE_LEVEL   0
@@ -65,6 +67,7 @@ void temp_ctrl_tsk_init()
         ringbuffer_init( &_tempCtrlTsk.sensor[index], TEMP_CTRL_ADC_BUFFER_LEN );
     }
     _tempCtrlTsk.handle = NULL;
+    _tempCtrlTsk.over   = false;
     /* initial gpio */
     gpio_config_t io_conf;
     io_conf.intr_type = GPIO_PIN_INTR_DISABLE;
@@ -103,6 +106,11 @@ void temp_ctrl_tsk_stop()
         _tempCtrlTsk.handle = NULL; 
     }
     gpio_set_level(GPIO_CHAN_FAN, TEMP_CTRL_FAN_CLOSE_LEVEL);
+}
+
+bool temp_is_over()
+{
+    return _tempCtrlTsk.over;
 }
 
 int16_t SearchTableConvert(const uint32_t r) {
@@ -181,6 +189,11 @@ void temp_ctrl_tsk(void * parm)
             gpio_set_level(GPIO_CHAN_FAN, TEMP_CTRL_FAN_CLOSE_LEVEL);
         }
 
+        if (_tempCtrlTsk.temperature >= TEMP_OVER_LIMIT) {
+            _tempCtrlTsk.over = true;
+        } else if (_tempCtrlTsk.temperature <= TEMP_OVER_CANCEL) {
+            _tempCtrlTsk.over = false;
+        }
         //ESP_LOGI( TAG, "temperature %d", _tempCtrlTsk.temperature );
 next:        
         vTaskDelay(pdMS_TO_TICKS(TEMP_CTRL_SAMPLE_INTERVAL));

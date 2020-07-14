@@ -7,6 +7,7 @@
 #include "device.h"
 #include "led_ctrl_tsk.h"
 #include "led_ctrl_misc.h"
+#include "temp_ctrl_tsk.h"
 
 #define TAG                    "LedCtrl"
 #define TSK_NAME               TAG
@@ -270,7 +271,7 @@ void led_ctrl_tsk(void * parm)
             led_ctrl_save_config();
         }
         /* update output */
-        if (false == _led_ctrl_tsk.sw) { 
+        if (false == _led_ctrl_tsk.sw || temp_is_over()) { 
             for (index = 0; index < LED_CHAN_COUNT; index++)
                 _led_ctrl_tsk.output[index] = LED_VALUE_MIN; 
         } else if (_led_ctrl_demo.remaining > 0) {
