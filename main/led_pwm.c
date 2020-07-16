@@ -5,7 +5,7 @@
 #include "led_pwm.h"
 
 #define TAG                             "LedPwm"
-#define MPS24833                        1
+#define MPS24833                        0
 #define LED_PWM_SPEED_MODE              LEDC_HIGH_SPEED_MODE
 #define LED_PWM_TIMER                   LEDC_TIMER_0
 #define LED_PWM_DUTY_RESOLUTION         LEDC_TIMER_11_BIT
@@ -43,24 +43,24 @@ const ledc_channel_config_t ledc_chan_cfg[LED_CHAN_COUNT] = {
 #if defined(MPS24833) && (MPS24833 == 1)
 #define LED_PWM_FREQ                    1000
 const led_output_cfg_t ledc_output_cfg[LED_CHAN_COUNT] = {
-    [LED_CHAN_WHITE]     = LED_OUTPUT_CFG( 120, 1200 - 120, 1400 ),
-    [LED_CHAN_DARK_BLUE] = LED_OUTPUT_CFG( 120, 1000 - 120, 1000 ), 
-    [LED_CHAN_BLUE]      = LED_OUTPUT_CFG( 120, 1000 - 120, 1000 ),  
-    [LED_CHAN_RED]       = LED_OUTPUT_CFG( 120, 800 - 120, 1000 ),     
-    [LED_CHAN_GREEN]     = LED_OUTPUT_CFG( 120, 800 - 120, 1000 ), 
-    [LED_CHAN_UV_405]    = LED_OUTPUT_CFG( 120, 700 - 120, 800 ), 
-    [LED_CHAN_UV_415]    = LED_OUTPUT_CFG( 120, 700 - 120, 1000 ), 
+    [LED_CHAN_WHITE]     = LED_OUTPUT_CFG( 120, 1400 - 120, 1500 ),
+    [LED_CHAN_DARK_BLUE] = LED_OUTPUT_CFG( 120, 1400 - 120, 1500 ), 
+    [LED_CHAN_BLUE]      = LED_OUTPUT_CFG( 120, 950 - 120, 1000 ),  
+    [LED_CHAN_RED]       = LED_OUTPUT_CFG( 120, 950 - 120, 1000 ),     
+    [LED_CHAN_GREEN]     = LED_OUTPUT_CFG( 120, 950 - 120, 1000 ), 
+    [LED_CHAN_UV_405]    = LED_OUTPUT_CFG( 120, 750 - 120, 800 ), 
+    [LED_CHAN_UV_415]    = LED_OUTPUT_CFG( 120, 750 - 120, 800 ), 
 };
 #else
 #define LED_PWM_FREQ                    24000
 const led_output_cfg_t ledc_output_cfg[LED_CHAN_COUNT] = {
-    [LED_CHAN_WHITE]     = LED_OUTPUT_CFG( 120, 1200 - 120, 1200 ),
-    [LED_CHAN_DARK_BLUE] = LED_OUTPUT_CFG( 120, 1000 - 120, 1000 ), 
-    [LED_CHAN_BLUE]      = LED_OUTPUT_CFG( 120, 1000 - 120, 1000 ),  
-    [LED_CHAN_RED]       = LED_OUTPUT_CFG( 120, 800 - 120,  1000 ),     
-    [LED_CHAN_GREEN]     = LED_OUTPUT_CFG( 120, 800 - 120,  1000 ), 
-    [LED_CHAN_UV_405]    = LED_OUTPUT_CFG( 120, 700 - 120,  800 ), 
-    [LED_CHAN_UV_415]    = LED_OUTPUT_CFG( 120, 700 - 120,  1000 ), 
+    [LED_CHAN_WHITE]     = LED_OUTPUT_CFG( 200, 1400 - 200, 1500 ),
+    [LED_CHAN_DARK_BLUE] = LED_OUTPUT_CFG( 200, 1400 - 200, 1500 ), 
+    [LED_CHAN_BLUE]      = LED_OUTPUT_CFG( 120, 950 - 120, 1000 ),  
+    [LED_CHAN_RED]       = LED_OUTPUT_CFG( 120, 950 - 120,  1000 ),     
+    [LED_CHAN_GREEN]     = LED_OUTPUT_CFG( 120, 950 - 120,  1000 ), 
+    [LED_CHAN_UV_405]    = LED_OUTPUT_CFG( 120, 750 - 120,  800 ), 
+    [LED_CHAN_UV_415]    = LED_OUTPUT_CFG( 120, 750 - 120,  800 ), 
 };
 #endif
 
@@ -95,6 +95,7 @@ void led_pwm_output(led_chan_t ch, led_value_t percent)
     if (percent == ledc_chan_output[ch])
         return;
 
+    ledc_chan_output[ch] = percent;
     if (percent < 1) {
        targ = 0; 
     } else {

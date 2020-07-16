@@ -14,7 +14,7 @@
 #define TSK_NAME                    TAG
 #define TSK_STACK_SIZE              3072
 #define WIFI_AP_DEFAULT_PASSWORD    "00000000"
-#define WIFI_AP_MAX_STA_CONN        4
+#define WIFI_AP_MAX_STA_CONN        6
 
 #define WIFI_TSK_EVENT_STA_GOT_IP   BIT0
 
@@ -85,15 +85,16 @@ void wifi_start_ap(const char* hostname, const char* password)
     memcpy( _wifiTsk.conf.ap.password, password, strlen(password) + 1 );
     memcpy( _wifiTsk.conf.ap.ssid, hostname, strlen(hostname) + 1 );
     _wifiTsk.conf.ap.ssid_len = strlen(hostname);
-    _wifiTsk.conf.ap.max_connection = WIFI_AP_MAX_STA_CONN;
     _wifiTsk.conf.ap.authmode = WIFI_AUTH_WPA_WPA2_PSK;
+    _wifiTsk.conf.ap.max_connection = WIFI_AP_MAX_STA_CONN;
+    _wifiTsk.conf.ap.beacon_interval = 100;
     /* set DHCP ip address */
-    IP4_ADDR( &ipInfo.ip, 192,168,1,1 );
-	IP4_ADDR( &ipInfo.gw, 192,168,1,1 );
-	IP4_ADDR( &ipInfo.netmask, 255,255,255,0 );
-    ESP_ERROR_CHECK( tcpip_adapter_dhcps_stop(TCPIP_ADAPTER_IF_AP) );
-    ESP_ERROR_CHECK( tcpip_adapter_set_ip_info(TCPIP_ADAPTER_IF_AP, &ipInfo) );
-    ESP_ERROR_CHECK( tcpip_adapter_dhcps_start(TCPIP_ADAPTER_IF_AP) );
+    // IP4_ADDR( &ipInfo.ip, 192,168,1,1 );
+	// IP4_ADDR( &ipInfo.gw, 192,168,1,1 );
+	// IP4_ADDR( &ipInfo.netmask, 255,255,255,0 );
+    // ESP_ERROR_CHECK( tcpip_adapter_dhcps_stop(TCPIP_ADAPTER_IF_AP) );
+    // ESP_ERROR_CHECK( tcpip_adapter_set_ip_info(TCPIP_ADAPTER_IF_AP, &ipInfo) );
+    // ESP_ERROR_CHECK( tcpip_adapter_dhcps_start(TCPIP_ADAPTER_IF_AP) );
     /* start wifi ap mode */
     ESP_ERROR_CHECK( esp_wifi_set_mode(WIFI_MODE_AP) );
     ESP_ERROR_CHECK( esp_wifi_set_config(ESP_IF_WIFI_AP, &_wifiTsk.conf) );
