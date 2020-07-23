@@ -160,7 +160,7 @@ void temp_ctrl_tsk(void * parm)
     } else {
         ESP_LOGI( TAG, "Characterized using Default Vref" );
     }
- #if 0   
+  
     while (1) {
         for (index = 0; index < TEMP_SENSOR_COUNT; index++) {
             temp = adc1_get_raw(_sensorConf[index]);
@@ -198,12 +198,4 @@ void temp_ctrl_tsk(void * parm)
 next:        
         vTaskDelay(pdMS_TO_TICKS(TEMP_CTRL_SAMPLE_INTERVAL));
     }
-#else
-    gpio_set_level(GPIO_CHAN_FAN, TEMP_CTRL_FAN_CLOSE_LEVEL);
-    vTaskDelay(pdMS_TO_TICKS(5 * 1000));      
-    while (1) {
-        gpio_set_level(GPIO_CHAN_FAN, TEMP_CTRL_FAN_OPEN_LEVEL);
-        vTaskDelay(pdMS_TO_TICKS(5 * 1000)); 
-    }  
-#endif
 }

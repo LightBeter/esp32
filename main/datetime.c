@@ -74,10 +74,12 @@ void datetime_set(time_t t, int tz)
     /* update ext rtc */
     datetime_extrtc_write(t);
     /* save timezone */
-    storage_write_tz(tz);
+    if (_datetime.tz != tz) {
+        storage_write_tz(tz);
+        _datetime.tz = tz;
+    }
     /* output new datetime */
     tm = localtime(&t);
-    _datetime.tz = tz;
     ESP_LOGI( TAG, "%s: set new date/time %s, tz %d", __FUNCTION__, asctime(tm), tz );
 }
 

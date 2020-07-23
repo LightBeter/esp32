@@ -112,10 +112,13 @@ bool led_ctrl_set_mode(const cJSON *packet)
         return false;  
     } 
     led_ctrl_lock();
-    _led_ctrl_tsk.sw = sw->valueint != 0 ? true : false;
-    _led_ctrl_tsk.mode = mode->valueint;
-    _led_ctrl_tsk.curSaveToken++;
-    device_set_led(LED_CTRL_MODE_MANUAL == _led_ctrl_tsk.mode ? DEVICE_LED_1 : DEVICE_LED_2);
+    if (_led_ctrl_tsk.sw != sw->valueint
+        || _led_ctrl_tsk.mode != mode->valueint) {
+        _led_ctrl_tsk.sw = sw->valueint != 0 ? true : false;
+        _led_ctrl_tsk.mode = mode->valueint;
+        _led_ctrl_tsk.curSaveToken++;
+        device_set_led(LED_CTRL_MODE_MANUAL == _led_ctrl_tsk.mode ? DEVICE_LED_1 : DEVICE_LED_2);
+    }
     led_ctrl_unlock();
     return true;
 }
@@ -160,6 +163,10 @@ bool led_ctrl_set_manual(const cJSON *packet)
     if (true != led_ctrl_read_targ( packet, "values", targ)) {
         return false;
     } 
+
+    if (0 == memcmp(_led_ctrl_manual, targ, sizeof(led_value_t) * LED_CHAN_COUNT)) 
+        return true;
+        
     led_ctrl_lock();
     memcpy(_led_ctrl_manual, targ, sizeof(led_value_t) * LED_CHAN_COUNT);
     _led_ctrl_demo.remaining = 0;
