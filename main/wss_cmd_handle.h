@@ -61,7 +61,6 @@ wss_respond_code_t exec_recovery_factory_handle(cJSON *request, cJSON *respone);
 wss_respond_code_t exec_ledtemporary_handler(cJSON *request, cJSON *respone);
 
 wss_respond_code_t exec_ota_begin_handle(int client, cJSON *request, cJSON *respone);
-wss_respond_code_t exec_ota_write_handle(int client, cJSON *request, cJSON *respone);
 wss_respond_code_t exec_ota_done_handle(int client, cJSON *request, cJSON *respone);
 
 #ifdef __cplusplus

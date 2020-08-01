@@ -311,10 +311,7 @@ void wss_callback_text(uint8_t client, char* msg, uint64_t len)
         break;   
     case wss_cmd_e_ota_done:
         code = exec_ota_done_handle(client, request, respone);
-        break;    
-    // case wss_cmd_e_ota_write:
-    //     code = exec_ota_write_handle(client, request, respone);
-    //     break;  
+        break;     
     default:
         code = wss_respond_code_invalid_cmd;
         break;

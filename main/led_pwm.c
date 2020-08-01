@@ -11,7 +11,7 @@
 #define LED_PWM_DUTY_RESOLUTION         LEDC_TIMER_11_BIT
 #define LED_PWM_DUTY_MAX                ((0x1 << LED_PWM_DUTY_RESOLUTION) - 1)
 #define LED_PWM_FADE_ENABLE             1
-#define LED_PWM_FADE_TIME               (800)
+#define LED_PWM_FADE_TIME               (600)
 
 #define LED_CURRENT_2_DUTY(_c_, _max_)         (_c_ * LED_PWM_DUTY_MAX / _max_)
 #define LED_OUTPUT_CFG(_min_, _range, _max)    { \

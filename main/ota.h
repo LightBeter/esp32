@@ -26,7 +26,7 @@ void ota_init();
 void ota_deinit();
 bool is_ota_client(int client);
 bool ota_begin(int client, size_t img_size);
-bool ota_write(int client, const char *base64_buff, size_t base64_len);
+bool ota_write(int client, char *data, size_t data_len);
 bool ota_end(int client);
 
 #endif

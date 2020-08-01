@@ -202,26 +202,3 @@ wss_respond_code_t exec_ota_done_handle(int client, cJSON *request, cJSON *respo
         return wss_respond_code_exec_failure;
     } 
 }
-
-wss_respond_code_t exec_ota_write_handle(int client, cJSON *request, cJSON *respone)
-{
-    cJSON *item;
-    size_t len; 
-
-    item = cJSON_GetObjectItem(request, "data");
-    if (!cJSON_IsString(item)) {
-        ESP_LOGI(TAG, "%s invalid data.", __FUNCTION__);
-        return wss_respond_code_invalid_param;
-    } 
-
-    len = strlen(item->valuestring);
-    if (len <= 0) {
-        ESP_LOGI(TAG, "%s invalid data len.", __FUNCTION__);
-        return wss_respond_code_invalid_param;
-    }
-
-    if (true != ota_write(client, item->valuestring, len)) {
-        return wss_respond_code_exec_failure;
-    } 
-    return wss_respond_code_ok;
-}
