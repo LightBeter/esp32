@@ -11,7 +11,7 @@
 #define LED_PWM_DUTY_RESOLUTION         LEDC_TIMER_11_BIT
 #define LED_PWM_DUTY_MAX                ((0x1 << LED_PWM_DUTY_RESOLUTION) - 1)
 #define LED_PWM_FADE_ENABLE             1
-#define LED_PWM_FADE_TIME               (600)
+#define LED_PWM_FADE_TIME               (500)
 
 #define LED_CURRENT_2_DUTY(_c_, _max_)         (_c_ * LED_PWM_DUTY_MAX / _max_)
 #define LED_OUTPUT_CFG(_min_, _range, _max)    { \
@@ -46,13 +46,13 @@ const ledc_channel_config_t ledc_chan_cfg[LED_CHAN_COUNT] = {
 #define LED_PWM_FREQ                    400
 #endif
 const led_output_cfg_t ledc_output_cfg[LED_CHAN_COUNT] = {
-    [LED_CHAN_WHITE]     = LED_OUTPUT_CFG( 120, 1400 - 120, 1500 ),
-    [LED_CHAN_DARK_BLUE] = LED_OUTPUT_CFG( 120, 1400 - 120, 1500 ), 
-    [LED_CHAN_BLUE]      = LED_OUTPUT_CFG( 120, 900 - 120, 1000 ),  
-    [LED_CHAN_RED]       = LED_OUTPUT_CFG( 120, 800 - 120, 1000 ),     
-    [LED_CHAN_GREEN]     = LED_OUTPUT_CFG( 120, 800 - 120, 1000 ), 
-    [LED_CHAN_UV_405]    = LED_OUTPUT_CFG( 120, 750 - 120, 800 ), 
-    [LED_CHAN_UV_415]    = LED_OUTPUT_CFG( 120, 750 - 120, 800 ), 
+    [LED_CHAN_WHITE]     = LED_OUTPUT_CFG( 45, 1400 - 45, 1500 ),
+    [LED_CHAN_DARK_BLUE] = LED_OUTPUT_CFG( 45, 1400 - 45, 1500 ), 
+    [LED_CHAN_BLUE]      = LED_OUTPUT_CFG( 30, 900 - 30, 1000 ),  
+    [LED_CHAN_RED]       = LED_OUTPUT_CFG( 30, 800 - 30, 1000 ),     
+    [LED_CHAN_GREEN]     = LED_OUTPUT_CFG( 30, 800 - 30, 1000 ), 
+    [LED_CHAN_UV_405]    = LED_OUTPUT_CFG( 24, 750 - 24, 800 ), 
+    [LED_CHAN_UV_415]    = LED_OUTPUT_CFG( 24, 750 - 24, 800 ), 
 };
 
 led_value_t ledc_chan_output[LED_CHAN_COUNT] = { 0, 0, 0, 0, 0, 0, 0 };
@@ -77,20 +77,18 @@ void led_pwm_initialise()
 void led_pwm_output(led_chan_t ch, led_value_t percent)
 {
     uint32_t targ;
-    if (percent < LED_VALUE_MIN) {
-        percent = LED_VALUE_MIN;
-    } else if (percent > LED_VALUE_MAX) {
-        percent = LED_VALUE_MAX;
-    } 
+    
+    if (percent > LED_VALUE_MAX) 
+        percent = LED_VALUE_MAX; 
     
     if (percent == ledc_chan_output[ch])
         return;
 
     ledc_chan_output[ch] = percent;
-    if (percent < 1) {
+    if (percent < 5) {
        targ = 0; 
     } else {
-       targ = ledc_output_cfg[ch].range * (percent - 1) / 100 + ledc_output_cfg[ch].min;
+       targ = ledc_output_cfg[ch].range * (percent - 5) / LED_VALUE_MAX + ledc_output_cfg[ch].min;
     }   
 #if defined(LED_PWM_FADE_ENABLE) && (LED_PWM_FADE_ENABLE == 1)
     ledc_set_fade_with_time(ledc_chan_cfg[ch].speed_mode, 

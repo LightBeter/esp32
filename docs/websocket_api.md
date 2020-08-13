@@ -11,6 +11,7 @@
 | 日期 | 修改说明 |
 | :----- | :----- | 
 | 2020/06/05 | <li>时差相关指令tz参数,单位改为分钟;</li><li>修改led控制模式，删除全开、全关模式，添加灯开关参数</li><li>添加获取设备状态信息指令</li><li>时间表相关指令，添加时间表ID参数</li> |
+| 2020/06/05 | <li>LED 输出VALUE范围改为 0 - 1000</li> |
     
 ------
 # 通用报文格式（JOSN）
@@ -167,7 +168,7 @@
 | temperature | number| 铝基板温度，单位 ℃ |
 | switch | number | 0 - 关闭，1 - 打开 |
 | mode | number | 0 - 手动，1 - 自动 |
-| values  | number[7] | [0]-white，[1]-dark blue，[2]-blue， [3]-red，[4]-green，[5]-uv405，[6]-uv415。 值有效范围：0 – 100 |
+| values  | number[7] | [0]-white，[1]-dark blue，[2]-blue， [3]-red，[4]-green，[5]-uv405，[6]-uv415。 值有效范围：0 – 1000 |
 
 ## 备注
 无
@@ -217,7 +218,7 @@
 ## 返回
 | 返回字段 | 字段类型 | 说明 |
 | :----- | :----- | :----- |
-| values  | number[7] | [0]-white，[1]-dark blue，[2]-blue， [3]-red，[4]-green，[5]-uv405，[6]-uv415。 值有效范围：0 – 100 |
+| values  | number[7] | [0]-white，[1]-dark blue，[2]-blue， [3]-red，[4]-green，[5]-uv405，[6]-uv415。 值有效范围：0 – 1000 |
 
 ## 备注
 无
@@ -229,7 +230,7 @@
 | 参数 | 必选 | 类型 | 说明 |
 | :----- | :-----: | :----- | :----- |
 | lifetime | true | number | 持续时间，单位：秒, 范围：1 - 180 |
-| values  | true | number[7] | [0]-white，[1]-dark blue，[2]-blue， [3]-red，[4]-green，[5]-uv405，[6]-uv415。 值有效范围：0 – 100 |
+| values  | true | number[7] | [0]-white，[1]-dark blue，[2]-blue， [3]-red，[4]-green，[5]-uv405，[6]-uv415。 值有效范围：0 – 1000 |
 
 ## 返回
 | 返回字段 | 字段类型 | 说明 |
@@ -250,7 +251,7 @@
 ## 返回
 | 返回字段 | 字段类型 | 说明 |
 | :----- | :----- | :----- |
-| values  | number[7] | [0]-white，[1]-dark blue，[2]-blue， [3]-red，[4]-green，[5]-uv405，[6]-uv415。 值有效范围：0 – 100 |
+| values  | number[7] | [0]-white，[1]-dark blue，[2]-blue， [3]-red，[4]-green，[5]-uv405，[6]-uv415。 值有效范围：0 – 1000 |
 
 ## 备注
 无
@@ -260,7 +261,7 @@
 ## 请求
 | 参数 | 必选 | 类型 | 说明 |
 | :----- | :-----: | :----- | :----- |
-| values | true | number[7] | [0]-white，[1]-dark blue，[2]-blue， [3]-red，[4]-green，[5]-uv405，[6]-uv415。 值有效范围：0 – 100 |
+| values | true | number[7] | [0]-white，[1]-dark blue，[2]-blue， [3]-red，[4]-green，[5]-uv405，[6]-uv415。 值有效范围：0 – 1000 |
 
 ## 返回
 | 返回字段 | 字段类型 | 说明 |
@@ -311,7 +312,7 @@
 | 属性 | 类型 | 说明 |
 | :----- | :-----: | :----- | :----- |
 | t | number | 从00:00算起的分钟数，有效范围 0-1439 |
-| values | number[7] | [0]-white，[1]-dark blue，[2]-blue， [3]-red，[4]-green，[5]-uv405，[6]-uv415。 值有效范围：0 – 100 |
+| values | number[7] | [0]-white，[1]-dark blue，[2]-blue， [3]-red，[4]-green，[5]-uv405，[6]-uv415。 值有效范围：0 – 1000 |
 
 
 

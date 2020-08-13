@@ -8,9 +8,9 @@ extern "C" {
 #endif
 
 #define LED_VALUE_MIN       0
-#define LED_VALUE_MAX       100
+#define LED_VALUE_MAX       1000
 
-typedef int8_t  led_value_t;
+typedef int16_t  led_value_t;
 
 typedef enum {
     LED_CHAN_WHITE = 0x00,
