@@ -5,7 +5,6 @@
 #include "led_pwm.h"
 
 #define TAG                             "LedPwm"
-#define MPS24833                        0
 #define LED_PWM_SPEED_MODE              LEDC_HIGH_SPEED_MODE
 #define LED_PWM_TIMER                   LEDC_TIMER_0
 #define LED_PWM_DUTY_RESOLUTION         LEDC_TIMER_11_BIT
@@ -29,7 +28,7 @@
     .duty       = 0,                       \
     .hpoint     = 0,                       \
 }
-
+#if 0
 const ledc_channel_config_t ledc_chan_cfg[LED_CHAN_COUNT] = {
     [LED_CHAN_WHITE]     = LED_CHANNEL_CFG(LEDC_CHANNEL_0, GPIO_NUM_32),
     [LED_CHAN_DARK_BLUE] = LED_CHANNEL_CFG(LEDC_CHANNEL_1, GPIO_NUM_25),
@@ -39,12 +38,19 @@ const ledc_channel_config_t ledc_chan_cfg[LED_CHAN_COUNT] = {
     [LED_CHAN_UV_405]    = LED_CHANNEL_CFG(LEDC_CHANNEL_5, GPIO_NUM_26),
     [LED_CHAN_UV_415]    = LED_CHANNEL_CFG(LEDC_CHANNEL_6, GPIO_NUM_27),
 };
-
-#if defined(MPS24833) && (MPS24833 == 1)
-#define LED_PWM_FREQ                    1000
 #else
-#define LED_PWM_FREQ                    400
+const ledc_channel_config_t ledc_chan_cfg[LED_CHAN_COUNT] = {
+    [LED_CHAN_WHITE]     = LED_CHANNEL_CFG(LEDC_CHANNEL_0, GPIO_NUM_25),
+    [LED_CHAN_DARK_BLUE] = LED_CHANNEL_CFG(LEDC_CHANNEL_1, GPIO_NUM_27),
+    [LED_CHAN_BLUE]      = LED_CHANNEL_CFG(LEDC_CHANNEL_2, GPIO_NUM_14),
+    [LED_CHAN_RED]       = LED_CHANNEL_CFG(LEDC_CHANNEL_3, GPIO_NUM_33),
+    [LED_CHAN_GREEN]     = LED_CHANNEL_CFG(LEDC_CHANNEL_4, GPIO_NUM_32),
+    [LED_CHAN_UV_405]    = LED_CHANNEL_CFG(LEDC_CHANNEL_5, GPIO_NUM_26),
+    [LED_CHAN_UV_415]    = LED_CHANNEL_CFG(LEDC_CHANNEL_6, GPIO_NUM_12),
+};
 #endif
+
+#define LED_PWM_FREQ                    400
 const led_output_cfg_t ledc_output_cfg[LED_CHAN_COUNT] = {
     [LED_CHAN_WHITE]     = LED_OUTPUT_CFG( 45, 1400 - 45, 1500 ),
     [LED_CHAN_DARK_BLUE] = LED_OUTPUT_CFG( 45, 1400 - 45, 1500 ), 
