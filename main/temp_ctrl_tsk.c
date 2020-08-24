@@ -14,7 +14,7 @@
 #define TEMP_CTRL_INTERVAL          (1000 / TEMP_CTRL_SAMPLE_INTERVAL)
 
 #define TEMP_CTRL_ADC_DEFAULT_VREF  1100        //Use adc2_vref_to_gpio() to obtain a better estimate
-#define TEMP_CTRL_ADC_BUFFER_LEN    100
+#define TEMP_CTRL_ADC_BUFFER_LEN    250
 #define TEMP_CTRL_ADC_UNIT          ADC_UNIT_1
 #define TEMP_CTRL_ADC_WIDTH_BIT     ADC_WIDTH_BIT_12
 #define TEMP_CTRL_ADC_ATTEN         ADC_ATTEN_DB_11
@@ -162,9 +162,11 @@ void temp_ctrl_tsk(void * parm)
     }
   
     while (1) {
-        for (index = 0; index < TEMP_SENSOR_COUNT; index++) {
-            temp = adc1_get_raw(_sensorConf[index]);
-            ringbuffer_enter(&_tempCtrlTsk.sensor[index], temp);
+        for (int i = 0; i < 5; i++) {
+            for (index = 0; index < TEMP_SENSOR_COUNT; index++) {
+                temp = adc1_get_raw(_sensorConf[index]);
+                ringbuffer_enter(&_tempCtrlTsk.sensor[index], temp);
+            }
         }
         if (tick++ < TEMP_CTRL_INTERVAL) 
             goto next;
