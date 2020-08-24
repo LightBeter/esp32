@@ -27,7 +27,7 @@ void wifi_eventHandler(void* arg, esp_event_base_t event_base,
                        int32_t event_id, void* event_data);
 
 wifi_tsk_type     _wifiTsk;
-wifi_tsk_ap_info  _wifiApList = { NULL, 0};
+wifi_tsk_ap_info  _wifiApList;
 
 void wifi_tsk_init()
 {
@@ -85,9 +85,14 @@ void wifi_start_scan()
     config.bssid = NULL;
     config.channel = 0;
     config.show_hidden = true;
+#if 0    
     config.scan_type = WIFI_SCAN_TYPE_ACTIVE;
     config.scan_time.active.min = 100;
     config.scan_time.active.max = 300;
+#else 
+    config.scan_type = WIFI_SCAN_TYPE_PASSIVE;
+    config.scan_time.passive = 300;
+#endif
     ESP_ERROR_CHECK( esp_wifi_scan_start(&config, false) );
     ESP_LOGI( TAG, "start wifi scan finished." );
 }
@@ -151,10 +156,22 @@ void wifi_eventHandler(void* arg, esp_event_base_t event_base,
     }
 }
 
+void wifi_tsk_ap_scan()
+{
+    const EventBits_t uxBitsToWaitFor = WIFI_TSK_EVENT_SCAN_DONE;
+    uxBits = xEventGroupWaitBits(_wifiTsk.eventGroup, uxBitsToWaitFor, true, false, pdMS_TO_TICKS(1000 * 10)); 
+    if (uxBits !=  WIFI_TSK_EVENT_SCAN_DONE) 
+        return;
+
+    _wifiApList.num = WIFI_AP_SCAN_MAX;
+    ESP_ERROR_CHECK(esp_wifi_scan_get_ap_records(&_wifiApList.num, _wifiApList.list));
+    wifi_start_scan();
+}
+
 void wifi_tsk(void * parm)
 {
     const wifi_config_t *conf = device_wificonf(); 
-    EventBits_t uxBitsToWaitFor;
+    const EventBits_t uxBitsToWaitFor = WIFI_TSK_EVENT_STA_GOT_IP;
     bool        sta_done = false;
     uint32_t    tick = 0;
     uint16_t    count = 0;
@@ -168,7 +185,6 @@ void wifi_tsk(void * parm)
     
     device_set_led_mode(DEVICE_LED_MODE_FLASH);
     wifi_start_sta(conf);  
-    uxBitsToWaitFor = WIFI_TSK_EVENT_STA_GOT_IP;
     while (tick++ < 60 && !sta_done) {
         uxBits = xEventGroupWaitBits(_wifiTsk.eventGroup, uxBitsToWaitFor, true, false, pdMS_TO_TICKS(1000)); 
         if (uxBits & WIFI_TSK_EVENT_STA_GOT_IP) {
@@ -187,23 +203,8 @@ time_sync_handle:
     wifi_start_scan();
     device_set_led_mode(DEVICE_LED_MODE_OPEN);
     /* sntp handle */
-    uxBitsToWaitFor = WIFI_TSK_EVENT_SCAN_DONE;
     while(1) {
-        uxBits = xEventGroupWaitBits(_wifiTsk.eventGroup, uxBitsToWaitFor, true, false, pdMS_TO_TICKS(1000 * 10)); 
-        if (uxBits & WIFI_TSK_EVENT_SCAN_DONE) {
-            ESP_ERROR_CHECK( esp_wifi_scan_get_ap_num(&count) );
-            if ( count > _wifiApList.num) {
-                if (_wifiApList.list) {
-                    free(_wifiApList.list);
-                    _wifiApList.list = NULL;
-                }
-                _wifiApList.list = (wifi_ap_record_t *)malloc(sizeof(wifi_ap_record_t) * count);
-                _wifiApList.num = count;
-            }
-            ESP_ERROR_CHECK(esp_wifi_scan_get_ap_records(&_wifiApList.num, _wifiApList.list));
-            wifi_start_scan();
-        } 
-
+        wifi_tsk_ap_scan();
         if (wifi_tsk_state_sta == _wifiTsk.state && _wifiTsk.isConnect) {
             datetime_sync_sntp();
         } else if (wifi_tsk_state_ap == _wifiTsk.state) {

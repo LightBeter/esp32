@@ -10,6 +10,8 @@
 extern "C" {
 #endif
 
+#define WIFI_AP_SCAN_MAX            32
+
 typedef enum {
     wifi_tsk_state_idle = 0x00,
     wifi_tsk_state_sta,
@@ -26,7 +28,7 @@ typedef struct {
 } wifi_tsk_type;
 
 typedef struct {
-    wifi_ap_record_t   *list;
+    wifi_ap_record_t    list[WIFI_AP_SCAN_MAX];
     uint16_t            num;
 } wifi_tsk_ap_info;
 
