@@ -17,6 +17,7 @@
 #define WIFI_AP_MAX_STA_CONN        6
 
 #define WIFI_TSK_EVENT_STA_GOT_IP   BIT0
+#define WIFI_TSK_EVENT_SCAN_DONE    BIT1
 
 void wifi_start_sta(const wifi_config_t *conf);
 void wifi_start_ap(const char* hostname, const char* password);
@@ -25,7 +26,8 @@ void wifi_tsk(void * parm);
 void wifi_eventHandler(void* arg, esp_event_base_t event_base,
                        int32_t event_id, void* event_data);
 
-wifi_tsk_type _wifiTsk;
+wifi_tsk_type     _wifiTsk;
+wifi_tsk_ap_info  _wifiApList = { NULL, 0};
 
 void wifi_tsk_init()
 {
@@ -76,10 +78,22 @@ void wifi_start_sta(const wifi_config_t *conf)
     ESP_LOGI( TAG, "start wifi in sta mode finished." );
 }
 
+void wifi_start_scan()
+{
+    wifi_scan_config_t config;
+    config.ssid = NULL;
+    config.bssid = NULL;
+    config.channel = 0;
+    config.show_hidden = true;
+    config.scan_type = WIFI_SCAN_TYPE_ACTIVE;
+    config.scan_time.active.min = 100;
+    config.scan_time.active.max = 300;
+    ESP_ERROR_CHECK( esp_wifi_scan_start(&config, false) );
+    ESP_LOGI( TAG, "start wifi scan finished." );
+}
+
 void wifi_start_ap(const char* hostname, const char* password)
 {
-    tcpip_adapter_ip_info_t ipInfo;
-
     _wifiTsk.state = wifi_tsk_state_ap;
     memset( &_wifiTsk.conf, 0x00, sizeof(wifi_config_t) );
     memcpy( _wifiTsk.conf.ap.password, password, strlen(password) + 1 );
@@ -88,13 +102,6 @@ void wifi_start_ap(const char* hostname, const char* password)
     _wifiTsk.conf.ap.authmode = WIFI_AUTH_WPA_WPA2_PSK;
     _wifiTsk.conf.ap.max_connection = WIFI_AP_MAX_STA_CONN;
     _wifiTsk.conf.ap.beacon_interval = 100;
-    /* set DHCP ip address */
-    // IP4_ADDR( &ipInfo.ip, 192,168,1,1 );
-	// IP4_ADDR( &ipInfo.gw, 192,168,1,1 );
-	// IP4_ADDR( &ipInfo.netmask, 255,255,255,0 );
-    // ESP_ERROR_CHECK( tcpip_adapter_dhcps_stop(TCPIP_ADAPTER_IF_AP) );
-    // ESP_ERROR_CHECK( tcpip_adapter_set_ip_info(TCPIP_ADAPTER_IF_AP, &ipInfo) );
-    // ESP_ERROR_CHECK( tcpip_adapter_dhcps_start(TCPIP_ADAPTER_IF_AP) );
     /* start wifi ap mode */
     ESP_ERROR_CHECK( esp_wifi_set_mode(WIFI_MODE_AP) );
     ESP_ERROR_CHECK( esp_wifi_set_config(ESP_IF_WIFI_AP, &_wifiTsk.conf) );
@@ -132,6 +139,9 @@ void wifi_eventHandler(void* arg, esp_event_base_t event_base,
             _wifiTsk.isConnect = false;
             if (wifi_tsk_state_sta == _wifiTsk.state) esp_wifi_connect();
             ESP_LOGI( TAG, "station disconnected from AP" );
+        } else if (WIFI_EVENT_SCAN_DONE == event_id) {
+            ESP_LOGI( TAG, "finish scanning AP" );
+            xEventGroupSetBits(_wifiTsk.eventGroup, WIFI_TSK_EVENT_SCAN_DONE);
         }
     } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
         _wifiTsk.isConnect = true;
@@ -143,10 +153,11 @@ void wifi_eventHandler(void* arg, esp_event_base_t event_base,
 
 void wifi_tsk(void * parm)
 {
-    const EventBits_t uxBitsToWaitFor = (WIFI_TSK_EVENT_STA_GOT_IP);
     const wifi_config_t *conf = device_wificonf(); 
+    EventBits_t uxBitsToWaitFor;
     bool        sta_done = false;
     uint32_t    tick = 0;
+    uint16_t    count = 0;
     EventBits_t uxBits;
 
     /* wifi handle */
@@ -157,6 +168,7 @@ void wifi_tsk(void * parm)
     
     device_set_led_mode(DEVICE_LED_MODE_FLASH);
     wifi_start_sta(conf);  
+    uxBitsToWaitFor = WIFI_TSK_EVENT_STA_GOT_IP;
     while (tick++ < 60 && !sta_done) {
         uxBits = xEventGroupWaitBits(_wifiTsk.eventGroup, uxBitsToWaitFor, true, false, pdMS_TO_TICKS(1000)); 
         if (uxBits & WIFI_TSK_EVENT_STA_GOT_IP) {
@@ -172,15 +184,31 @@ void wifi_tsk(void * parm)
     } 
 
 time_sync_handle:
+    wifi_start_scan();
     device_set_led_mode(DEVICE_LED_MODE_OPEN);
     /* sntp handle */
+    uxBitsToWaitFor = WIFI_TSK_EVENT_SCAN_DONE;
     while(1) {
+        uxBits = xEventGroupWaitBits(_wifiTsk.eventGroup, uxBitsToWaitFor, true, false, pdMS_TO_TICKS(1000 * 10)); 
+        if (uxBits & WIFI_TSK_EVENT_SCAN_DONE) {
+            ESP_ERROR_CHECK( esp_wifi_scan_get_ap_num(&count) );
+            if ( count > _wifiApList.num) {
+                if (_wifiApList.list) {
+                    free(_wifiApList.list);
+                    _wifiApList.list = NULL;
+                }
+                _wifiApList.list = (wifi_ap_record_t *)malloc(sizeof(wifi_ap_record_t) * count);
+                _wifiApList.num = count;
+            }
+            ESP_ERROR_CHECK(esp_wifi_scan_get_ap_records(&_wifiApList.num, _wifiApList.list));
+            wifi_start_scan();
+        } 
+
         if (wifi_tsk_state_sta == _wifiTsk.state && _wifiTsk.isConnect) {
             datetime_sync_sntp();
         } else if (wifi_tsk_state_ap == _wifiTsk.state) {
             datetime_sync_extrtc();
         }
-        vTaskDelay(pdMS_TO_TICKS(1000 * 10));
     }
 
    _wifiTsk.handle = NULL;    

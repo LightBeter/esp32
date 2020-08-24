@@ -25,6 +25,11 @@ typedef struct {
     EventGroupHandle_t  eventGroup;  
 } wifi_tsk_type;
 
+typedef struct {
+    wifi_ap_record_t   *list;
+    uint16_t            num;
+} wifi_tsk_ap_info;
+
 void wifi_tsk_init();
 void wifi_tsk_deinit();
 void wifi_tsk_start();
