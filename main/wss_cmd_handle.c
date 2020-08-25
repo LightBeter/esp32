@@ -6,11 +6,12 @@
 #include "datetime.h"
 #include "temp_ctrl_tsk.h"
 #include "led_ctrl_tsk.h"
+#include "wifi_tsk.h"
 #include "ota.h"
 
 #define TAG        "WSS_HANDLE"
 
-wss_respond_code_t read_devinfo_handle(cJSON *request, cJSON *respone)
+wss_respond_code_t read_dev_info_handle(cJSON *request, cJSON *respone)
 {
     cJSON_AddStringToObject(respone, "model", DEVICE_MODEL);
     cJSON_AddStringToObject(respone, "serial", device_serialnum());
@@ -19,13 +20,13 @@ wss_respond_code_t read_devinfo_handle(cJSON *request, cJSON *respone)
     return wss_respond_code_ok;
 }
 
-wss_respond_code_t read_devtime_handle(cJSON *request, cJSON *respone)
+wss_respond_code_t read_dev_time_handle(cJSON *request, cJSON *respone)
 {
     datetime_resp(respone);
     return wss_respond_code_ok;
 }
 
-wss_respond_code_t write_devtime_handle(cJSON *request, cJSON *respone)
+wss_respond_code_t write_dev_time_handle(cJSON *request, cJSON *respone)
 {
     cJSON *utc, *zone;
 
@@ -43,7 +44,7 @@ wss_respond_code_t write_devtime_handle(cJSON *request, cJSON *respone)
     return wss_respond_code_ok;
 }
 
-wss_respond_code_t write_devnetwork_handle(cJSON *request, cJSON *respone)
+wss_respond_code_t write_dev_network_handle(cJSON *request, cJSON *respone)
 {
     int mode;
     cJSON *item;
@@ -90,6 +91,12 @@ wss_respond_code_t write_devnetwork_handle(cJSON *request, cJSON *respone)
     ESP_LOGI(TAG, "%s save network config\r\n\tmode: %d\r\n\tssid: %s\r\n\tpassword: %s.", 
                     __FUNCTION__, mode, conf.sta.ssid, conf.sta.password);
     device_save_wificonf( &conf );
+    return wss_respond_code_ok;
+}
+
+wss_respond_code_t read_dev_ap_list_handle(cJSON *request, cJSON *respone)
+{
+    wifi_tsk_get_ap_list(respone);
     return wss_respond_code_ok;
 }
 

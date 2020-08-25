@@ -18,10 +18,11 @@ typedef enum {
 
 enum {
     wss_cmd_r_heartbeat = 0,
-    wss_cmd_r_devinfo = 1,
-    wss_cmd_r_devtime = 2,
-    wss_cmd_w_devtime = 3,
-    wss_cmd_w_devnetwork = 4,
+    wss_cmd_r_dev_info = 1,
+    wss_cmd_r_dev_time = 2,
+    wss_cmd_w_dev_time = 3,
+    wss_cmd_w_dev_network = 4,
+    wss_cmd_r_dev_ap_list = 5,
 
     wss_cmd_r_ledctrl_state = 10,
     wss_cmd_r_ledctrl_mode = 11,
@@ -41,10 +42,11 @@ enum {
     wss_cmd_e_dev_recovery = 129,
 };
 
-wss_respond_code_t read_devinfo_handle(cJSON *request, cJSON *respone);
-wss_respond_code_t read_devtime_handle(cJSON *request, cJSON *respone);
-wss_respond_code_t write_devtime_handle(cJSON *request, cJSON *respone);
-wss_respond_code_t write_devnetwork_handle(cJSON *request, cJSON *respone);
+wss_respond_code_t read_dev_info_handle(cJSON *request, cJSON *respone);
+wss_respond_code_t read_dev_time_handle(cJSON *request, cJSON *respone);
+wss_respond_code_t write_dev_time_handle(cJSON *request, cJSON *respone);
+wss_respond_code_t write_dev_network_handle(cJSON *request, cJSON *respone);
+wss_respond_code_t read_dev_ap_list_handle(cJSON *request, cJSON *respone);
 
 wss_respond_code_t read_ledctrl_state_handle(cJSON *request, cJSON *respone);
 wss_respond_code_t read_ledctrl_mode_handle(cJSON *request, cJSON *respone);

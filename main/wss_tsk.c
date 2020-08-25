@@ -261,17 +261,20 @@ void wss_callback_text(uint8_t client, char* msg, uint64_t len)
     case wss_cmd_r_heartbeat:
         code = wss_respond_code_ok;
         break;
-    case wss_cmd_r_devinfo:
-        code = read_devinfo_handle(request, respone);
+    case wss_cmd_r_dev_info:
+        code = read_dev_info_handle(request, respone);
         break;
-    case wss_cmd_r_devtime:
-        code = read_devtime_handle(request, respone);
+    case wss_cmd_r_dev_time:
+        code = read_dev_time_handle(request, respone);
         break;
-    case wss_cmd_w_devtime:
-        code = write_devtime_handle(request, respone);
+    case wss_cmd_w_dev_time:
+        code = write_dev_time_handle(request, respone);
         break;
-    case wss_cmd_w_devnetwork:
-        code = write_devnetwork_handle(request, respone);
+    case wss_cmd_w_dev_network:
+        code = write_dev_network_handle(request, respone);
+        break;
+    case wss_cmd_r_dev_ap_list:
+        code = read_dev_ap_list_handle(request, respone);
         break;
     case wss_cmd_e_dev_reboot:
         code = exec_reboot_handle(request, respone);
