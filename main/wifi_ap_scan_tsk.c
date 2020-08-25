@@ -24,7 +24,7 @@ const wifi_scan_config_t _wifiApScanConfig = {
     .show_hidden = true,
 #if 1    
     .scan_type = WIFI_SCAN_TYPE_PASSIVE,
-    .scan_time.passive = 120,
+    .scan_time.passive = 300,
 #else    
     .scan_type = WIFI_SCAN_TYPE_PASSIVE,
     .scan_time.active.min = 0,
