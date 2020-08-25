@@ -22,7 +22,8 @@ enum {
     wss_cmd_r_dev_time = 2,
     wss_cmd_w_dev_time = 3,
     wss_cmd_w_dev_network = 4,
-    wss_cmd_r_dev_ap_list = 5,
+    wss_cmd_e_wifi_ap_scan= 5,
+    wss_cmd_b_wifi_ap_list = 6,
 
     wss_cmd_r_ledctrl_state = 10,
     wss_cmd_r_ledctrl_mode = 11,
@@ -46,7 +47,7 @@ wss_respond_code_t read_dev_info_handle(cJSON *request, cJSON *respone);
 wss_respond_code_t read_dev_time_handle(cJSON *request, cJSON *respone);
 wss_respond_code_t write_dev_time_handle(cJSON *request, cJSON *respone);
 wss_respond_code_t write_dev_network_handle(cJSON *request, cJSON *respone);
-wss_respond_code_t read_dev_ap_list_handle(cJSON *request, cJSON *respone);
+wss_respond_code_t exec_wifi_ap_scan_handle(int client, cJSON *request, cJSON *respone);
 
 wss_respond_code_t read_ledctrl_state_handle(cJSON *request, cJSON *respone);
 wss_respond_code_t read_ledctrl_mode_handle(cJSON *request, cJSON *respone);

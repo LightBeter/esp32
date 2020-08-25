@@ -94,9 +94,9 @@ wss_respond_code_t write_dev_network_handle(cJSON *request, cJSON *respone)
     return wss_respond_code_ok;
 }
 
-wss_respond_code_t read_dev_ap_list_handle(cJSON *request, cJSON *respone)
+wss_respond_code_t exec_wifi_ap_scan_handle(int client, cJSON *request, cJSON *respone)
 {
-    wifi_ap_scan_tsk_get_list(respone);
+    wifi_ap_scan_tsk_trigger(client);
     return wss_respond_code_ok;
 }
 

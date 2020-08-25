@@ -12,7 +12,7 @@
 extern "C" {
 #endif
 
-#define WIFI_AP_SCAN_MAX            43
+#define WIFI_AP_SCAN_MAX       32
 
 typedef struct {
     SemaphoreHandle_t   mutex;
@@ -20,14 +20,15 @@ typedef struct {
     EventGroupHandle_t  eventGroup;  
     wifi_ap_record_t    list[WIFI_AP_SCAN_MAX];
     uint16_t            num;
+    uint16_t            clientFlags;
+    bool                isScanning;
 } wifi_ap_scan_tsk_type;
 
 void wifi_ap_scan_tsk_init();
 void wifi_ap_scan_tsk_deinit();
 void wifi_ap_scan_tsk_start();
 void wifi_ap_scan_tsk_stop();
-void wifi_ap_scan_tsk_scan();
-void wifi_ap_scan_tsk_get_list(cJSON *packet);
+void wifi_ap_scan_tsk_trigger(int client);
 
 #ifdef __cplusplus
 }

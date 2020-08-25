@@ -273,8 +273,8 @@ void wss_callback_text(uint8_t client, char* msg, uint64_t len)
     case wss_cmd_w_dev_network:
         code = write_dev_network_handle(request, respone);
         break;
-    case wss_cmd_r_dev_ap_list:
-        code = read_dev_ap_list_handle(request, respone);
+    case wss_cmd_e_wifi_ap_scan:
+        code = exec_wifi_ap_scan_handle(client, request, respone);
         break;
     case wss_cmd_e_dev_reboot:
         code = exec_reboot_handle(request, respone);
