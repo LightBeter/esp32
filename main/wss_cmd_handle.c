@@ -6,7 +6,7 @@
 #include "datetime.h"
 #include "temp_ctrl_tsk.h"
 #include "led_ctrl_tsk.h"
-#include "wifi_tsk.h"
+#include "wifi_ap_scan_tsk.h"
 #include "ota.h"
 
 #define TAG        "WSS_HANDLE"
@@ -96,7 +96,7 @@ wss_respond_code_t write_dev_network_handle(cJSON *request, cJSON *respone)
 
 wss_respond_code_t read_dev_ap_list_handle(cJSON *request, cJSON *respone)
 {
-    wifi_tsk_get_ap_list(respone);
+    wifi_ap_scan_tsk_get_list(respone);
     return wss_respond_code_ok;
 }
 

@@ -8,6 +8,7 @@
 #include "storage.h"
 #include "datetime.h"
 #include "wifi_tsk.h"
+#include "wifi_ap_scan_tsk.h"
 #include "wss_tsk.h"
 #include "temp_ctrl_tsk.h"
 #include "led_ctrl_tsk.h"
@@ -102,6 +103,8 @@ void device_init()
     ota_init();
     /* Initialize Wifi Task */
     wifi_tsk_init();
+    /* Initialize Wifi AP Scan Task */
+    wifi_ap_scan_tsk_init();
     /* Initialize WSS Task */
     wss_tsk_init();
     /* Initialize Temperature Control Task */
@@ -151,6 +154,8 @@ void device_main_tsk(void * parm)
     led_ctrl_tsk_start();
     ESP_LOGI( TAG, "Start Wifi Task." );
     wifi_tsk_start();
+    ESP_LOGI( TAG, "Start Wifi AP Scan Task." );
+    wifi_ap_scan_tsk_start();
     ESP_LOGI( TAG, "Start Websocket Task." );
     wss_tsk_start();
 
@@ -189,6 +194,8 @@ void device_main_tsk(void * parm)
     /* stop Task */
     ESP_LOGI( TAG, "Stop Websocket Task." );
     wss_tsk_stop();
+    ESP_LOGI( TAG, "Stop Wifi AP Scan Task." );
+    wifi_ap_scan_tsk_stop();
     ESP_LOGI( TAG, "Stop Wifi Task." );
     wifi_tsk_stop();
     ESP_LOGI( TAG, "Stop Led Control Task." );
@@ -200,6 +207,8 @@ void device_main_tsk(void * parm)
     /* deInitialize */
     ESP_LOGI( TAG, "Deinitialise Websocket Task." );
     wss_tsk_deinit();
+    ESP_LOGI( TAG, "Deinitialise Wifi AP Scan Task." );
+    wifi_ap_scan_tsk_deinit();
     ESP_LOGI( TAG, "Deinitialise Wifi Task." );
     wifi_tsk_deinit();
     ESP_LOGI( TAG, "Deinitialise Led Control Task." );

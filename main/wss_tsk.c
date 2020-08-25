@@ -11,7 +11,7 @@
 #define SERVER_TSK_STACK_SIZE       3072
 #define HANDLE_TSK_STACK_SIZE       4096
 #define WS_CLIENT_QUEUE_SIZE         10 
-#define WS_CLIENT_LIFETIME           (30 * 1000)
+#define WS_CLIENT_LIFETIME           (48 * 1000)
 #define WS_CLIENT_RECV_TIME          1000 
 
 void wss_client_reset(int num);

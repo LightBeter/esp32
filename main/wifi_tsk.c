@@ -1,10 +1,5 @@
 #include <string.h>
 #include <esp_event_loop.h>
-#include <esp_event_legacy.h>
-#include <lwip/err.h>
-#include <lwip/sys.h>
-#include <tcpip_adapter.h>
-#include <mdns.h>
 #include <esp_log.h>
 #include "wifi_tsk.h"
 #include "datetime.h"
@@ -17,7 +12,6 @@
 #define WIFI_AP_MAX_STA_CONN        6
 
 #define WIFI_TSK_EVENT_STA_GOT_IP   BIT0
-#define WIFI_TSK_EVENT_SCAN_DONE    BIT1
 
 void wifi_start_sta(const wifi_config_t *conf);
 void wifi_start_ap(const char* hostname, const char* password);
@@ -27,17 +21,6 @@ void wifi_eventHandler(void* arg, esp_event_base_t event_base,
                        int32_t event_id, void* event_data);
 
 wifi_tsk_type     _wifiTsk;
-wifi_tsk_ap_info  _wifiApList;
-
-void wifi_tsk_lock()
-{
-    while( xSemaphoreTake(_wifiTsk.mutex, portMAX_DELAY) != pdTRUE );
-}
-
-void wifi_tsk_unlock()
-{
-    while( xSemaphoreGive(_wifiTsk.mutex) != pdTRUE );
-}
 
 void wifi_tsk_init()
 {
@@ -47,9 +30,6 @@ void wifi_tsk_init()
     _wifiTsk.state     = wifi_tsk_state_idle;
     _wifiTsk.initConf  = initconf;
     _wifiTsk.eventGroup= xEventGroupCreate();
-    _wifiTsk.mutex  = xSemaphoreCreateMutex();
-    _wifiApList.num     = 0;
-    _wifiApList.running = false;
     ESP_ERROR_CHECK( esp_wifi_init(&_wifiTsk.initConf) );
     ESP_ERROR_CHECK( esp_wifi_set_ps(WIFI_PS_NONE) );
     ESP_ERROR_CHECK( esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_eventHandler, NULL));
@@ -61,7 +41,6 @@ void wifi_tsk_deinit()
 {
     ESP_ERROR_CHECK( esp_wifi_deinit() );
     vEventGroupDelete(_wifiTsk.eventGroup);
-    vSemaphoreDelete(_wifiTsk.mutex);
 }
 
 void wifi_tsk_start()
@@ -109,26 +88,6 @@ void wifi_start_ap(const char* hostname, const char* password)
     ESP_LOGI( TAG, "start wifi in ap mode finished." );
 }
 
-void wifi_start_scan()
-{
-    wifi_scan_config_t config;
-    config.ssid = NULL;
-    config.bssid = NULL;
-    config.channel = 0;
-    config.show_hidden = true;
-#if 0    
-    config.scan_type = WIFI_SCAN_TYPE_ACTIVE;
-    config.scan_time.active.min = 100;
-    config.scan_time.active.max = 300;
-#else 
-    config.scan_type = WIFI_SCAN_TYPE_PASSIVE;
-    config.scan_time.passive = 300;
-#endif
-    ESP_ERROR_CHECK( esp_wifi_scan_start(&config, false) );
-    ESP_LOGI( TAG, "start wifi scan finished." );
-    _wifiApList.running = true;
-}
-
 void wifi_stop()
 {
     if (wifi_tsk_state_idle != _wifiTsk.state) {
@@ -159,38 +118,12 @@ void wifi_eventHandler(void* arg, esp_event_base_t event_base,
             _wifiTsk.isConnect = false;
             if (wifi_tsk_state_sta == _wifiTsk.state) esp_wifi_connect();
             ESP_LOGI( TAG, "station disconnected from AP" );
-        } else if (WIFI_EVENT_SCAN_DONE == event_id) {
-            ESP_LOGI( TAG, "finish scanning AP" );
-            xEventGroupSetBits(_wifiTsk.eventGroup, WIFI_TSK_EVENT_SCAN_DONE);
         }
     } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
         _wifiTsk.isConnect = true;
         xEventGroupSetBits(_wifiTsk.eventGroup, WIFI_TSK_EVENT_STA_GOT_IP);
         ip_event_got_ip_t* event = (ip_event_got_ip_t*) event_data;
         ESP_LOGI( TAG, "station got ip:%s", ip4addr_ntoa(&event->ip_info.ip));
-    }
-}
-
-void wifi_tsk_ap_scan()
-{
-    const EventBits_t uxBitsToWaitFor = WIFI_TSK_EVENT_SCAN_DONE;
-    static uint32_t tick = 0;
-    EventBits_t uxBits;
-
-    if (false  == _wifiApList.running) {
-        vTaskDelay(pdMS_TO_TICKS(1000 * 1));
-        if (++tick >= 5) 
-            wifi_start_scan();
-    } else {
-        uxBits = xEventGroupWaitBits(_wifiTsk.eventGroup, uxBitsToWaitFor, true, false, pdMS_TO_TICKS(1000 * 10)); 
-        if (uxBits !=  WIFI_TSK_EVENT_SCAN_DONE) 
-            return;
-        tick = 0;          
-        _wifiApList.running = false;
-        wifi_tsk_lock();
-        _wifiApList.num = WIFI_AP_SCAN_MAX;
-        ESP_ERROR_CHECK(esp_wifi_scan_get_ap_records(&_wifiApList.num, _wifiApList.list));
-        wifi_tsk_unlock();
     }
 }
 
@@ -225,34 +158,18 @@ void wifi_tsk(void * parm)
     } 
 
 time_sync_handle:
-    wifi_start_scan();
     device_set_led_mode(DEVICE_LED_MODE_OPEN);
     /* sntp handle */
     while(1) {
-        wifi_tsk_ap_scan();
         if (wifi_tsk_state_sta == _wifiTsk.state && _wifiTsk.isConnect) {
             datetime_sync_sntp();
         } else if (wifi_tsk_state_ap == _wifiTsk.state) {
             datetime_sync_extrtc();
         }
+        vTaskDelay(pdMS_TO_TICKS(1 * 1000));
     }
-
    _wifiTsk.handle = NULL;    
     vTaskDelete(NULL);
 }
 
-void wifi_tsk_get_ap_list(cJSON *packet)
-{
-    cJSON *list = cJSON_CreateArray();
-    cJSON *pSub;
-    wifi_tsk_lock();
-    for(int index = 0; index < _wifiApList.num; index++) {
-        pSub = cJSON_CreateObject();
-        cJSON_AddStringToObject(pSub, "ssid", (char*)_wifiApList.list[index].ssid);
-        cJSON_AddNumberToObject(pSub, "auth", _wifiApList.list[index].authmode);
-        cJSON_AddNumberToObject(pSub, "rssi", _wifiApList.list[index].rssi);
-        cJSON_AddItemToArray(list, pSub);
-    }
-    wifi_tsk_unlock();
-    cJSON_AddItemToObject(packet, "list", list);
-}
+
