@@ -122,7 +122,7 @@
 配置后，需要重启终端才能生效
 
 ------
-# 获取终端wifi ap list[5]
+#  触发wifi ap scan[5]
 ------
 ## 请求
 | 参数 | 必选 | 类型 | 说明 |
@@ -132,16 +132,32 @@
 ## 返回
 | 返回字段 | 字段类型 | 说明 |
 | :----- | :----- | :----- |
+| NULL | NULL | NULL | NULL |
+
+# wifi ap scan结果通知[6]
+| 返回字段 | 字段类型 | 说明 |
+| :----- | :----- | :----- |
 | list | array | ap列表 |
 
-## 备注
-### ap列表内容
+## ap信息
 | 名称 | 类型 | 说明 |
 | :----- | :-----: | :----- | :----- |
 | ssid | string | ap ssid |
 | auth | number | 授权方式。<br>[0]: open<br>[1]: WEP<br>[2]: WPA_PSK<br>[3]: WPA2_PSK<br>[4]: WPA_WPA2_PSK<br>[5]: WPA2_ENTERPRISE<br>[6]: WPA3_PSK<br>[7]: WPA2_WPA3_PSK<br>其它：未定义|
 | rssi | number | 信号质量 |
 
+## 备注
+wifi ap scan处理为异步处理，先由app发出wifi ap scan触发指令，终端收到指令后立即返回，然后开始扫描，扫描成功后，主动上报扫描结果。
+```sequence
+participant APP
+participant 设备
+
+APP->设备: 触发wifi ap scan[5](请求)
+设备-->APP: 触发wifi ap scan[5](响应)
+设备->设备: wifi ap scan
+设备->APP: wifi ap scan结果通知[6]
+
+```
 ------
 # 重启终端[128]
 ------
