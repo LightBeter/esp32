@@ -34,10 +34,17 @@
 
 void temp_ctrl_tsk(void * parm);
 
+#if 0
 const adc1_channel_t   _sensorConf[TEMP_SENSOR_COUNT] = {  
     ADC1_CHANNEL_6,
     ADC1_CHANNEL_7, 
 };
+#else
+const adc1_channel_t   _sensorConf[TEMP_SENSOR_COUNT] = {  
+    ADC1_CHANNEL_7,
+    ADC1_CHANNEL_6, 
+};
+#endif
 const uint32_t _tempMapTable[TEMP_MAP_SIZE] = {
     264279,  250344,  237130,  224603,  212733,  201487,  190836,  180750,  171201,  162163, 
     153610,  145516,  137858,  130614,  123761,  117280,  111149,  105351,  99867,   94681, 

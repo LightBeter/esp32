@@ -26,7 +26,6 @@ typedef enum {
 typedef struct {
     uint16_t   min;
     uint16_t   range;
-    uint16_t   max;
 } led_output_cfg_t;
 
 typedef struct {
