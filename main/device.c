@@ -77,7 +77,7 @@ void mdns_start()
     ESP_ERROR_CHECK( mdns_init() );
     ESP_ERROR_CHECK( mdns_hostname_set(_device.hostname) );
     ESP_ERROR_CHECK( mdns_instance_name_set(DEVICE_MODEL) );
-    ESP_ERROR_CHECK( mdns_service_add("WebServer", "_websocket", "_tcp", 80, NULL, 0) );
+    ESP_ERROR_CHECK( mdns_service_add(_device.hostname, "_websocket", "_tcp", 80, NULL, 0) );
 }
 
 void mdns_stop()

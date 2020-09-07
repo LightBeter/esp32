@@ -27,7 +27,7 @@
     .duty       = 0,                       \
     .hpoint     = 0,                       \
 }
-#if 1
+#if 0
 const ledc_channel_config_t ledc_chan_cfg[LED_CHAN_COUNT] = {
     [LED_CHAN_WHITE]     = LED_CHANNEL_CFG(LEDC_CHANNEL_0, GPIO_NUM_32),
     [LED_CHAN_DARK_BLUE] = LED_CHANNEL_CFG(LEDC_CHANNEL_1, GPIO_NUM_25),
@@ -49,29 +49,17 @@ const ledc_channel_config_t ledc_chan_cfg[LED_CHAN_COUNT] = {
 };
 #endif
 
-#if 0
 #define LED_PWM_FREQ                   (18 * 1000)
 const led_output_cfg_t ledc_output_cfg[LED_CHAN_COUNT] = {
-    [LED_CHAN_WHITE]     = LED_OUTPUT_CFG( 80, 782 ),
-    [LED_CHAN_DARK_BLUE] = LED_OUTPUT_CFG( 80, 782 ), 
-    [LED_CHAN_BLUE]      = LED_OUTPUT_CFG( 80, 782 ),  
-    [LED_CHAN_RED]       = LED_OUTPUT_CFG( 80, 782 ),     
-    [LED_CHAN_GREEN]     = LED_OUTPUT_CFG( 80, 782 ), 
-    [LED_CHAN_UV_405]    = LED_OUTPUT_CFG( 80, 782 ), 
-    [LED_CHAN_UV_415]    = LED_OUTPUT_CFG( 80, 782 ), 
+    [LED_CHAN_WHITE]     = LED_OUTPUT_CFG( 80, 890 ),
+    [LED_CHAN_DARK_BLUE] = LED_OUTPUT_CFG( 80, 890 ), 
+    [LED_CHAN_BLUE]      = LED_OUTPUT_CFG( 80, 890 ),  
+    [LED_CHAN_RED]       = LED_OUTPUT_CFG( 80, 890 ),     
+    [LED_CHAN_GREEN]     = LED_OUTPUT_CFG( 80, 890 ), 
+    [LED_CHAN_UV_405]    = LED_OUTPUT_CFG( 80, 890 ), 
+    [LED_CHAN_UV_415]    = LED_OUTPUT_CFG( 80, 890 ), 
 };
-#else
-#define LED_PWM_FREQ                   (18 * 1000)
-const led_output_cfg_t ledc_output_cfg[LED_CHAN_COUNT] = {
-    [LED_CHAN_WHITE]     = LED_OUTPUT_CFG( 0, 1000 ),
-    [LED_CHAN_DARK_BLUE] = LED_OUTPUT_CFG( 0, 680 ), 
-    [LED_CHAN_BLUE]      = LED_OUTPUT_CFG( 0, 1000 ),  
-    [LED_CHAN_RED]       = LED_OUTPUT_CFG( 0, 1000 ),     
-    [LED_CHAN_GREEN]     = LED_OUTPUT_CFG( 0, 1000 ), 
-    [LED_CHAN_UV_405]    = LED_OUTPUT_CFG( 0, 1000 ), 
-    [LED_CHAN_UV_415]    = LED_OUTPUT_CFG( 0, 1000 ), 
-};
-#endif
+
 
 led_value_t ledc_chan_output[LED_CHAN_COUNT] = { 0, 0, 0, 0, 0, 0, 0 };
 
