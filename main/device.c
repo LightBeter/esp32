@@ -88,7 +88,7 @@ void mdns_stop()
 void device_init()
 {
     /* Initialize tcp/ip protocol stack */
-    tcpip_adapter_init();
+    esp_netif_init();
     /* Initialize event loop */
     ESP_ERROR_CHECK( esp_event_loop_create_default() );
     /* Initialize storage */

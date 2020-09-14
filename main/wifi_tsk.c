@@ -1,5 +1,5 @@
 #include <string.h>
-#include <esp_event_loop.h>
+#include <esp_event.h>
 #include <esp_log.h>
 #include "wifi_tsk.h"
 #include "datetime.h"
@@ -21,6 +21,8 @@ void wifi_eventHandler(void* arg, esp_event_base_t event_base,
                        int32_t event_id, void* event_data);
 
 wifi_tsk_type     _wifiTsk;
+esp_netif_t*      _staNetif = NULL;
+esp_netif_t*      _apNetif  = NULL;
 
 void wifi_tsk_init()
 {
@@ -30,6 +32,9 @@ void wifi_tsk_init()
     _wifiTsk.state     = wifi_tsk_state_idle;
     _wifiTsk.initConf  = initconf;
     _wifiTsk.eventGroup= xEventGroupCreate();
+    _apNetif  = esp_netif_create_default_wifi_ap();
+    _staNetif = esp_netif_create_default_wifi_sta();
+
     ESP_ERROR_CHECK( esp_wifi_init(&_wifiTsk.initConf) );
     ESP_ERROR_CHECK( esp_wifi_set_ps(WIFI_PS_NONE) );
     ESP_ERROR_CHECK( esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_eventHandler, NULL));
@@ -107,6 +112,7 @@ void wifi_eventHandler(void* arg, esp_event_base_t event_base,
 {
     if (event_base == WIFI_EVENT) {
         if (WIFI_EVENT_STA_START == event_id) {
+            esp_netif_set_hostname(_staNetif, device_hostname());
             esp_wifi_connect();
             ESP_LOGI( TAG, "station start" );
         } else if (WIFI_EVENT_STA_STOP == event_id) {
@@ -118,12 +124,14 @@ void wifi_eventHandler(void* arg, esp_event_base_t event_base,
             _wifiTsk.isConnect = false;
             if (wifi_tsk_state_sta == _wifiTsk.state) esp_wifi_connect();
             ESP_LOGI( TAG, "station disconnected from AP" );
+        } else if (WIFI_EVENT_AP_START == event_id) {
+            esp_netif_set_hostname(_apNetif, device_hostname());  
         }
     } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
         _wifiTsk.isConnect = true;
         xEventGroupSetBits(_wifiTsk.eventGroup, WIFI_TSK_EVENT_STA_GOT_IP);
         ip_event_got_ip_t* event = (ip_event_got_ip_t*) event_data;
-        ESP_LOGI( TAG, "station got ip:%s", ip4addr_ntoa(&event->ip_info.ip));
+        ESP_LOGI( TAG, "station got ip: " IPSTR, IP2STR(&event->ip_info.ip));
     }
 }
 
@@ -134,6 +142,7 @@ void wifi_tsk(void * parm)
     bool        sta_done = false;
     uint32_t    tick = 0;
     EventBits_t uxBits;
+    esp_netif_t *sta_netif, *ap_netif;
 
     /* wifi handle */
     if (strlen((char*)conf->sta.ssid) == 0) {

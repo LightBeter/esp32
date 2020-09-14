@@ -7,7 +7,7 @@
 #include <esp_image_format.h>
 #include <esp_wifi.h>
 
-#define DEVICE_MODEL                       "ESP32"
+#define DEVICE_MODEL                       "LB150"
 #define DEVICE_SERIAL_NUM_LEN               12           
 #define DEVICE_REQ_REBOOT_BIT               BIT0
 #define DEVICE_REQ_RECOVERY_FACTORY_BIT     BIT1
