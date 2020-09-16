@@ -51,7 +51,7 @@ void wifi_ap_scan_tsk_deinit()
 void wifi_ap_scan_tsk_start()
 {
     if (!_wifiApScan.handle) {
-        xTaskCreate(wifi_ap_scan_tsk, TAG, TSK_STACK_SIZE, NULL, 3, &_wifiApScan.handle);
+        xTaskCreate(wifi_ap_scan_tsk, TAG, TSK_STACK_SIZE, NULL, 5, &_wifiApScan.handle);
     }
 }
 

@@ -96,7 +96,7 @@ void temp_ctrl_tsk_deinit()
 void temp_ctrl_tsk_start()
 {
     if (!_tempCtrlTsk.handle) {
-        xTaskCreate(temp_ctrl_tsk, TSK_NAME, TSK_STACK_SIZE, NULL, 3, &_tempCtrlTsk.handle);
+        xTaskCreate(temp_ctrl_tsk, TSK_NAME, TSK_STACK_SIZE, NULL, 4, &_tempCtrlTsk.handle);
     }
 }
 

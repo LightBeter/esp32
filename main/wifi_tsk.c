@@ -51,7 +51,7 @@ void wifi_tsk_deinit()
 void wifi_tsk_start()
 {
     if (!_wifiTsk.handle) {
-        xTaskCreate(wifi_tsk, TAG, TSK_STACK_SIZE, NULL, 3, &_wifiTsk.handle);
+        xTaskCreate(wifi_tsk, TAG, TSK_STACK_SIZE, NULL, 5, &_wifiTsk.handle);
     }
 }
 
@@ -142,7 +142,6 @@ void wifi_tsk(void * parm)
     bool        sta_done = false;
     uint32_t    tick = 0;
     EventBits_t uxBits;
-    esp_netif_t *sta_netif, *ap_netif;
 
     /* wifi handle */
     if (strlen((char*)conf->sta.ssid) == 0) {
