@@ -13,18 +13,17 @@
 #define TEMP_CTRL_SAMPLE_INTERVAL   20
 #define TEMP_CTRL_INTERVAL          (1000 / TEMP_CTRL_SAMPLE_INTERVAL)
 
-#define TEMP_CTRL_ADC_DEFAULT_VREF  1100        //Use adc2_vref_to_gpio() to obtain a better estimate
-#define TEMP_CTRL_ADC_BUFFER_LEN    250
-#define TEMP_CTRL_ADC_UNIT          ADC_UNIT_1
-#define TEMP_CTRL_ADC_WIDTH_BIT     ADC_WIDTH_BIT_12
-#define TEMP_CTRL_ADC_ATTEN         ADC_ATTEN_DB_11
-#define TEMP_CTRL_ADC_CHL           ADC1_CHANNEL_0 //ADC1_CHANNEL_3
+#define ADC_HW_DEFAULT_VREF         1100        //Use adc2_vref_to_gpio() to obtain a better estimate
+#define ADC_HW_UNIT                 ADC_UNIT_1
+#define ADC_HW_WIDTH_BIT            ADC_WIDTH_BIT_12
+#define ADC_HW_ATTEN                ADC_ATTEN_DB_11
+#define ADC_BUFFER_LEN              250
+#define GPIO_CHAN_FAN               GPIO_NUM_2
 
 #define TEMP_OVER_LIMIT             68
 #define TEMP_OVER_CANCEL            40
 #define TEMP_CTRL_FAN_OPEN_LIMIT    45
 #define TEMP_CTRL_FAN_CLOSE_LIMIT   30
-#define GPIO_CHAN_FAN               GPIO_NUM_2
 #define TEMP_CTRL_FAN_OPEN_LEVEL    1
 #define TEMP_CTRL_FAN_CLOSE_LEVEL   0
 
@@ -34,7 +33,7 @@
 
 void temp_ctrl_tsk(void * parm);
 
-const adc1_channel_t   _sensorConf[TEMP_SENSOR_COUNT] = {  
+const adc1_channel_t ADC_HW_CFG[ADC_CHAN_COUNT] = {  
     ADC1_CHANNEL_6,
     ADC1_CHANNEL_7, 
 };
@@ -63,9 +62,9 @@ temp_ctrl_tsk_type   _tempCtrlTsk;
 void temp_ctrl_tsk_init()
 {
     /* initial adc */
-    ESP_ERROR_CHECK( adc1_config_width(TEMP_CTRL_ADC_WIDTH_BIT) );
-    for (int index = 0; index < TEMP_SENSOR_COUNT; index++) {
-        ringbuffer_init( &_tempCtrlTsk.sensor[index], TEMP_CTRL_ADC_BUFFER_LEN );
+    ESP_ERROR_CHECK( adc1_config_width(ADC_HW_WIDTH_BIT) );
+    for (int index = 0; index < ADC_CHAN_COUNT; index++) {
+        ringbuffer_init( &_tempCtrlTsk.buffers[index], ADC_BUFFER_LEN );
     }
     _tempCtrlTsk.handle = NULL;
     _tempCtrlTsk.over   = false;
@@ -88,8 +87,8 @@ void temp_ctrl_temperature_resp(cJSON *respone)
 
 void temp_ctrl_tsk_deinit()
 {
-    for (int index = 0; index < TEMP_SENSOR_COUNT; index++) {
-        ringbuffer_deinit( &_tempCtrlTsk.sensor[index] );
+    for (int index = 0; index < ADC_CHAN_COUNT; index++) {
+        ringbuffer_deinit( &_tempCtrlTsk.buffers[index] );
     }
 }
 
@@ -146,13 +145,14 @@ void temp_ctrl_tsk(void * parm)
     esp_adc_cal_characteristics_t adc_chars;
     float tmp;
     
-    ESP_ERROR_CHECK( adc1_config_channel_atten(TEMP_CTRL_ADC_CHL, TEMP_CTRL_ADC_ATTEN) );
+    ESP_ERROR_CHECK( adc1_config_channel_atten(ADC_HW_CFG[ADC_CHAN_REF], ADC_HW_ATTEN) );
+    ESP_ERROR_CHECK( adc1_config_channel_atten(ADC_HW_CFG[ADC_CHAN_NTC], ADC_HW_ATTEN) );
     //Characterize ADC
     memset(&adc_chars, 0x00, sizeof(esp_adc_cal_characteristics_t));
-    val_type = esp_adc_cal_characterize(TEMP_CTRL_ADC_UNIT, 
-                                        TEMP_CTRL_ADC_ATTEN, 
-                                        TEMP_CTRL_ADC_WIDTH_BIT, 
-                                        TEMP_CTRL_ADC_DEFAULT_VREF, 
+    val_type = esp_adc_cal_characterize(ADC_HW_UNIT, 
+                                        ADC_HW_ATTEN, 
+                                        ADC_HW_WIDTH_BIT, 
+                                        ADC_HW_DEFAULT_VREF, 
                                         &adc_chars);
     if (val_type == ESP_ADC_CAL_VAL_EFUSE_TP) {
         ESP_LOGI( TAG, "Characterized using Two Point Value" );
@@ -164,18 +164,18 @@ void temp_ctrl_tsk(void * parm)
   
     while (1) {
         for (int i = 0; i < 5; i++) {
-            for (index = 0; index < TEMP_SENSOR_COUNT; index++) {
-                temp = adc1_get_raw(_sensorConf[index]);
-                ringbuffer_enter(&_tempCtrlTsk.sensor[index], temp);
+            for (index = 0; index < ADC_CHAN_COUNT; index++) {
+                temp = adc1_get_raw(ADC_HW_CFG[index]);
+                ringbuffer_enter(&_tempCtrlTsk.buffers[index], temp);
             }
         }
         if (tick++ < TEMP_CTRL_INTERVAL) 
             goto next;
         
         tick = 0;
-        value = ringbuffer_avg(&_tempCtrlTsk.sensor[TEMP_SENSOR_REF]);        
+        value = ringbuffer_avg(&_tempCtrlTsk.buffers[ADC_CHAN_REF]);        
         Vref = esp_adc_cal_raw_to_voltage(value, &adc_chars);
-        value = ringbuffer_avg(&_tempCtrlTsk.sensor[TEMP_SENSOR_NTC]);        
+        value = ringbuffer_avg(&_tempCtrlTsk.buffers[ADC_CHAN_NTC]);        
         Vntc = esp_adc_cal_raw_to_voltage(value, &adc_chars);
         tmp = (15100.0/10000) * Vref - Vntc;
         if (tmp <= 0) {

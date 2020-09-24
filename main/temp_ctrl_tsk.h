@@ -11,14 +11,14 @@ extern "C" {
 #endif
 
 enum {
-    TEMP_SENSOR_REF = 0,
-    TEMP_SENSOR_NTC,
-    TEMP_SENSOR_COUNT
+    ADC_CHAN_REF = 0,
+    ADC_CHAN_NTC,
+    ADC_CHAN_COUNT
 };
 
 typedef struct {
     xTaskHandle         handle;
-    ringbuffer_type     sensor[TEMP_SENSOR_COUNT];
+    ringbuffer_type     buffers[ADC_CHAN_COUNT];
     int16_t             temperature;
     bool                over;
 } temp_ctrl_tsk_type;
