@@ -20,7 +20,7 @@
 #define TEMP_CTRL_ADC_ATTEN         ADC_ATTEN_DB_11
 #define TEMP_CTRL_ADC_CHL           ADC1_CHANNEL_0 //ADC1_CHANNEL_3
 
-#define TEMP_OVER_LIMIT             64
+#define TEMP_OVER_LIMIT             68
 #define TEMP_OVER_CANCEL            40
 #define TEMP_CTRL_FAN_OPEN_LIMIT    45
 #define TEMP_CTRL_FAN_CLOSE_LIMIT   30

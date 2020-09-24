@@ -182,7 +182,6 @@ uint8_t bcdToInt(uint8_t bcd) {
 
 esp_err_t datetime_extrtc_read(time_t *t)
 {	
-    char strftime_buf[64];
     uint8_t data[7];
 	esp_err_t errRc;
 
@@ -209,15 +208,12 @@ esp_err_t datetime_extrtc_read(time_t *t)
 	tm.tm_mon  = bcdToInt(data[5]) - 1; // 0-11 - Note: The month on the DS1307 is 1-12.
 	tm.tm_year = bcdToInt(data[6]) + 100; // Years since 1900
 	*t = mktime(&tm);
-
-    strftime(strftime_buf, sizeof(strftime_buf), "%c", &tm);
-    ESP_LOGI( TAG, "%s: read external rtc date/time is %s", __FUNCTION__, strftime_buf );
+    ESP_LOGI( TAG, "%s: read external rtc date/time is %s", __FUNCTION__, asctime(&tm) );
 	return ESP_OK;
 }
 
 void datetime_extrtc_write(time_t t)
 {
-    char strftime_buf[64];
 	struct tm tm;
 	gmtime_r(&t, &tm);
 
@@ -238,8 +234,7 @@ void datetime_extrtc_write(time_t t)
 	if (errRc != ESP_OK) {
 		ESP_LOGE( TAG, "%s: i2c_master_cmd_begin: %d", __FUNCTION__, errRc );
 	} else {
-        strftime(strftime_buf, sizeof(strftime_buf), "%c", &tm);
-        ESP_LOGI( TAG, "%s: write external rtc date/time is %s", __FUNCTION__, strftime_buf );
+        ESP_LOGI( TAG, "%s: write external rtc date/time is %s", __FUNCTION__, asctime(&tm) );
     }
 	i2c_cmd_link_delete(cmd);
 }
