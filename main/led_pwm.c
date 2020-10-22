@@ -27,17 +27,7 @@
     .duty       = 0,                       \
     .hpoint     = 0,                       \
 }
-#if 0
-const ledc_channel_config_t ledc_chan_cfg[LED_CHAN_COUNT] = {
-    [LED_CHAN_WHITE]     = LED_CHANNEL_CFG(LEDC_CHANNEL_0, GPIO_NUM_32),
-    [LED_CHAN_DARK_BLUE] = LED_CHANNEL_CFG(LEDC_CHANNEL_1, GPIO_NUM_25),
-    [LED_CHAN_BLUE]      = LED_CHANNEL_CFG(LEDC_CHANNEL_2, GPIO_NUM_33),
-    [LED_CHAN_RED]       = LED_CHANNEL_CFG(LEDC_CHANNEL_3, GPIO_NUM_14),
-    [LED_CHAN_GREEN]     = LED_CHANNEL_CFG(LEDC_CHANNEL_4, GPIO_NUM_12),
-    [LED_CHAN_UV_405]    = LED_CHANNEL_CFG(LEDC_CHANNEL_5, GPIO_NUM_26),
-    [LED_CHAN_UV_415]    = LED_CHANNEL_CFG(LEDC_CHANNEL_6, GPIO_NUM_27),
-};
-#else
+
 const ledc_channel_config_t ledc_chan_cfg[LED_CHAN_COUNT] = {
     [LED_CHAN_WHITE]     = LED_CHANNEL_CFG(LEDC_CHANNEL_0, GPIO_NUM_25),
     [LED_CHAN_DARK_BLUE] = LED_CHANNEL_CFG(LEDC_CHANNEL_1, GPIO_NUM_27),
@@ -47,7 +37,6 @@ const ledc_channel_config_t ledc_chan_cfg[LED_CHAN_COUNT] = {
     [LED_CHAN_UV_405]    = LED_CHANNEL_CFG(LEDC_CHANNEL_5, GPIO_NUM_26),
     [LED_CHAN_UV_415]    = LED_CHANNEL_CFG(LEDC_CHANNEL_6, GPIO_NUM_12),
 };
-#endif
 
 #define LED_PWM_FREQ                   (18 * 1000)
 const led_output_cfg_t ledc_output_cfg[LED_CHAN_COUNT] = {

@@ -151,7 +151,7 @@ void wifi_tsk(void * parm)
     
     device_set_led_mode(DEVICE_LED_MODE_FLASH);
     wifi_start_sta(conf);  
-    while (tick++ < 150 && !sta_done) {
+    while (tick++ < 60 && !sta_done) {
         uxBits = xEventGroupWaitBits(_wifiTsk.eventGroup, uxBitsToWaitFor, true, false, pdMS_TO_TICKS(1000)); 
         if (uxBits & WIFI_TSK_EVENT_STA_GOT_IP) {
             sta_done = true;
