@@ -22,7 +22,8 @@ typedef struct {
 /* datetime Api */
 void datetime_init();
 void datetime_deinit();
-void datetime_set(time_t t, int tz);
+void datetime_set_tz(int tz);
+void datetime_set(time_t t);
 void datetime_get(time_t *t, int *tz);
 void datetime_resp(cJSON *respone);
 

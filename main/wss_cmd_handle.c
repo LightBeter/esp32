@@ -40,7 +40,8 @@ wss_respond_code_t write_dev_time_handle(cJSON *request, cJSON *respone)
         ESP_LOGI(TAG, "%s invalid timezone.", __FUNCTION__);
         return wss_respond_code_invalid_param;
     } 
-    datetime_set( utc->valuedouble, zone->valuedouble );
+    datetime_set_tz( zone->valuedouble );
+    datetime_set( utc->valuedouble );
     return wss_respond_code_ok;
 }
 

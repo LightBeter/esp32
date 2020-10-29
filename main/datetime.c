@@ -21,20 +21,21 @@ void sntp_sync_cb(struct timeval *tv);
 uint8_t intToBCD(uint8_t num);
 uint8_t bcdToInt(uint8_t bcd);
 
-datetime_type  _datetime;
+datetime_type  _datetime = { 0, { 0, 0} };
 
 void datetime_init()
 {
     time_t t = 0;
-    int tz = 0;
     /* initial sntp */
     datetime_sntp_init();
     /* initial extern rtc */
     datetime_extrtc_init();
-    /* update datetime & timezone */
+    /* initial timezone */
+    storage_read_tz(&_datetime.tz);
+    datetime_set_tz(_datetime.tz);
+    /* initial datetime */
     datetime_extrtc_read(&t);
-    storage_read_tz(&tz);
-    datetime_set(t, tz);
+    datetime_set(t);
     /* initial sync status */
     _datetime.sync.reqTime = 0;
     _datetime.sync.doneTime = 0;
@@ -46,18 +47,11 @@ void datetime_deinit()
     datetime_extrtc_deinit();
 }
 
-void datetime_set(time_t t, int tz)
+void datetime_set_tz(int tz)
 {
-    struct  timeval  tv = { 0, 0 };
     char str_buf[64];
-	struct tm *tm;
     uint8_t tz_hh, tz_mm;
     const char *tz_symbol;
-
-    /* update datatime */
-    tv.tv_sec = t;
-    tv.tv_usec = 0;
-    settimeofday(&tv, NULL);
     /* update timezone */
     if (tz > 0) {
         tz_symbol = "+";
@@ -71,24 +65,31 @@ void datetime_set(time_t t, int tz)
     snprintf(str_buf, sizeof(str_buf), "UTC%s%d:%02d", tz_symbol, tz_hh, tz_mm);
     setenv("TZ", str_buf, 1);
     tzset();
-    /* update ext rtc */
-    datetime_extrtc_write(t);
     /* save timezone */
     if (_datetime.tz != tz) {
         storage_write_tz(tz);
         _datetime.tz = tz;
     }
+}
+
+void datetime_set(time_t t)
+{
+    struct  timeval  tv = { 0, 0 };
+	struct tm *tm;
+    /* update datatime */
+    tv.tv_sec = t;
+    tv.tv_usec = 0;
+    settimeofday(&tv, NULL);
+    /* update ext rtc */
+    datetime_extrtc_write(t);
     /* output new datetime */
     tm = localtime(&t);
-    ESP_LOGI( TAG, "%s: set new date/time %s, tz %d", __FUNCTION__, asctime(tm), tz );
+    ESP_LOGI( TAG, "%s: set new date/time %s", __FUNCTION__, asctime(tm) );
 }
 
 void datetime_get(time_t *t, int *tz)
-{
-    struct  timeval  tv;
-    gettimeofday(&tv, &tz);
-    
-    *t = tv.tv_sec;
+{    
+    *t = time(NULL);
     *tz = _datetime.tz;
 }
 
@@ -133,7 +134,6 @@ void sntp_sync_cb(struct timeval *tv)
 void datetime_sync_sntp()
 {
     time_t now, diff;
-    
     now = time(NULL);
     if (_datetime.sync.reqTime != 0) {
         diff = difftime(now, _datetime.sync.reqTime);
@@ -207,7 +207,7 @@ esp_err_t datetime_extrtc_read(time_t *t)
 	tm.tm_mday = bcdToInt(data[4]);
 	tm.tm_mon  = bcdToInt(data[5]) - 1; // 0-11 - Note: The month on the DS1307 is 1-12.
 	tm.tm_year = bcdToInt(data[6]) + 100; // Years since 1900
-	*t = mktime(&tm);
+	*t = mktime(&tm) - (_datetime.tz * 60);
     ESP_LOGI( TAG, "%s: read external rtc date/time is %s", __FUNCTION__, asctime(&tm) );
 	return ESP_OK;
 }
@@ -241,8 +241,8 @@ void datetime_extrtc_write(time_t t)
 
 void datetime_sync_extrtc()
 {
-    struct  timeval  tv = { 0, 0 };
-    
+    struct timeval  tv = { 0, 0 };
+    struct tm *tm;
     time_t diff = difftime(time(NULL), _datetime.sync.doneTime);
     if (diff < SYNC_CYCLE) {
         return;
@@ -250,6 +250,9 @@ void datetime_sync_extrtc()
     /* update datatime */
     if (ESP_OK == datetime_extrtc_read( &tv.tv_sec)) {
         settimeofday(&tv, NULL);
+        /* output new datetime */
+        tm = localtime(&tv.tv_sec);
+        ESP_LOGI( TAG, "%s: set new date/time %s", __FUNCTION__, asctime(tm) );
     }
     _datetime.sync.doneTime = tv.tv_sec;
 }
