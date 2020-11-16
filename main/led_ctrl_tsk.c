@@ -321,7 +321,7 @@ void led_ctrl_get_by_sch()
         if (false == _led_ctrl_schedule[index].valid) 
             continue;
         /* left */
-        if (now > _led_ctrl_schedule[index].time) {
+        if (now >= _led_ctrl_schedule[index].time) {
             diff = now - _led_ctrl_schedule[index].time;
         } else {
             diff = LED_CTRL_SCH_TIME_MAX - (_led_ctrl_schedule[index].time - now);
@@ -331,7 +331,7 @@ void led_ctrl_get_by_sch()
             leftDiff = diff;
         }
         /* right */
-        if (_led_ctrl_schedule[index].time > now) {
+        if (_led_ctrl_schedule[index].time >= now) {
             diff = _led_ctrl_schedule[index].time - now;
         } else {
             diff = LED_CTRL_SCH_TIME_MAX - (now - _led_ctrl_schedule[index].time);
@@ -364,17 +364,17 @@ void led_ctrl_get_by_sch()
             _led_ctrl_tsk.output[index] = _led_ctrl_schedule[left].targ[index] + offset; 
         }
 #if 0        
-        ESP_LOGI(TAG, "left[%u] output: %d, %d, %d, %d, %d, %d, %d", 
+        ESP_LOGI(TAG, "left[%10u] output: %04d, %04d, %04d, %04d, %04d, %04d, %04d", 
             _led_ctrl_schedule[left].time, _led_ctrl_schedule[left].targ[0], 
             _led_ctrl_schedule[left].targ[1], _led_ctrl_schedule[left].targ[2],
             _led_ctrl_schedule[left].targ[3], _led_ctrl_schedule[left].targ[4],
             _led_ctrl_schedule[left].targ[5], _led_ctrl_schedule[left].targ[6]);
-        ESP_LOGI(TAG, "right[%u] output: %d, %d, %d, %d, %d, %d, %d", 
+        ESP_LOGI(TAG, "right[%10u] output: %04d, %04d, %04d, %04d, %04d, %04d, %04d", 
             _led_ctrl_schedule[right].time, _led_ctrl_schedule[right].targ[0], 
             _led_ctrl_schedule[right].targ[1], _led_ctrl_schedule[right].targ[2],
             _led_ctrl_schedule[right].targ[3], _led_ctrl_schedule[right].targ[4],
             _led_ctrl_schedule[right].targ[5], _led_ctrl_schedule[right].targ[6]);
-        ESP_LOGI(TAG, "now[%u] output: %d, %d, %d, %d, %d, %d, %d", 
+        ESP_LOGI(TAG, "now[%10u] output: %04d, %04d, %04d, %04d, %04d, %04d, %04d", 
             now, _led_ctrl_tsk.output[0], 
             _led_ctrl_tsk.output[1], _led_ctrl_tsk.output[2],
             _led_ctrl_tsk.output[3], _led_ctrl_tsk.output[4],
