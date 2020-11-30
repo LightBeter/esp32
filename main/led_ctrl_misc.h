@@ -20,9 +20,11 @@ void led_ctrl_write_time(cJSON *packet, const char *name, uint16_t value);
 void led_ctrl_write_targ(cJSON *packet, const char *name, const led_value_t *targ);
 
 void led_ctrl_read_config(bool *sw, led_ctrl_mode_t *mode, led_value_t *manual, 
-                          led_ctrl_sch_id_t *schedule_id, led_ctrl_sch_item_t *schedule);
+                          led_ctrl_sch_id_t *schedule_id, led_value_t *power, 
+                          led_ctrl_sch_item_t *schedule);
 void led_ctrl_write_config(bool sw, led_ctrl_mode_t mode, const led_value_t *manual, 
-                           led_ctrl_sch_id_t schedule_id, const led_ctrl_sch_item_t *schedule);
+                           led_ctrl_sch_id_t schedule_id, led_value_t power, 
+                           const led_ctrl_sch_item_t *schedule);
 
 #ifdef __cplusplus
 }

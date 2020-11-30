@@ -43,6 +43,7 @@ void led_ctrl_tsk_init()
                          &_led_ctrl_tsk.mode,
                          _led_ctrl_manual,
                          &_led_ctrl_tsk.schId,
+                         &_led_ctrl_tsk.power,
                          _led_ctrl_schedule);
     device_set_led(LED_CTRL_MODE_MANUAL == _led_ctrl_tsk.mode ? DEVICE_LED_1 : DEVICE_LED_2);
 }
@@ -190,14 +191,15 @@ void led_ctrl_get_schedule(cJSON *packet)
         cJSON_AddItemToArray(pSchedule, pSub);
     }
     cJSON_AddNumberToObject(packet, "id", _led_ctrl_tsk.schId);
+    cJSON_AddNumberToObject(packet, "power", _led_ctrl_tsk.power);
     led_ctrl_unlock();
     cJSON_AddItemToObject(packet, "schedule", pSchedule);
 }
 
 bool led_ctrl_set_schedule(const cJSON *packet)
 {
-    cJSON *pId, *pSchedule, *pSub;
-    led_value_t targ[LED_CHAN_COUNT];
+    cJSON *pId, *pPower, *pSchedule, *pSub;
+    led_value_t power, targ[LED_CHAN_COUNT];
     uint16_t    t[LED_CTRL_SCH_MAX];
     int index, tIndex, count;
 
@@ -205,6 +207,17 @@ bool led_ctrl_set_schedule(const cJSON *packet)
     pId = cJSON_GetObjectItem(packet, "id");
     if (!cJSON_IsNumber(pId)) {
         ESP_LOGI(TAG, "%s invalid param id.", __FUNCTION__);
+        return false;
+    }
+    /* check power Id */
+    pPower = cJSON_GetObjectItem(packet, "power");
+    if (!cJSON_IsNumber(pPower)) {
+        power = LED_VALUE_MAX;
+    } else {
+        power = pPower->valueint;
+    } 
+    if (!is_vaild_output(power)) {
+        ESP_LOGI(TAG, "%s invalid power.", __FUNCTION__);
         return false;
     }
     /* check schedule */
@@ -245,6 +258,7 @@ bool led_ctrl_set_schedule(const cJSON *packet)
         }
     }
     _led_ctrl_demo.remaining = 0;
+    _led_ctrl_tsk.power = power;
     _led_ctrl_tsk.schId = pId->valueint;
     _led_ctrl_tsk.curSaveToken++;
     led_ctrl_unlock();
@@ -258,6 +272,7 @@ void led_ctrl_save_config()
                               _led_ctrl_tsk.mode,
                               _led_ctrl_manual,
                               _led_ctrl_tsk.schId,
+                              _led_ctrl_tsk.power,
                               _led_ctrl_schedule);
         _led_ctrl_tsk.preSaveToken = _led_ctrl_tsk.curSaveToken;
     }
@@ -313,10 +328,11 @@ void led_ctrl_get_by_sch()
 {
     uint32_t now, diff, leftDiff = 0, rightDiff = 0; 
     int32_t  index, left = -1, right = -1;
-    float  percent;
+    float  percent, power;
     led_value_t offset;
 
     now = led_ctrl_current_time();
+    power = _led_ctrl_tsk.power / 1000.0;
     for (index = 0 ; index < LED_CTRL_SCH_MAX; index++) {
         if (false == _led_ctrl_schedule[index].valid) 
             continue;
@@ -361,7 +377,7 @@ void led_ctrl_get_by_sch()
         for (index = 0; index < LED_CHAN_COUNT; index++) {
             offset = _led_ctrl_schedule[right].targ[index] - _led_ctrl_schedule[left].targ[index];
             offset *= percent;
-            _led_ctrl_tsk.output[index] = _led_ctrl_schedule[left].targ[index] + offset; 
+            _led_ctrl_tsk.output[index] = (_led_ctrl_schedule[left].targ[index] + offset) * power; 
         }
 #if 0        
         ESP_LOGI(TAG, "left[%10u] output: %04d, %04d, %04d, %04d, %04d, %04d, %04d", 

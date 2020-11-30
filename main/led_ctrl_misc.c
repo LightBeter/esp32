@@ -70,7 +70,8 @@ void led_ctrl_write_targ(cJSON *packet, const char *name, const led_value_t *tar
 }
 
 void led_ctrl_read_config(bool *sw, led_ctrl_mode_t *mode, led_value_t *manual, 
-                          led_ctrl_sch_id_t *schedule_id, led_ctrl_sch_item_t *schedule)
+                          led_ctrl_sch_id_t *schedule_id, led_value_t *power, 
+                          led_ctrl_sch_item_t *schedule)
 {
     size_t  ret;
     FILE* file;
@@ -123,6 +124,10 @@ void led_ctrl_read_config(bool *sw, led_ctrl_mode_t *mode, led_value_t *manual,
             if (!is_vaild_output(schedule[index].targ[chl]))
                 goto default_handle;
     }
+    ret = fread(power, sizeof(led_value_t), 1, file);
+    if (ret != 1 || !is_vaild_output(*power)) {
+        *power = LED_VALUE_MAX;
+    }
     fclose(file);
     return;
 default_handle:
@@ -151,12 +156,14 @@ default_handle:
     *mode = LED_CTRL_MODE_SCHEDULE;
     *sw = false;
     *schedule_id = 0;
+    *power = LED_VALUE_MAX;
     if (file) fclose(file);
     return;
 }
 
 void led_ctrl_write_config(bool sw, led_ctrl_mode_t mode, const led_value_t *manual, 
-                           led_ctrl_sch_id_t schedule_id, const led_ctrl_sch_item_t *schedule)
+                           led_ctrl_sch_id_t schedule_id, led_value_t power, 
+                           const led_ctrl_sch_item_t *schedule)
 {
     size_t  ret;
     FILE* file;
@@ -192,6 +199,11 @@ void led_ctrl_write_config(bool sw, led_ctrl_mode_t mode, const led_value_t *man
     }
     ret = fwrite(schedule, sizeof(led_ctrl_sch_item_t), LED_CTRL_SCH_MAX, file);
     if (ret != LED_CTRL_SCH_MAX) {
+        ESP_LOGE(TAG, "Failed to write config param schedule");
+        goto exit;
+    }
+    ret = fwrite(&power, sizeof(led_value_t), 1, file);
+    if (ret != 1) {
         ESP_LOGE(TAG, "Failed to write config param schedule");
         goto exit;
     }

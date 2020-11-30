@@ -8,7 +8,7 @@
 #include <cJSON.h>
 #include "led_pwm.h"
 
-#define LED_CTRL_SCH_MAX        48
+#define LED_CTRL_SCH_MAX        64
 #define LED_CTRL_SCH_TIME_MAX   (24 * 60 -1)
 
 #ifdef __cplusplus
@@ -40,6 +40,7 @@ typedef struct led_ctrl_tsk_tag {
     led_ctrl_mode_t     mode;
     bool                sw;
     led_ctrl_sch_id_t   schId;
+    led_value_t         power;
     led_value_t         output[LED_CHAN_COUNT];
     uint32_t            curSaveToken;
     uint32_t            preSaveToken;
