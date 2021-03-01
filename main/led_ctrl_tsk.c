@@ -363,10 +363,10 @@ void led_ctrl_get_by_sch()
             _led_ctrl_tsk.output[index] = 0; 
     } else if (leftDiff == 0) {
         for (index = 0; index < LED_CHAN_COUNT; index++)
-            _led_ctrl_tsk.output[index] = _led_ctrl_schedule[left].targ[index];  
+            _led_ctrl_tsk.output[index] = _led_ctrl_schedule[left].targ[index] * power;  
     } else if (rightDiff == 0) {
         for (index = 0; index < LED_CHAN_COUNT; index++)
-            _led_ctrl_tsk.output[index] = _led_ctrl_schedule[right].targ[index];  
+            _led_ctrl_tsk.output[index] = _led_ctrl_schedule[right].targ[index] * power;  
     } else {
         if (_led_ctrl_schedule[right].time > _led_ctrl_schedule[left].time) {
             diff = _led_ctrl_schedule[right].time - _led_ctrl_schedule[left].time;
@@ -379,22 +379,23 @@ void led_ctrl_get_by_sch()
             offset *= percent;
             _led_ctrl_tsk.output[index] = (_led_ctrl_schedule[left].targ[index] + offset) * power; 
         }
+    }
+
 #if 0        
-        ESP_LOGI(TAG, "left[%10u] output: %04d, %04d, %04d, %04d, %04d, %04d, %04d", 
-            _led_ctrl_schedule[left].time, _led_ctrl_schedule[left].targ[0], 
-            _led_ctrl_schedule[left].targ[1], _led_ctrl_schedule[left].targ[2],
-            _led_ctrl_schedule[left].targ[3], _led_ctrl_schedule[left].targ[4],
-            _led_ctrl_schedule[left].targ[5], _led_ctrl_schedule[left].targ[6]);
-        ESP_LOGI(TAG, "right[%10u] output: %04d, %04d, %04d, %04d, %04d, %04d, %04d", 
-            _led_ctrl_schedule[right].time, _led_ctrl_schedule[right].targ[0], 
-            _led_ctrl_schedule[right].targ[1], _led_ctrl_schedule[right].targ[2],
-            _led_ctrl_schedule[right].targ[3], _led_ctrl_schedule[right].targ[4],
-            _led_ctrl_schedule[right].targ[5], _led_ctrl_schedule[right].targ[6]);
-        ESP_LOGI(TAG, "now[%10u] output: %04d, %04d, %04d, %04d, %04d, %04d, %04d", 
+        // ESP_LOGI(TAG, "left [%8u] output: %04d, %04d, %04d, %04d, %04d, %04d, %04d", 
+        //     _led_ctrl_schedule[left].time, _led_ctrl_schedule[left].targ[0], 
+        //     _led_ctrl_schedule[left].targ[1], _led_ctrl_schedule[left].targ[2],
+        //     _led_ctrl_schedule[left].targ[3], _led_ctrl_schedule[left].targ[4],
+        //     _led_ctrl_schedule[left].targ[5], _led_ctrl_schedule[left].targ[6]);
+        // ESP_LOGI(TAG, "right[%8u] output: %04d, %04d, %04d, %04d, %04d, %04d, %04d", 
+        //     _led_ctrl_schedule[right].time, _led_ctrl_schedule[right].targ[0], 
+        //     _led_ctrl_schedule[right].targ[1], _led_ctrl_schedule[right].targ[2],
+        //     _led_ctrl_schedule[right].targ[3], _led_ctrl_schedule[right].targ[4],
+        //     _led_ctrl_schedule[right].targ[5], _led_ctrl_schedule[right].targ[6]);
+        ESP_LOGI(TAG, "now [%8u] output: %04d, %04d, %04d, %04d, %04d, %04d, %04d", 
             now, _led_ctrl_tsk.output[0], 
             _led_ctrl_tsk.output[1], _led_ctrl_tsk.output[2],
             _led_ctrl_tsk.output[3], _led_ctrl_tsk.output[4],
             _led_ctrl_tsk.output[5], _led_ctrl_tsk.output[6]);
 #endif
-    }
 }
