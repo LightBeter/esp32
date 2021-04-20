@@ -1,5 +1,6 @@
 #include <string.h>
 #include <driver/gpio.h>
+#include <driver/ledc.h>
 #include <driver/adc.h>
 #include <esp_adc_cal.h>
 #include <esp_err.h>
@@ -31,6 +32,13 @@
 #define TEMP_MIN                    (-40)
 #define TEMP_MAP_SIZE               (TEMP_MAX - (TEMP_MIN) + 1)
 
+#define FAN_PWM_CTRL                1
+#define FAN_PWM_SPEED_MODE          LEDC_HIGH_SPEED_MODE
+#define FAN_PWM_TIMER               LEDC_TIMER_1
+#define FAN_PWM_DUTY_RESOLUTION     LEDC_TIMER_11_BIT
+#define FAN_PWM_FREQ                (12 * 1000)
+#define FAN_PWM_DUTY_MAX            ((0x1 << FAN_PWM_DUTY_RESOLUTION) - 1)
+
 void temp_ctrl_tsk(void * parm);
 
 const adc1_channel_t ADC_HW_CFG[ADC_CHAN_COUNT] = {  
@@ -57,6 +65,21 @@ const uint32_t _tempMapTable[TEMP_MAP_SIZE] = {
     491,     477,     464,     451,     439,     427,     415,     404,     393,     383, 
     373, 
 };
+
+#ifdef FAN_PWM_CTRL
+#include "led_ctrl_tsk.h"
+extern led_ctrl_tsk_t      _led_ctrl_tsk;
+
+const ledc_channel_config_t fan_chan_cfg = {
+    .gpio_num   = GPIO_CHAN_FAN,            
+    .channel    = LEDC_CHANNEL_7,           
+    .speed_mode = FAN_PWM_SPEED_MODE,      
+    .intr_type  = LEDC_INTR_DISABLE,       
+    .timer_sel  = FAN_PWM_TIMER,           
+    .duty       = 0,                       
+    .hpoint     = 0,                       
+};
+#endif
 temp_ctrl_tsk_type   _tempCtrlTsk;
 
 void temp_ctrl_tsk_init()
@@ -68,6 +91,16 @@ void temp_ctrl_tsk_init()
     }
     _tempCtrlTsk.handle = NULL;
     _tempCtrlTsk.over   = false;
+#ifdef FAN_PWM_CTRL    
+    ledc_timer_config_t ledc_timer = {
+        .duty_resolution = FAN_PWM_DUTY_RESOLUTION, 
+        .freq_hz    = FAN_PWM_FREQ,    
+        .speed_mode = FAN_PWM_SPEED_MODE,
+        .timer_num  = FAN_PWM_TIMER
+    };
+    ESP_ERROR_CHECK( ledc_timer_config(&ledc_timer) );
+    ESP_ERROR_CHECK( ledc_channel_config(&fan_chan_cfg) );
+#else
     /* initial gpio */
     gpio_config_t io_conf;
     io_conf.intr_type = GPIO_PIN_INTR_DISABLE;
@@ -76,7 +109,8 @@ void temp_ctrl_tsk_init()
     io_conf.pull_down_en = 0;
     io_conf.pull_up_en = 0;
     gpio_config(&io_conf);
-    gpio_set_level(GPIO_CHAN_FAN, TEMP_CTRL_FAN_CLOSE_LEVEL);
+    gpio_set_level(GPIO_CHAN_FAN, TEMP_CTRL_FAN_CLOSE_LEVEL);    
+#endif
     /* initial tsk */
 }
 
@@ -136,6 +170,17 @@ int16_t SearchTableConvert(const uint32_t r) {
     return mid + TEMP_MIN;
 }
 
+void fan_switch(bool sw)
+{
+#ifdef FAN_PWM_CTRL 
+    //ESP_LOGI( TAG, "fan %d", _led_ctrl_tsk.output[0] );
+    ledc_set_duty(fan_chan_cfg.speed_mode, fan_chan_cfg.channel, _led_ctrl_tsk.output[0] * FAN_PWM_DUTY_MAX / LED_VALUE_MAX);
+    ledc_update_duty(fan_chan_cfg.speed_mode, fan_chan_cfg.channel);
+#else
+    gpio_set_level(GPIO_CHAN_FAN, sw ? TEMP_CTRL_FAN_OPEN_LEVEL : TEMP_CTRL_FAN_CLOSE_LEVEL);
+#endif
+}
+
 void temp_ctrl_tsk(void * parm)
 {
     int temp;
@@ -184,14 +229,17 @@ void temp_ctrl_tsk(void * parm)
             Rntc = (Vntc * 5100) / tmp;
         }
         _tempCtrlTsk.temperature = SearchTableConvert(Rntc);
+    #if 0
         if (led_ctrl_is_close()) {
-            gpio_set_level(GPIO_CHAN_FAN, TEMP_CTRL_FAN_CLOSE_LEVEL);
+            fan_switch(false);
         } else if (_tempCtrlTsk.temperature >= TEMP_CTRL_FAN_OPEN_LIMIT) {
-            gpio_set_level(GPIO_CHAN_FAN, TEMP_CTRL_FAN_OPEN_LEVEL);
+            fan_switch(true);
         } else if (_tempCtrlTsk.temperature <= TEMP_CTRL_FAN_CLOSE_LIMIT) {
-            gpio_set_level(GPIO_CHAN_FAN, TEMP_CTRL_FAN_CLOSE_LEVEL);
+            fan_switch(false);
         }
-
+    #else
+        fan_switch(true);
+    #endif
         if (_tempCtrlTsk.temperature >= TEMP_OVER_LIMIT) {
             _tempCtrlTsk.over = true;
         } else if (_tempCtrlTsk.temperature <= TEMP_OVER_CANCEL) {
