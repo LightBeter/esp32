@@ -5,10 +5,12 @@
 #include <esp_spiffs.h>
 #include <esp_log.h>
 #include "storage.h"
+#include "temp_ctrl_tsk.h"
 
 #define TAG                         "storage"
 #define NVS_WIFI_NAMESPACE          "app_wifi"
 #define NVS_TZ_DEFAILT              (-8 * 60)
+#define NVS_FAN_DUTY_DEFAILT        (80)
 
 #ifdef __cplusplus
 extern "C" {
@@ -193,6 +195,43 @@ void storage_write_tz(int tz)
     err = nvs_set_i32(handle, "time_tz", tz);
     if (ESP_OK != err) {
         ESP_LOGW( TAG, "%s Error (%s) time_tz!\n", __FUNCTION__, esp_err_to_name(err));
+    } 
+    ESP_ERROR_CHECK( nvs_commit(handle) );
+    nvs_close(handle);
+}
+
+void storage_read_fan_duty(uint16_t *duty)
+{
+    esp_err_t err;
+    nvs_handle handle;
+
+    err = nvs_open(NVS_WIFI_NAMESPACE, NVS_READONLY, &handle);
+    if (err != ESP_OK) {
+        ESP_LOGW( TAG, "%s Error (%s) opening NVS handle!\n", __FUNCTION__, esp_err_to_name(err));
+        return;
+    }
+    err = nvs_get_u16(handle, "fan_duty", duty);
+    if (ESP_OK != err || INVALID_FAN_DUTY(*duty)) {
+        ESP_LOGW( TAG, "%s Error (%s) fan duty!\n", __FUNCTION__, esp_err_to_name(err));
+        *duty = NVS_FAN_DUTY_DEFAILT;
+    } 
+    nvs_close(handle);
+    return;
+}
+
+void storage_write_fan_duty(uint16_t duty)
+{
+    esp_err_t err;
+    nvs_handle handle;
+    
+    err = nvs_open(NVS_WIFI_NAMESPACE, NVS_READWRITE, &handle);
+    if (err != ESP_OK) {
+        ESP_LOGW( TAG, "%s Error (%s) opening NVS handle!\n", __FUNCTION__, esp_err_to_name(err));
+        return;
+    }
+    err = nvs_set_u16(handle, "fan_duty", duty);
+    if (ESP_OK != err) {
+        ESP_LOGW( TAG, "%s Error (%s) fan duty!\n", __FUNCTION__, esp_err_to_name(err));
     } 
     ESP_ERROR_CHECK( nvs_commit(handle) );
     nvs_close(handle);

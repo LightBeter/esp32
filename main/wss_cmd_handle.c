@@ -45,6 +45,44 @@ wss_respond_code_t write_dev_time_handle(cJSON *request, cJSON *respone)
     return wss_respond_code_ok;
 }
 
+wss_respond_code_t read_fan_duty_handle(cJSON *request, cJSON *respone)
+{
+    cJSON_AddNumberToObject(respone, "duty", temp_ctrl_fan_duty());
+    return wss_respond_code_ok;
+}
+
+wss_respond_code_t write_fan_duty_handle(cJSON *request, cJSON *respone)
+{
+    wss_respond_code_t ret = wss_respond_code_ok;
+    cJSON *duty, *play;
+
+    duty = cJSON_GetObjectItem(request, "duty");
+    if (duty) {
+        if (!cJSON_IsNumber(duty) || INVALID_FAN_DUTY(duty->valueint)) {
+            ESP_LOGI(TAG, "%s invalid utc.", __FUNCTION__);
+            ret = wss_respond_code_invalid_param;
+        } 
+    }
+
+    play = cJSON_GetObjectItem(request, "play");
+    if (play) {
+        if (!cJSON_IsNumber(play) || play->valueint < 0 || play->valueint > 30) {
+            ESP_LOGI(TAG, "%s invalid play time.", __FUNCTION__);
+            ret = wss_respond_code_invalid_param;
+        } 
+    }
+
+    if ( !duty && !play ) {
+        ret = wss_respond_code_invalid_param;   
+    } else if (wss_respond_code_ok == ret) {
+        if (duty)
+            temp_ctrl_fan_duty_set( duty->valueint );
+        if (play)
+            temp_ctrl_fan_play( play->valueint );
+    }
+    return ret;
+}
+
 wss_respond_code_t write_dev_network_handle(cJSON *request, cJSON *respone)
 {
     int mode;

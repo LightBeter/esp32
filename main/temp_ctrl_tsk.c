@@ -7,32 +7,40 @@
 #include <esp_log.h>
 #include "temp_ctrl_tsk.h"
 #include "led_ctrl_tsk.h"
+#include "storage.h"
 
 #define TAG                         "TempCtrlTsk"
 #define TSK_NAME                    TAG
 #define TSK_STACK_SIZE              2048
-#define TEMP_CTRL_SAMPLE_INTERVAL   20
+#define TEMP_CTRL_SAMPLE_INTERVAL   200
 #define TEMP_CTRL_INTERVAL          (1000 / TEMP_CTRL_SAMPLE_INTERVAL)
 
 #define ADC_HW_DEFAULT_VREF         1100        //Use adc2_vref_to_gpio() to obtain a better estimate
 #define ADC_HW_UNIT                 ADC_UNIT_1
 #define ADC_HW_WIDTH_BIT            ADC_WIDTH_BIT_12
 #define ADC_HW_ATTEN                ADC_ATTEN_DB_11
-#define ADC_BUFFER_LEN              250
+#define ADC_BUFFER_LEN              100
 #define GPIO_CHAN_FAN               GPIO_NUM_2
 
 #define TEMP_OVER_LIMIT             68
 #define TEMP_OVER_CANCEL            40
+
+#if defined(FAN_PWM_CTRL) && (FAN_PWM_CTRL == 1) 
+#define TEMP_CTRL_T1    45
+#define TEMP_CTRL_T2    30
+#define TEMP_CTRL_T3    56
+#define TEMP_CTRL_T4    50
+#else
 #define TEMP_CTRL_FAN_OPEN_LIMIT    45
 #define TEMP_CTRL_FAN_CLOSE_LIMIT   30
 #define TEMP_CTRL_FAN_OPEN_LEVEL    1
 #define TEMP_CTRL_FAN_CLOSE_LEVEL   0
+#endif
 
 #define TEMP_MAX                    (120)
 #define TEMP_MIN                    (-40)
 #define TEMP_MAP_SIZE               (TEMP_MAX - (TEMP_MIN) + 1)
 
-#define FAN_PWM_CTRL                1
 #define FAN_PWM_SPEED_MODE          LEDC_HIGH_SPEED_MODE
 #define FAN_PWM_TIMER               LEDC_TIMER_1
 #define FAN_PWM_DUTY_RESOLUTION     LEDC_TIMER_11_BIT
@@ -91,7 +99,11 @@ void temp_ctrl_tsk_init()
     }
     _tempCtrlTsk.handle = NULL;
     _tempCtrlTsk.over   = false;
-#ifdef FAN_PWM_CTRL    
+#if defined(FAN_PWM_CTRL) && (FAN_PWM_CTRL == 1) 
+    _tempCtrlTsk.playTime = 0;
+    _tempCtrlTsk.curFanDuty = 0;
+    _tempCtrlTsk.highTemperature = false;
+    storage_read_fan_duty(&_tempCtrlTsk.fanDuty);
     ledc_timer_config_t ledc_timer = {
         .duty_resolution = FAN_PWM_DUTY_RESOLUTION, 
         .freq_hz    = FAN_PWM_FREQ,    
@@ -111,7 +123,6 @@ void temp_ctrl_tsk_init()
     gpio_config(&io_conf);
     gpio_set_level(GPIO_CHAN_FAN, TEMP_CTRL_FAN_CLOSE_LEVEL);    
 #endif
-    /* initial tsk */
 }
 
 void temp_ctrl_temperature_resp(cJSON *respone)
@@ -139,7 +150,12 @@ void temp_ctrl_tsk_stop()
         vTaskDelete(_tempCtrlTsk.handle);
         _tempCtrlTsk.handle = NULL; 
     }
+#if defined(FAN_PWM_CTRL) && (FAN_PWM_CTRL == 1)
+    ledc_set_duty(fan_chan_cfg.speed_mode, fan_chan_cfg.channel, 0);
+    ledc_update_duty(fan_chan_cfg.speed_mode, fan_chan_cfg.channel);
+#else
     gpio_set_level(GPIO_CHAN_FAN, TEMP_CTRL_FAN_CLOSE_LEVEL);
+#endif
 }
 
 bool temp_is_over()
@@ -170,16 +186,54 @@ int16_t SearchTableConvert(const uint32_t r) {
     return mid + TEMP_MIN;
 }
 
-void fan_switch(bool sw)
+#if defined(FAN_PWM_CTRL) && (FAN_PWM_CTRL == 1)
+
+uint16_t temp_ctrl_fan_duty()
 {
-#ifdef FAN_PWM_CTRL 
-    //ESP_LOGI( TAG, "fan %d", _led_ctrl_tsk.output[0] );
-    ledc_set_duty(fan_chan_cfg.speed_mode, fan_chan_cfg.channel, _led_ctrl_tsk.output[0] * FAN_PWM_DUTY_MAX / LED_VALUE_MAX);
-    ledc_update_duty(fan_chan_cfg.speed_mode, fan_chan_cfg.channel);
-#else
-    gpio_set_level(GPIO_CHAN_FAN, sw ? TEMP_CTRL_FAN_OPEN_LEVEL : TEMP_CTRL_FAN_CLOSE_LEVEL);
-#endif
+    return _tempCtrlTsk.fanDuty;
 }
+
+void temp_ctrl_fan_duty_set(uint16_t value)
+{
+    if (_tempCtrlTsk.fanDuty != value) {
+        _tempCtrlTsk.fanDuty = value;
+        storage_write_fan_duty(_tempCtrlTsk.fanDuty);
+    }
+}
+
+void temp_ctrl_fan_play(uint16_t playtime)
+{
+    _tempCtrlTsk.playTime = playtime * 1000 / TEMP_CTRL_SAMPLE_INTERVAL;
+}
+
+void temp_ctrl_fan_update()
+{
+    if (_tempCtrlTsk.playTime >  0) {
+        _tempCtrlTsk.curFanDuty = _tempCtrlTsk.fanDuty;
+        _tempCtrlTsk.playTime -= 1;
+    } else if (led_ctrl_is_close()) {
+        _tempCtrlTsk.curFanDuty = 0;
+        _tempCtrlTsk.highTemperature = false;
+    } else {
+        if (_tempCtrlTsk.temperature >= TEMP_CTRL_T3) {
+            _tempCtrlTsk.curFanDuty = 100;
+            _tempCtrlTsk.highTemperature = true;
+        } else if (_tempCtrlTsk.highTemperature && _tempCtrlTsk.temperature > TEMP_CTRL_T4) {
+            _tempCtrlTsk.curFanDuty = 100;  
+        } else {
+            _tempCtrlTsk.highTemperature = false; 
+            if (_tempCtrlTsk.temperature >= TEMP_CTRL_T1) {
+                _tempCtrlTsk.curFanDuty = _tempCtrlTsk.fanDuty;
+            } else if (_tempCtrlTsk.temperature <= TEMP_CTRL_T2) {
+                _tempCtrlTsk.curFanDuty = 0;
+            }
+        }
+    }
+    ledc_set_duty(fan_chan_cfg.speed_mode, fan_chan_cfg.channel, _tempCtrlTsk.curFanDuty * FAN_PWM_DUTY_MAX / 100);
+    ledc_update_duty(fan_chan_cfg.speed_mode, fan_chan_cfg.channel);
+}
+
+#endif
 
 void temp_ctrl_tsk(void * parm)
 {
@@ -208,7 +262,7 @@ void temp_ctrl_tsk(void * parm)
     }
   
     while (1) {
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < 10; i++) {
             for (index = 0; index < ADC_CHAN_COUNT; index++) {
                 temp = adc1_get_raw(ADC_HW_CFG[index]);
                 ringbuffer_enter(&_tempCtrlTsk.buffers[index], temp);
@@ -229,22 +283,23 @@ void temp_ctrl_tsk(void * parm)
             Rntc = (Vntc * 5100) / tmp;
         }
         _tempCtrlTsk.temperature = SearchTableConvert(Rntc);
-    #if 0
-        if (led_ctrl_is_close()) {
-            fan_switch(false);
-        } else if (_tempCtrlTsk.temperature >= TEMP_CTRL_FAN_OPEN_LIMIT) {
-            fan_switch(true);
-        } else if (_tempCtrlTsk.temperature <= TEMP_CTRL_FAN_CLOSE_LIMIT) {
-            fan_switch(false);
-        }
-    #else
-        fan_switch(true);
-    #endif
         if (_tempCtrlTsk.temperature >= TEMP_OVER_LIMIT) {
             _tempCtrlTsk.over = true;
         } else if (_tempCtrlTsk.temperature <= TEMP_OVER_CANCEL) {
             _tempCtrlTsk.over = false;
         }
+
+    #if defined(FAN_PWM_CTRL) && (FAN_PWM_CTRL == 1)
+        temp_ctrl_fan_update();
+    #else
+        if (led_ctrl_is_close()) {
+            gpio_set_level(GPIO_CHAN_FAN, TEMP_CTRL_FAN_CLOSE_LEVEL);
+        } else if (_tempCtrlTsk.temperature >= TEMP_CTRL_FAN_OPEN_LIMIT) {
+            gpio_set_level(GPIO_CHAN_FAN, TEMP_CTRL_FAN_OPEN_LEVEL);
+        } else if (_tempCtrlTsk.temperature <= TEMP_CTRL_FAN_CLOSE_LIMIT) {
+            gpio_set_level(GPIO_CHAN_FAN, TEMP_CTRL_FAN_CLOSE_LEVEL);
+        }
+    #endif
         //ESP_LOGI( TAG, "temperature %d", _tempCtrlTsk.temperature );
 next:        
         vTaskDelay(pdMS_TO_TICKS(TEMP_CTRL_SAMPLE_INTERVAL));

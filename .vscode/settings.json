@@ -104,6 +104,15 @@
 		"esp_event_loop.h": "c",
 		"freertos.h": "c",
 		"*.rh": "cpp",
-		"bitset": "cpp"
+		"bitset": "cpp",
+		"led_pwm.h": "c",
+		"esp_adc_cal.h": "c",
+		"led_ctrl_tsk.h": "c",
+		"temp_ctrl_tsk.h": "c",
+		"ringbuffer.h": "c",
+		"ota.h": "c",
+		"esp_ota_ops.h": "c",
+		"esp_image_format.h": "c",
+		"esp_flash_partitions.h": "c"
 	}
 }
