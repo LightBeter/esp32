@@ -3,10 +3,15 @@
 
 #include <esp_image_format.h>
 #include <esp_wifi.h>
+#include <freertos/semphr.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+typedef struct storage_tag {
+    SemaphoreHandle_t   mutex;
+} storage_t;
 
 void storage_init();
 void storage_deinit();

@@ -29,6 +29,8 @@ typedef struct {
     uint16_t            fanDuty;
     uint16_t            curFanDuty;
     uint16_t            playTime;
+    uint32_t            curSaveToken;
+    uint32_t            preSaveToken;
 #endif
 } temp_ctrl_tsk_type;
 

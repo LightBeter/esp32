@@ -11,7 +11,7 @@
 
 #define TAG                         "TempCtrlTsk"
 #define TSK_NAME                    TAG
-#define TSK_STACK_SIZE              2048
+#define TSK_STACK_SIZE              4096
 #define TEMP_CTRL_SAMPLE_INTERVAL   200
 #define TEMP_CTRL_INTERVAL          (1000 / TEMP_CTRL_SAMPLE_INTERVAL)
 
@@ -103,6 +103,8 @@ void temp_ctrl_tsk_init()
     _tempCtrlTsk.playTime = 0;
     _tempCtrlTsk.curFanDuty = 0;
     _tempCtrlTsk.highTemperature = false;
+    _tempCtrlTsk.curSaveToken = 0;
+    _tempCtrlTsk.preSaveToken = 0;
     storage_read_fan_duty(&_tempCtrlTsk.fanDuty);
     ledc_timer_config_t ledc_timer = {
         .duty_resolution = FAN_PWM_DUTY_RESOLUTION, 
@@ -197,7 +199,7 @@ void temp_ctrl_fan_duty_set(uint16_t value)
 {
     if (_tempCtrlTsk.fanDuty != value) {
         _tempCtrlTsk.fanDuty = value;
-        storage_write_fan_duty(_tempCtrlTsk.fanDuty);
+        _tempCtrlTsk.curSaveToken++;
     }
 }
 
@@ -208,6 +210,11 @@ void temp_ctrl_fan_play(uint16_t playtime)
 
 void temp_ctrl_fan_update()
 {
+    if (_tempCtrlTsk.preSaveToken != _tempCtrlTsk.curSaveToken && 0 == _tempCtrlTsk.playTime) {
+        storage_write_fan_duty(_tempCtrlTsk.fanDuty);
+        _tempCtrlTsk.preSaveToken = _tempCtrlTsk.curSaveToken;
+    }
+
     if (_tempCtrlTsk.playTime >  0) {
         _tempCtrlTsk.curFanDuty = _tempCtrlTsk.fanDuty;
         _tempCtrlTsk.playTime -= 1;

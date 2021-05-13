@@ -140,7 +140,7 @@ void  device_run()
 
 void device_main_tsk(void * parm)
 {
-    size_t freeHeapSize;
+    //size_t freeHeapSize;
     EventBits_t uxBits;
     gpio_num_t  led;
     uint32_t    level;
@@ -187,7 +187,7 @@ void device_main_tsk(void * parm)
             level = ~level & 0x1;
         }
         gpio_set_level(led, level);   
-        freeHeapSize = heap_caps_get_free_size(MALLOC_CAP_8BIT);
+        //freeHeapSize = heap_caps_get_free_size(MALLOC_CAP_8BIT);
         //ESP_LOGI( TAG, "heap free size %zu.", freeHeapSize );
     }
     vTaskDelay(pdMS_TO_TICKS(2000));
