@@ -3,7 +3,7 @@
         {
             "name": "Win32",
             "includePath": [
-                "${IDF_TOOLS_PATH}/tools/xtensa-esp32-elf/esp-2019r2-8.2.0/xtensa-esp32-elf/lib/gcc/xtensa-esp32-elf/8.2.0/include",
+                "${IDF_TOOLS_PATH}/tools/xtensa-esp32-elf/esp-2020r3-8.4.0/xtensa-esp32-elf/lib/gcc/xtensa-esp32-elf/8.4.0/include",
                 "${IDF_PATH}/components",
                 "${IDF_PATH}/components/app_update/include",
                 "${IDF_PATH}/components/bootloader_support/include",
@@ -56,7 +56,7 @@
                 "path": [
                     "${IDF_PATH}/components/",
                     "${workspaceFolder}/components/websocket",
-                    "${IDF_TOOLS_PATH}/tools/xtensa-esp32-elf/esp-2019r2-8.2.0/xtensa-esp32-elf"
+                    "${IDF_TOOLS_PATH}/tools/xtensa-esp32-elf/esp-2020r3-8.4.0/xtensa-esp32-elf"
                 ]
             }
         }

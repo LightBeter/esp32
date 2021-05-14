@@ -204,7 +204,7 @@ void temp_ctrl_fan_duty_set(uint16_t value)
 
 void temp_ctrl_fan_play(uint16_t playtime)
 {
-    _tempCtrlTsk.playTime = playtime * 1000 / TEMP_CTRL_INTERVAL;
+    _tempCtrlTsk.playTime = playtime;
 }
 
 void temp_ctrl_fan_update()
@@ -299,7 +299,7 @@ void temp_ctrl_tsk(void * parm)
         } else if (_tempCtrlTsk.temperature <= TEMP_OVER_CANCEL) {
             _tempCtrlTsk.over = false;
         }
-
+    //ESP_LOGI( TAG, "Temperature: %d", _tempCtrlTsk.temperature );
     #if defined(FAN_PWM_CTRL) && (FAN_PWM_CTRL == 1)
         temp_ctrl_fan_update();
     #else

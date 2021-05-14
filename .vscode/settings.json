@@ -1,9 +1,4 @@
 {
-	"terminal.integrated.shell.windows": "C:\\Windows\\System32\\cmd.exe",
-	"terminal.integrated.shellArgs.windows": [
-		"/k",
-		"%IDF_PATH%\\export.bat"
-	],
     "files.associations": {
 		"class": "cpp",
 		"HttpServer.h": "cpp",
@@ -114,5 +109,28 @@
 		"esp_ota_ops.h": "c",
 		"esp_image_format.h": "c",
 		"esp_flash_partitions.h": "c"
+	},
+
+	"powershell.integratedConsole.suppressStartupBanner": true,
+    "powershell.integratedConsole.showOnStartup": true,
+    "terminal.integrated.tabs.enabled": true,
+	"terminal.integrated.defaultProfile.windows" : "PowerShell",
+	"terminal.integrated.profiles.windows": {
+		"PowerShell": {
+			"source": "PowerShell",
+			"icon": "terminal-powershell",
+			"args": ["-NoLogo"]
+		},
+		"Command Prompt": {
+			"path": [
+				"${env:windir}\\Sysnative\\cmd.exe",
+				"${env:windir}\\System32\\cmd.exe"
+			],
+			"args": [ "/k", "${env:IDF_PATH}\\export.bat" ],
+			"icon": "terminal-cmd"
+		},
+		"Git Bash": {
+			"source": "Git Bash"
+		}
 	}
 }
