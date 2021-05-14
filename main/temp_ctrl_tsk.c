@@ -26,10 +26,15 @@
 #define TEMP_OVER_CANCEL            40
 
 #if defined(FAN_PWM_CTRL) && (FAN_PWM_CTRL == 1) 
-#define TEMP_CTRL_T1    45
-#define TEMP_CTRL_T2    30
-#define TEMP_CTRL_T3    56
-#define TEMP_CTRL_T4    50
+#define FAN_PWM_SPEED_MODE          LEDC_HIGH_SPEED_MODE
+#define FAN_PWM_TIMER               LEDC_TIMER_1
+#define FAN_PWM_DUTY_RESOLUTION     LEDC_TIMER_11_BIT
+#define FAN_PWM_FREQ                (12 * 1000)
+#define FAN_PWM_DUTY_MAX            ((0x1 << FAN_PWM_DUTY_RESOLUTION) - 1)
+#define TEMP_CTRL_T1                45
+#define TEMP_CTRL_T2                30
+#define TEMP_CTRL_T3                56
+#define TEMP_CTRL_T4                50
 #else
 #define TEMP_CTRL_FAN_OPEN_LIMIT    45
 #define TEMP_CTRL_FAN_CLOSE_LIMIT   30
@@ -40,12 +45,6 @@
 #define TEMP_MAX                    (120)
 #define TEMP_MIN                    (-40)
 #define TEMP_MAP_SIZE               (TEMP_MAX - (TEMP_MIN) + 1)
-
-#define FAN_PWM_SPEED_MODE          LEDC_HIGH_SPEED_MODE
-#define FAN_PWM_TIMER               LEDC_TIMER_1
-#define FAN_PWM_DUTY_RESOLUTION     LEDC_TIMER_11_BIT
-#define FAN_PWM_FREQ                (12 * 1000)
-#define FAN_PWM_DUTY_MAX            ((0x1 << FAN_PWM_DUTY_RESOLUTION) - 1)
 
 void temp_ctrl_tsk(void * parm);
 
@@ -205,7 +204,7 @@ void temp_ctrl_fan_duty_set(uint16_t value)
 
 void temp_ctrl_fan_play(uint16_t playtime)
 {
-    _tempCtrlTsk.playTime = playtime * 1000 / TEMP_CTRL_SAMPLE_INTERVAL;
+    _tempCtrlTsk.playTime = playtime * 1000 / TEMP_CTRL_INTERVAL;
 }
 
 void temp_ctrl_fan_update()
@@ -215,6 +214,7 @@ void temp_ctrl_fan_update()
         _tempCtrlTsk.preSaveToken = _tempCtrlTsk.curSaveToken;
     }
 
+ 
     if (_tempCtrlTsk.playTime >  0) {
         _tempCtrlTsk.curFanDuty = _tempCtrlTsk.fanDuty;
         _tempCtrlTsk.playTime -= 1;
@@ -236,7 +236,8 @@ void temp_ctrl_fan_update()
             }
         }
     }
-    ledc_set_duty(fan_chan_cfg.speed_mode, fan_chan_cfg.channel, _tempCtrlTsk.curFanDuty * FAN_PWM_DUTY_MAX / 100);
+
+    ledc_set_duty(fan_chan_cfg.speed_mode, fan_chan_cfg.channel, (_tempCtrlTsk.curFanDuty / 100.0) * FAN_PWM_DUTY_MAX );
     ledc_update_duty(fan_chan_cfg.speed_mode, fan_chan_cfg.channel);
 }
 
@@ -307,7 +308,6 @@ void temp_ctrl_tsk(void * parm)
             gpio_set_level(GPIO_CHAN_FAN, TEMP_CTRL_FAN_CLOSE_LEVEL);
         }
     #endif
-        //ESP_LOGI( TAG, "temperature %d", _tempCtrlTsk.temperature );
 next:        
         vTaskDelay(pdMS_TO_TICKS(TEMP_CTRL_SAMPLE_INTERVAL));
     }

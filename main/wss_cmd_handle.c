@@ -17,6 +17,7 @@ wss_respond_code_t read_dev_info_handle(cJSON *request, cJSON *respone)
     cJSON_AddStringToObject(respone, "serial", device_serialnum());
     cJSON_AddStringToObject(respone, "firmware", device_appdesc()->version);
     cJSON_AddNumberToObject(respone, "group", LED_CHAN_COUNT);
+    cJSON_AddBoolToObject(respone, "fanspeedctrl", FAN_PWM_CTRL);
     return wss_respond_code_ok;
 }
 
