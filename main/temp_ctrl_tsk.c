@@ -209,18 +209,20 @@ void temp_ctrl_fan_play(uint16_t playtime)
 
 void temp_ctrl_fan_update()
 {
+    uint16_t output = 0;
+
     if (_tempCtrlTsk.preSaveToken != _tempCtrlTsk.curSaveToken && 0 == _tempCtrlTsk.playTime) {
         storage_write_fan_duty(_tempCtrlTsk.fanDuty);
         _tempCtrlTsk.preSaveToken = _tempCtrlTsk.curSaveToken;
     }
 
- 
     if (_tempCtrlTsk.playTime >  0) {
-        _tempCtrlTsk.curFanDuty = _tempCtrlTsk.fanDuty;
         _tempCtrlTsk.playTime -= 1;
+        output = _tempCtrlTsk.fanDuty;
     } else if (led_ctrl_is_close()) {
         _tempCtrlTsk.curFanDuty = 0;
         _tempCtrlTsk.highTemperature = false;
+        output = _tempCtrlTsk.curFanDuty;
     } else {
         if (_tempCtrlTsk.temperature >= TEMP_CTRL_T3) {
             _tempCtrlTsk.curFanDuty = 100;
@@ -235,9 +237,10 @@ void temp_ctrl_fan_update()
                 _tempCtrlTsk.curFanDuty = 0;
             }
         }
+        output = _tempCtrlTsk.curFanDuty;
     }
 
-    ledc_set_duty(fan_chan_cfg.speed_mode, fan_chan_cfg.channel, (_tempCtrlTsk.curFanDuty / 100.0) * FAN_PWM_DUTY_MAX );
+    ledc_set_duty(fan_chan_cfg.speed_mode, fan_chan_cfg.channel, (output / 100.0) * FAN_PWM_DUTY_MAX );
     ledc_update_duty(fan_chan_cfg.speed_mode, fan_chan_cfg.channel);
 }
 
