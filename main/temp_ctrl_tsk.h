@@ -11,7 +11,7 @@ extern "C" {
 #endif
 
 #define FAN_PWM_CTRL                1
-#define INVALID_FAN_DUTY(_duty_)     (_duty_ < 30 || _duty_ > 100)
+#define INVALID_FAN_DUTY(_duty_)     (_duty_ < 10 || _duty_ > 100)
 
 enum {
     ADC_CHAN_REF = 0,

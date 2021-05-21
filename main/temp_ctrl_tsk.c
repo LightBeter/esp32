@@ -29,7 +29,7 @@
 #define FAN_PWM_SPEED_MODE          LEDC_HIGH_SPEED_MODE
 #define FAN_PWM_TIMER               LEDC_TIMER_1
 #define FAN_PWM_DUTY_RESOLUTION     LEDC_TIMER_11_BIT
-#define FAN_PWM_FREQ                (12 * 1000)
+#define FAN_PWM_FREQ                (24 * 1000)
 #define FAN_PWM_DUTY_MAX            ((0x1 << FAN_PWM_DUTY_RESOLUTION) - 1)
 #define TEMP_CTRL_T1                45
 #define TEMP_CTRL_T2                30
