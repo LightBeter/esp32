@@ -29,7 +29,7 @@
 #define FAN_PWM_SPEED_MODE          LEDC_HIGH_SPEED_MODE
 #define FAN_PWM_TIMER               LEDC_TIMER_1
 #define FAN_PWM_DUTY_RESOLUTION     LEDC_TIMER_11_BIT
-#define FAN_PWM_FREQ                (24 * 1000)
+#define FAN_PWM_FREQ                (32 * 1000)
 #define FAN_PWM_DUTY_MAX            ((0x1 << FAN_PWM_DUTY_RESOLUTION) - 1)
 #define TEMP_CTRL_T1                45
 #define TEMP_CTRL_T2                30
@@ -73,7 +73,7 @@ const uint32_t _tempMapTable[TEMP_MAP_SIZE] = {
     373, 
 };
 
-#ifdef FAN_PWM_CTRL
+#if defined(FAN_PWM_CTRL) && (FAN_PWM_CTRL == 1) 
 #include "led_ctrl_tsk.h"
 extern led_ctrl_tsk_t      _led_ctrl_tsk;
 

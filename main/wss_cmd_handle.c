@@ -17,7 +17,9 @@ wss_respond_code_t read_dev_info_handle(cJSON *request, cJSON *respone)
     cJSON_AddStringToObject(respone, "serial", device_serialnum());
     cJSON_AddStringToObject(respone, "firmware", device_appdesc()->version);
     cJSON_AddNumberToObject(respone, "group", LED_CHAN_COUNT);
+#if defined(FAN_PWM_CTRL) && (FAN_PWM_CTRL == 1)  
     cJSON_AddBoolToObject(respone, "fanspeedctrl", FAN_PWM_CTRL);
+#endif
     return wss_respond_code_ok;
 }
 
@@ -48,12 +50,17 @@ wss_respond_code_t write_dev_time_handle(cJSON *request, cJSON *respone)
 
 wss_respond_code_t read_fan_duty_handle(cJSON *request, cJSON *respone)
 {
+#if defined(FAN_PWM_CTRL) && (FAN_PWM_CTRL == 1)
     cJSON_AddNumberToObject(respone, "duty", temp_ctrl_fan_duty());
     return wss_respond_code_ok;
+#else
+    return wss_respond_code_invalid_cmd;
+#endif
 }
 
 wss_respond_code_t write_fan_duty_handle(cJSON *request, cJSON *respone)
 {
+#if defined(FAN_PWM_CTRL) && (FAN_PWM_CTRL == 1)
     wss_respond_code_t ret = wss_respond_code_ok;
     cJSON *duty, *play;
 
@@ -82,6 +89,9 @@ wss_respond_code_t write_fan_duty_handle(cJSON *request, cJSON *respone)
             temp_ctrl_fan_play( play->valueint );
     }
     return ret;
+#else
+    return wss_respond_code_invalid_cmd;
+#endif    
 }
 
 wss_respond_code_t write_dev_network_handle(cJSON *request, cJSON *respone)
