@@ -32,12 +32,12 @@
 #define FAN_PWM_FREQ                (32 * 1000)
 #define FAN_PWM_DUTY_MAX            ((0x1 << FAN_PWM_DUTY_RESOLUTION) - 1)
 #define TEMP_CTRL_T1                45
-#define TEMP_CTRL_T2                30
+#define TEMP_CTRL_T2                38
 #define TEMP_CTRL_T3                56
 #define TEMP_CTRL_T4                50
 #else
 #define TEMP_CTRL_FAN_OPEN_LIMIT    45
-#define TEMP_CTRL_FAN_CLOSE_LIMIT   30
+#define TEMP_CTRL_FAN_CLOSE_LIMIT   38
 #define TEMP_CTRL_FAN_OPEN_LEVEL    1
 #define TEMP_CTRL_FAN_CLOSE_LEVEL   0
 #endif
