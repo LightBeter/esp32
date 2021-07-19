@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+message LedChanValues {
+    uint32 chan1 = 1;
+    uint32 chan2 = 2;
+    uint32 chan3 = 3;
+    uint32 chan4 = 4;
+    uint32 chan5 = 5;
+    uint32 chan6 = 6;
+    uint32 chan7 = 7;
+}
+
+message ModeParam {
+    bool   sw  = 1;              // false - 关灯，true - 开灯
+    uint32 mode= 2;              // 0 - Manual， 1 - Auto
+}
+
+message ManualParam {    
+    LedChanValues values = 1;
+}
+
+message PlayParam {
+    uint32 play = 1;                // 播放时间， 停止播放时填0             
+    LedChanValues values = 2;
+}
+
+message FanParam {
+    int32 play = 1;                 // 播放时间， 停止播放时填0，不播放时填写-1
+    int32 duty = 2;                 // 风扇输出值，停止播放时，填写-1
+}
+
+message MulticastPacket {
+    string   dist = 1;              // 目标终端列表，以';'分隔。例如："LB150_B;LB150_C;LB150_D"
+    uint32   cmd  = 2;              // 指令id，与WebSocket Json中定义值一致
+
+    // proto3默认字段为singular(该字段可以出现0或1次),所以对应指令填写及使能相关参数即可。
+ 
+    ModeParam   modeParam = 3;      // 设置当前控制模式[12]参数
+    ManualParam manualParam = 4;    // 设置手动模式输出[16]参数
+    PlayParam   playParam = 5;      // Led演示输出[14]参数
+    FanParam    fanParam = 6;       // 设置风扇速度[8]参数
+}

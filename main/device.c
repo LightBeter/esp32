@@ -10,6 +10,7 @@
 #include "wifi_tsk.h"
 #include "wifi_ap_scan_tsk.h"
 #include "wss_tsk.h"
+#include "udp_multicast_tsk.h"
 #include "temp_ctrl_tsk.h"
 #include "led_ctrl_tsk.h"
 #include "ota.h"
@@ -87,6 +88,10 @@ void mdns_stop()
 
 void device_init()
 {
+    uint32_t tt = 0x11223344;
+    ESP_LOGI(TAG, "Endian %02X%02X%02X%02X", 
+            ((uint8_t*)&tt)[0], ((uint8_t*)&tt)[1], 
+            ((uint8_t*)&tt)[2], ((uint8_t*)&tt)[3] );
     /* Initialize tcp/ip protocol stack */
     esp_netif_init();
     /* Initialize event loop */
@@ -107,6 +112,8 @@ void device_init()
     wifi_ap_scan_tsk_init();
     /* Initialize WSS Task */
     wss_tsk_init();
+    /* Initialize Udp Multicast Task */
+    udp_multicast_tsk_init();
     /* Initialize Temperature Control Task */
     temp_ctrl_tsk_init();
     /* Initialize Led Control Task */
@@ -158,7 +165,8 @@ void device_main_tsk(void * parm)
     wifi_ap_scan_tsk_start();
     ESP_LOGI( TAG, "Start Websocket Task." );
     wss_tsk_start();
-
+    ESP_LOGI( TAG, "Start Udp Multicast Task." );
+    udp_multicast_tsk_start();
     while (1) {
         uxBits = xEventGroupWaitBits( _device.event_group, uxBitsToWaitFor, true, false, pdMS_TO_TICKS(1000) ); 
         if (uxBits & DEVICE_REQ_RECOVERY_FACTORY_BIT) {
@@ -192,6 +200,8 @@ void device_main_tsk(void * parm)
     }
     vTaskDelay(pdMS_TO_TICKS(2000));
     /* stop Task */
+    ESP_LOGI( TAG, "Stop Udp Multicast Task." );
+    udp_multicast_tsk_stop();
     ESP_LOGI( TAG, "Stop Websocket Task." );
     wss_tsk_stop();
     ESP_LOGI( TAG, "Stop Wifi AP Scan Task." );
@@ -205,6 +215,8 @@ void device_main_tsk(void * parm)
     ESP_LOGI( TAG, "Stop mDNS." );
     mdns_stop();
     /* deInitialize */
+    ESP_LOGI( TAG, "Deinitialise Udp Multicast Task." );
+    udp_multicast_tsk_deinit();
     ESP_LOGI( TAG, "Deinitialise Websocket Task." );
     wss_tsk_deinit();
     ESP_LOGI( TAG, "Deinitialise Wifi AP Scan Task." );
