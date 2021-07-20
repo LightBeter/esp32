@@ -12,8 +12,8 @@
 extern "C" {
 #endif
 
-typedef struct {
-    char data[UDP_MULTICAST_PACKET_MAX_SIZE];
+typedef struct udp_multicast_packet_tag {
+    unsigned char data[384];
     int  len;
 } udp_multicast_packet;
 
@@ -23,7 +23,6 @@ typedef struct {
     int             sock;
     QueueHandle_t   freeQueue;
     QueueHandle_t   handleQueue;
-    udp_multicast_packet pool[UDP_MULTICAST_PACKET_POOL_SIZE];
 } udp_multicast_tsk_type;
 
 void udp_multicast_tsk_init();

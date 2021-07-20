@@ -167,15 +167,15 @@ void wss_callback(uint8_t num, WEBSOCKET_TYPE_t type, char* msg, uint64_t len)
         _wss_tsk.clients[num].lifetime = WS_CLIENT_LIFETIME;
         return;
     case WEBSOCKET_BIN:
-        ESP_LOGI(TAG, "client %i sent binary message of size %i", num, (uint32_t)len);
+        //ESP_LOGI(TAG, "client %i sent binary message of size %i", num, (uint32_t)len);
         wss_callback_bin(num, msg, len);
         return;
     case WEBSOCKET_PING:
-        ESP_LOGI(TAG, "client %i pinged us with message of size %i", num, (uint32_t)len);
+        //ESP_LOGI(TAG, "client %i pinged us with message of size %i", num, (uint32_t)len);
         _wss_tsk.clients[num].lifetime = WS_CLIENT_LIFETIME;
         return;
     case WEBSOCKET_PONG:
-        ESP_LOGI(TAG,"client %i responded to the ping",num);
+        //ESP_LOGI(TAG,"client %i responded to the ping",num);
         return;
     case WEBSOCKET_DISCONNECT_EXTERNAL:
         ESP_LOGI(TAG, "client %i sent a disconnect message", num);

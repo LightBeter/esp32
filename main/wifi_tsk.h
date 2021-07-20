@@ -29,7 +29,6 @@ void wifi_tsk_init();
 void wifi_tsk_deinit();
 void wifi_tsk_start();
 void wifi_tsk_stop();
-wifi_tsk_state wifi_state();
 
 #ifdef __cplusplus
 }

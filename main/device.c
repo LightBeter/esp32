@@ -165,6 +165,7 @@ void device_main_tsk(void * parm)
     wifi_ap_scan_tsk_start();
     ESP_LOGI( TAG, "Start Websocket Task." );
     wss_tsk_start();
+    vTaskDelay(pdMS_TO_TICKS(10000));
     ESP_LOGI( TAG, "Start Udp Multicast Task." );
     udp_multicast_tsk_start();
     while (1) {
@@ -195,8 +196,8 @@ void device_main_tsk(void * parm)
             level = ~level & 0x1;
         }
         gpio_set_level(led, level);   
-        //freeHeapSize = heap_caps_get_free_size(MALLOC_CAP_8BIT);
-        //ESP_LOGI( TAG, "heap free size %zu.", freeHeapSize );
+        // freeHeapSize = heap_caps_get_free_size(MALLOC_CAP_8BIT);
+        // ESP_LOGI( TAG, "heap free size %zu.", freeHeapSize );
     }
     vTaskDelay(pdMS_TO_TICKS(2000));
     /* stop Task */

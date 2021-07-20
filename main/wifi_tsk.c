@@ -102,11 +102,6 @@ void wifi_stop()
     }   
 }
 
-wifi_tsk_state wifi_state()
-{
-    return _wifiTsk.state;
-}
-
 void wifi_eventHandler(void* arg, esp_event_base_t event_base,
                             int32_t event_id, void* event_data)
 {
@@ -174,7 +169,7 @@ time_sync_handle:
         } else if (wifi_tsk_state_ap == _wifiTsk.state) {
             datetime_sync_extrtc();
         }
-        vTaskDelay(pdMS_TO_TICKS(1 * 1000));
+        vTaskDelay(pdMS_TO_TICKS(10 * 1000));
     }
    _wifiTsk.handle = NULL;    
     vTaskDelete(NULL);
