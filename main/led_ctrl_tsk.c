@@ -212,6 +212,9 @@ bool led_ctrl_set_manual_ex(led_value_t *values)
     if (!led_ctrl_check_values(values))
         return false;
     
+    if (0 == memcmp(_led_ctrl_manual, values, sizeof(led_value_t) * LED_CHAN_COUNT)) 
+        return true;
+
     led_ctrl_lock();
     memcpy(_led_ctrl_manual, values, sizeof(led_value_t) * LED_CHAN_COUNT);
     _led_ctrl_demo.remaining = 0;
