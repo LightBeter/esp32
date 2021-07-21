@@ -14,7 +14,7 @@ extern "C" {
 
 typedef struct udp_multicast_packet_tag {
     unsigned char data[384];
-    int  len;
+    ssize_t len;
 } udp_multicast_packet;
 
 typedef struct {

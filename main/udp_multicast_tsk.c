@@ -198,12 +198,12 @@ void udp_multicast_recv_tsk(void* parm)
   
         socklen = sizeof(raddr);
         packet->len = recvfrom(_udp_multicast_tsk.sock, packet->data, UDP_MULTICAST_PACKET_MAX_SIZE, 0, (struct sockaddr*)&raddr, &socklen);
-        if (packet->len < 0) {
-            ESP_LOGE(TAG, "multicast recvfrom failed: errno %d", errno);
+        if (packet->len <= 0 || packet->len > UDP_MULTICAST_PACKET_MAX_SIZE) {
+            ESP_LOGE(TAG, "multicast recvfrom failed, size(%d) errno %d", packet->len, errno );
             continue;
         }
         ESP_LOGI(TAG, "multicast recvfrom %d", packet->len);
-        xQueueSend(_udp_multicast_tsk.handleQueue, packet, portMAX_DELAY);
+        xQueueSend(_udp_multicast_tsk.handleQueue, &packet, portMAX_DELAY);
         packet = NULL;
     }
     _udp_multicast_tsk.recvTsk = NULL;
@@ -256,11 +256,14 @@ Next:
 bool read_string(pb_istream_t *stream, const pb_field_t *field, void **arg)
 {    
     memset(_udp_multicast_dist, 0x00, UDP_MULTICAST_DIST_MAX_SIZE);
-    if (stream->bytes_left > UDP_MULTICAST_DIST_MAX_SIZE - 1)
+    if (stream->bytes_left > UDP_MULTICAST_DIST_MAX_SIZE - 1) {
+        ESP_LOGW(TAG, "stream->bytes_left[%d] failure", stream->bytes_left);
         return false;
+    }
      
-     if (!pb_read(stream, _udp_multicast_dist, UDP_MULTICAST_DIST_MAX_SIZE))
+    if (!pb_read(stream, _udp_multicast_dist, stream->bytes_left)) {
+        ESP_LOGW(TAG, "pb_read failure");
         return false;
-
+    }
     return true;
 }
