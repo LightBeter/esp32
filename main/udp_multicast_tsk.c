@@ -4,8 +4,13 @@
 #include <lwip/netdb.h>
 #include <esp_log.h>
 #include "udp_multicast_tsk.h"
+#include "led_ctrl_tsk.h"
+#include "led_ctrl_misc.h"
+#include "temp_ctrl_tsk.h"
+#include "wss_cmd_handle.h"
 #include "multicast.pb.h"
 #include "pb_decode.h"
+#include "device.h"
 
 #define TAG                                    "UDP_MULTICAST"
 #define UDP_MULTICAST_ADDR                     "238.0.0.8"
@@ -16,6 +21,7 @@
 
 void udp_multicast_recv_tsk(void * parm);
 void udp_multicast_handle_tsk(void * parm);
+bool udp_multicast_match_name(const char *list);
 bool read_string(pb_istream_t *stream, const pb_field_t *field, void **arg);
 
 udp_multicast_tsk_type _udp_multicast_tsk;
@@ -23,7 +29,7 @@ udp_multicast_packet*  _udp_multicast_pool[UDP_MULTICAST_PACKET_POOL_SIZE] =  {
     NULL, NULL, NULL, NULL, NULL, 
     NULL, NULL, NULL, NULL, NULL
 };
-unsigned char          _udp_multicast_dist[UDP_MULTICAST_DIST_MAX_SIZE];
+char _udp_multicast_dist[UDP_MULTICAST_DIST_MAX_SIZE];
 
 int socket_add_ipv4_multicast_group(int sock)
 {
@@ -214,6 +220,7 @@ void udp_multicast_handle_tsk(void* parm)
 {
     udp_multicast_packet *rawPacket = NULL;
     pb_istream_t    stream;
+    led_value_t values[LED_CHAN_COUNT];
 
     ESP_LOGI(TAG, "Udp Multicase Start Handle");
     while (1) { 
@@ -231,22 +238,63 @@ void udp_multicast_handle_tsk(void* parm)
         }
 
         ESP_LOGI(TAG, "udp recv command(%d) dist: %s", packet.cmd, _udp_multicast_dist);
+        // if (!udp_multicast_match_name(_udp_multicast_dist))
+        //     goto Next;
 
-        if (packet.has_modeParam) {
-            ESP_LOGI(TAG, "has modeParam");
+        if (wss_cmd_w_ledctrl_mode == packet.cmd && packet.has_modeParam) {
+            ESP_LOGI(TAG, "has modeParam sw[%u] mode[%d]", packet.modeParam.sw, packet.modeParam.mode);
+            led_ctrl_set_mode_ex(packet.modeParam.sw, (led_ctrl_mode_t)packet.modeParam.mode);
         }
 
-        if (packet.has_manualParam) {
-            ESP_LOGI(TAG, "has manualParam");
+        if (wss_cmd_w_ledctrl_manual == packet.cmd && packet.has_manualParam) {
+            ESP_LOGI(TAG, "has manualParam %u,%u,%u,%u,%u,%u,%u",
+                            packet.manualParam.values.chan1,
+                            packet.manualParam.values.chan2,
+                            packet.manualParam.values.chan3,
+                            packet.manualParam.values.chan4,
+                            packet.manualParam.values.chan5,
+                            packet.manualParam.values.chan6,
+                            packet.manualParam.values.chan7 );
+            values[0] = packet.manualParam.values.chan1;
+            values[1] = packet.manualParam.values.chan2;
+            values[2] = packet.manualParam.values.chan3;
+            values[3] = packet.manualParam.values.chan4;
+            values[4] = packet.manualParam.values.chan5;
+            values[5] = packet.manualParam.values.chan6;
+            values[6] = packet.manualParam.values.chan7;
+            if (led_ctrl_set_manual_ex(values))
+                led_ctrl_set_mode_ex(true, LED_CTRL_MODE_MANUAL);
         }
 
-        if (packet.has_playParam) {
-            ESP_LOGI(TAG, "has playParam");
+        if (wss_cmd_w_ledctrl_demo_output == packet.cmd && packet.has_playParam) {
+            ESP_LOGI(TAG, "has playParam %u %u,%u,%u,%u,%u,%u,%u",
+                            packet.playParam.play,
+                            packet.playParam.values.chan1,
+                            packet.playParam.values.chan2,
+                            packet.playParam.values.chan3,
+                            packet.playParam.values.chan4,
+                            packet.playParam.values.chan5,
+                            packet.playParam.values.chan6,
+                            packet.playParam.values.chan7 );
+            values[0] = packet.playParam.values.chan1;
+            values[1] = packet.playParam.values.chan2;
+            values[2] = packet.playParam.values.chan3;
+            values[3] = packet.playParam.values.chan4;
+            values[4] = packet.playParam.values.chan5;
+            values[5] = packet.playParam.values.chan6;
+            values[6] = packet.playParam.values.chan7;
+            led_ctrl_set_demo_ex(packet.playParam.play, values);
         }
-
-        if (packet.has_fanParam) {
-            ESP_LOGI(TAG, "has fanParam");
+#if defined(FAN_PWM_CTRL) && (FAN_PWM_CTRL == 1)
+        if (wss_cmd_w_fan_duty == packet.cmd && packet.has_fanParam) {
+            ESP_LOGI(TAG, "has fanParam play(%d) duty(%d)", packet.fanParam.play, packet.fanParam.duty);
+            if (packet.fanParam.duty > 0)
+                temp_ctrl_fan_duty_set(packet.fanParam.duty);
+            
+            if (packet.fanParam.play >= 0)
+                temp_ctrl_fan_play(packet.fanParam.play);
         }
+#endif
 Next:
         xQueueSend(_udp_multicast_tsk.freeQueue, &rawPacket, portMAX_DELAY);
         rawPacket = NULL;
@@ -261,9 +309,27 @@ bool read_string(pb_istream_t *stream, const pb_field_t *field, void **arg)
         return false;
     }
      
-    if (!pb_read(stream, _udp_multicast_dist, stream->bytes_left)) {
+    if (!pb_read(stream, (pb_byte_t*)_udp_multicast_dist, stream->bytes_left)) {
         ESP_LOGW(TAG, "pb_read failure");
         return false;
     }
     return true;
+}
+
+bool udp_multicast_match_name(const char *list)
+{
+    const char *name = device_hostname();
+    const char *ptr  = list;
+    uint32_t nameLen = strlen(name);
+    uint32_t listLen  = strlen(list);
+
+    while( listLen >= nameLen ) {
+        if (*ptr == ';' || ptr == list) {
+            if (memcmp( ptr, name, nameLen) == 0)
+                return true;
+        } 
+        ptr += 1;
+        listLen -= 1;
+    }
+    return false;
 }

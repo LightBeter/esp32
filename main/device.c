@@ -88,10 +88,6 @@ void mdns_stop()
 
 void device_init()
 {
-    uint32_t tt = 0x11223344;
-    ESP_LOGI(TAG, "Endian %02X%02X%02X%02X", 
-            ((uint8_t*)&tt)[0], ((uint8_t*)&tt)[1], 
-            ((uint8_t*)&tt)[2], ((uint8_t*)&tt)[3] );
     /* Initialize tcp/ip protocol stack */
     esp_netif_init();
     /* Initialize event loop */

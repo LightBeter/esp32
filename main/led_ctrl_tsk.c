@@ -124,6 +124,22 @@ bool led_ctrl_set_mode(const cJSON *packet)
     return true;
 }
 
+bool led_ctrl_set_mode_ex(bool sw, led_ctrl_mode_t mode)
+{
+    if (mode >= LED_CTRL_MODE_COUNT)
+        return false;
+
+    led_ctrl_lock();
+    if (_led_ctrl_tsk.sw != sw || _led_ctrl_tsk.mode != mode) {
+        _led_ctrl_tsk.sw   = sw;
+        _led_ctrl_tsk.mode = mode;
+        _led_ctrl_tsk.curSaveToken++;
+        device_set_led(LED_CTRL_MODE_MANUAL == _led_ctrl_tsk.mode ? DEVICE_LED_1 : DEVICE_LED_2);
+    }
+    led_ctrl_unlock(); 
+    return true; 
+}
+
 void led_ctrl_get_current_output(cJSON *packet)
 {
     led_ctrl_lock();
@@ -150,6 +166,21 @@ bool led_ctrl_set_demo(const cJSON *packet)
     return true;
 }
 
+bool led_ctrl_set_demo_ex(uint16_t lifetime, led_value_t *values)
+{
+    if (lifetime > 180)
+        return false;
+    
+    if (!led_ctrl_check_values(values))
+        return false;
+
+    led_ctrl_lock();
+    _led_ctrl_demo.remaining = lifetime;
+    memcpy(_led_ctrl_demo.targ, values, sizeof(led_value_t) * LED_CHAN_COUNT);
+    led_ctrl_unlock(); 
+    return true;
+}
+
 void led_ctrl_get_manual(cJSON *packet)
 {
     led_ctrl_lock();
@@ -170,6 +201,19 @@ bool led_ctrl_set_manual(const cJSON *packet)
         
     led_ctrl_lock();
     memcpy(_led_ctrl_manual, targ, sizeof(led_value_t) * LED_CHAN_COUNT);
+    _led_ctrl_demo.remaining = 0;
+    _led_ctrl_tsk.curSaveToken++;
+    led_ctrl_unlock();
+    return true;
+}
+
+bool led_ctrl_set_manual_ex(led_value_t *values)
+{
+    if (!led_ctrl_check_values(values))
+        return false;
+    
+    led_ctrl_lock();
+    memcpy(_led_ctrl_manual, values, sizeof(led_value_t) * LED_CHAN_COUNT);
     _led_ctrl_demo.remaining = 0;
     _led_ctrl_tsk.curSaveToken++;
     led_ctrl_unlock();

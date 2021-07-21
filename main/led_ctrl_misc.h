@@ -12,6 +12,7 @@ extern "C" {
 #define is_vaild_output(_val)    (_val >= 0 && _val <= LED_VALUE_MAX)
 #define is_vaild_sch_time(_t)    (_t >= 0 && _t <= LED_CTRL_SCH_TIME_MAX)
 
+bool led_ctrl_check_values(led_value_t *values);
 
 bool led_ctrl_read_time(const cJSON *packet, const char *name, uint16_t *value, uint16_t max);
 bool led_ctrl_read_targ(const cJSON *packet, const char *name, led_value_t *targ);

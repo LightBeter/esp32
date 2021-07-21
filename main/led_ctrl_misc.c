@@ -7,6 +7,18 @@
 #define TAG                    "LedCtrl"
 #define TSK_NAME               TAG
 
+bool led_ctrl_check_values(led_value_t *values)
+{
+    for (int index = 0; index < LED_CHAN_COUNT; index++) {
+        if (!is_vaild_output(values[index])) {
+            ESP_LOGI(TAG, "%s invalid channel %d value %d, range[0-100].", 
+                     __FUNCTION__, index, values[index]);
+            return false;  
+        }
+    } 
+    return true;
+}
+
 bool led_ctrl_read_time(const cJSON *packet, const char *name, uint16_t *value, uint16_t max) 
 {
     cJSON *pItem = cJSON_GetObjectItem(packet, name);

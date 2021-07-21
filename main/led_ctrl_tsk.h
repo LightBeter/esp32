@@ -7,6 +7,7 @@
 #include <freertos/task.h>
 #include <cJSON.h>
 #include "led_pwm.h"
+#include "multicast.pb.h"
 
 #define LED_CTRL_SCH_MAX        64
 #define LED_CTRL_SCH_TIME_MAX   (24 * 60 -1)
@@ -54,10 +55,14 @@ void led_ctrl_tsk_stop();
 bool led_ctrl_is_close();
 void led_ctrl_get_mode(cJSON *packet);
 bool led_ctrl_set_mode(const cJSON *packet);
+bool led_ctrl_set_mode_ex(bool sw, led_ctrl_mode_t mode);
+
 void led_ctrl_get_current_output(cJSON *packet);
 bool led_ctrl_set_demo(const cJSON *packet);
+bool led_ctrl_set_demo_ex(uint16_t lifetime, led_value_t *values);
 void led_ctrl_get_manual(cJSON *packet);
 bool led_ctrl_set_manual(const cJSON *packet);
+bool led_ctrl_set_manual_ex(led_value_t *values);
 void led_ctrl_get_schedule(cJSON *packet);
 bool led_ctrl_set_schedule(const cJSON *packet);
 
