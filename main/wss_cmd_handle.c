@@ -66,7 +66,7 @@ wss_respond_code_t write_fan_duty_handle(cJSON *request, cJSON *respone)
 
     duty = cJSON_GetObjectItem(request, "duty");
     if (duty) {
-        if (!cJSON_IsNumber(duty) || INVALID_FAN_DUTY(duty->valueint)) {
+        if (!cJSON_IsNumber(duty)) {
             ESP_LOGI(TAG, "%s invalid utc.", __FUNCTION__);
             ret = wss_respond_code_invalid_param;
         } 
@@ -74,7 +74,7 @@ wss_respond_code_t write_fan_duty_handle(cJSON *request, cJSON *respone)
 
     play = cJSON_GetObjectItem(request, "play");
     if (play) {
-        if (!cJSON_IsNumber(play) || play->valueint < 0 || play->valueint > 30) {
+        if (!cJSON_IsNumber(play)) {
             ESP_LOGI(TAG, "%s invalid play time.", __FUNCTION__);
             ret = wss_respond_code_invalid_param;
         } 

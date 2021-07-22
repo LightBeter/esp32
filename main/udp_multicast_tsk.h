@@ -6,7 +6,7 @@
 #include <freertos/queue.h>
 
 #define UDP_MULTICAST_PACKET_MAX_SIZE       384
-#define UDP_MULTICAST_PACKET_POOL_SIZE      10
+#define UDP_MULTICAST_PACKET_POOL_SIZE      6
 
 #ifdef __cplusplus
 extern "C" {

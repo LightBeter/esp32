@@ -35,6 +35,7 @@
 #define TEMP_CTRL_T2                38
 #define TEMP_CTRL_T3                56
 #define TEMP_CTRL_T4                50
+
 #else
 #define TEMP_CTRL_FAN_OPEN_LIMIT    45
 #define TEMP_CTRL_FAN_CLOSE_LIMIT   38
@@ -196,6 +197,9 @@ uint16_t temp_ctrl_fan_duty()
 
 void temp_ctrl_fan_duty_set(uint16_t value)
 {
+    if (INVALID_FAN_DUTY(value))
+        return;    
+
     if (_tempCtrlTsk.fanDuty != value) {
         _tempCtrlTsk.fanDuty = value;
         _tempCtrlTsk.curSaveToken++;
@@ -204,6 +208,9 @@ void temp_ctrl_fan_duty_set(uint16_t value)
 
 void temp_ctrl_fan_play(uint16_t playtime)
 {
+    if (INVALID_FAN_PLAY(playtime))
+        return;    
+
     _tempCtrlTsk.playTime = playtime;
 }
 

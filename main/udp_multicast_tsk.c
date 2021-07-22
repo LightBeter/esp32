@@ -16,7 +16,7 @@
 #define UDP_MULTICAST_ADDR                     "238.0.0.8"
 #define UDP_MULTICAST_PORT                     9966
 #define UDP_MULTICAST_RECV_TSK_STACK_SIZE      2048
-#define UDP_MULTICAST_HANDLE_TSK_STACK_SIZE    4096
+#define UDP_MULTICAST_HANDLE_TSK_STACK_SIZE    2048
 #define UDP_MULTICAST_DIST_MAX_SIZE            256
 
 void udp_multicast_recv_tsk(void * parm);
@@ -26,8 +26,7 @@ bool read_string(pb_istream_t *stream, const pb_field_t *field, void **arg);
 
 udp_multicast_tsk_type _udp_multicast_tsk;
 udp_multicast_packet*  _udp_multicast_pool[UDP_MULTICAST_PACKET_POOL_SIZE] =  { 
-    NULL, NULL, NULL, NULL, NULL, 
-    NULL, NULL, NULL, NULL, NULL
+    NULL, NULL, NULL, NULL, NULL, NULL
 };
 char _udp_multicast_dist[UDP_MULTICAST_DIST_MAX_SIZE];
 
@@ -88,12 +87,12 @@ int create_multicast_ipv4_socket(void)
     }
 
     // Assign multicast TTL (set separately from normal interface TTL)
-    uint8_t ttl = 5;
-    setsockopt(sock, IPPROTO_IP, IP_MULTICAST_TTL, &ttl, sizeof(uint8_t));
-    if (err < 0) {
-        ESP_LOGE(TAG, "Failed to set IP_MULTICAST_TTL. Error %d", errno);
-        goto err_handle;
-    }
+    // uint8_t ttl = 5;
+    // setsockopt(sock, IPPROTO_IP, IP_MULTICAST_TTL, &ttl, sizeof(uint8_t));
+    // if (err < 0) {
+    //     ESP_LOGE(TAG, "Failed to set IP_MULTICAST_TTL. Error %d", errno);
+    //     goto err_handle;
+    // }
 
     // this is also a listening socket, so add it to the multicast
     // group for listening...
@@ -122,12 +121,8 @@ void udp_multicast_tsk_init()
 
 void udp_multicast_tsk_deinit()
 {
-    if (_udp_multicast_tsk.sock >= 0) {
-        shutdown(_udp_multicast_tsk.sock, 0);
-        close(_udp_multicast_tsk.sock);
-        _udp_multicast_tsk.sock = -1;
-    }
-
+    xQueueReset(_udp_multicast_tsk.handleQueue);
+    xQueueReset(_udp_multicast_tsk.freeQueue);
     for (int i = 0; i < UDP_MULTICAST_PACKET_POOL_SIZE; i++) {
         if (_udp_multicast_pool[i]) {
             free(_udp_multicast_pool[i]);
@@ -170,6 +165,14 @@ void udp_multicast_tsk_stop()
         vTaskDelete(_udp_multicast_tsk.handleTsk);
         _udp_multicast_tsk.handleTsk = NULL;
     }
+
+    if (_udp_multicast_tsk.sock >= 0) {
+        ESP_LOGE(TAG, "shutdown socket");
+        shutdown(_udp_multicast_tsk.sock, 0);
+        // ESP_LOGE(TAG, "close socket");
+        // close(_udp_multicast_tsk.sock);
+        _udp_multicast_tsk.sock = -1;
+    }
 }
 
 void udp_multicast_recv_tsk(void* parm) 
@@ -208,7 +211,7 @@ void udp_multicast_recv_tsk(void* parm)
             ESP_LOGE(TAG, "multicast recvfrom failed, size(%d) errno %d", packet->len, errno );
             continue;
         }
-        ESP_LOGI(TAG, "multicast recvfrom %d", packet->len);
+
         xQueueSend(_udp_multicast_tsk.handleQueue, &packet, portMAX_DELAY);
         packet = NULL;
     }
@@ -222,7 +225,6 @@ void udp_multicast_handle_tsk(void* parm)
     pb_istream_t    stream;
     led_value_t values[LED_CHAN_COUNT];
 
-    ESP_LOGI(TAG, "Udp Multicase Start Handle");
     while (1) { 
         xQueueReceive(_udp_multicast_tsk.handleQueue, &rawPacket, portMAX_DELAY);
         if (NULL == rawPacket)
@@ -236,25 +238,33 @@ void udp_multicast_handle_tsk(void* parm)
             ESP_LOGE(TAG, "decode buffer(%d) failure: %s", rawPacket->len, PB_GET_ERROR(&stream));
             goto Next;
         }
-
-        ESP_LOGI(TAG, "udp recv command(%d) dist: %s", packet.cmd, _udp_multicast_dist);
-        // if (!udp_multicast_match_name(_udp_multicast_dist))
-        //     goto Next;
+#if 1
+        ESP_LOGI(TAG, "multicast cmd[%d](%d): %s", packet.cmd, rawPacket->len, _udp_multicast_dist);
+        if (packet.has_modeParam) 
+            ESP_LOGI(TAG, "has modeParam sw[%u] mode[%d]", packet.modeParam.sw, packet.modeParam.mode);
+        if (packet.has_manualParam) 
+            ESP_LOGI(TAG, "has manualParam [%u,%u,%u,%u,%u,%u,%u]",
+                            packet.manualParam.values.chan1, packet.manualParam.values.chan2,
+                            packet.manualParam.values.chan3, packet.manualParam.values.chan4,
+                            packet.manualParam.values.chan5, packet.manualParam.values.chan6,
+                            packet.manualParam.values.chan7 );
+        if (packet.has_playParam)
+            ESP_LOGI(TAG, "has playParam [%u,%u,%u,%u,%u,%u,%u] play(%u)",
+                            packet.playParam.values.chan1, packet.playParam.values.chan2,
+                            packet.playParam.values.chan3, packet.playParam.values.chan4,
+                            packet.playParam.values.chan5, packet.playParam.values.chan6,
+                            packet.playParam.values.chan7, packet.playParam.play);
+        if (packet.has_fanParam)
+            ESP_LOGI(TAG, "has fanParam play(%d) duty(%d)", packet.fanParam.play, packet.fanParam.duty);
+#endif
+        if (!udp_multicast_match_name(_udp_multicast_dist))
+            goto Next;
 
         if (wss_cmd_w_ledctrl_mode == packet.cmd && packet.has_modeParam) {
-            ESP_LOGI(TAG, "has modeParam sw[%u] mode[%d]", packet.modeParam.sw, packet.modeParam.mode);
             led_ctrl_set_mode_ex(packet.modeParam.sw, (led_ctrl_mode_t)packet.modeParam.mode);
         }
 
         if (wss_cmd_w_ledctrl_manual == packet.cmd && packet.has_manualParam) {
-            ESP_LOGI(TAG, "has manualParam %u,%u,%u,%u,%u,%u,%u",
-                            packet.manualParam.values.chan1,
-                            packet.manualParam.values.chan2,
-                            packet.manualParam.values.chan3,
-                            packet.manualParam.values.chan4,
-                            packet.manualParam.values.chan5,
-                            packet.manualParam.values.chan6,
-                            packet.manualParam.values.chan7 );
             values[0] = packet.manualParam.values.chan1;
             values[1] = packet.manualParam.values.chan2;
             values[2] = packet.manualParam.values.chan3;
@@ -267,15 +277,6 @@ void udp_multicast_handle_tsk(void* parm)
         }
 
         if (wss_cmd_w_ledctrl_demo_output == packet.cmd && packet.has_playParam) {
-            ESP_LOGI(TAG, "has playParam %u %u,%u,%u,%u,%u,%u,%u",
-                            packet.playParam.play,
-                            packet.playParam.values.chan1,
-                            packet.playParam.values.chan2,
-                            packet.playParam.values.chan3,
-                            packet.playParam.values.chan4,
-                            packet.playParam.values.chan5,
-                            packet.playParam.values.chan6,
-                            packet.playParam.values.chan7 );
             values[0] = packet.playParam.values.chan1;
             values[1] = packet.playParam.values.chan2;
             values[2] = packet.playParam.values.chan3;
@@ -287,11 +288,10 @@ void udp_multicast_handle_tsk(void* parm)
         }
 #if defined(FAN_PWM_CTRL) && (FAN_PWM_CTRL == 1)
         if (wss_cmd_w_fan_duty == packet.cmd && packet.has_fanParam) {
-            ESP_LOGI(TAG, "has fanParam play(%d) duty(%d)", packet.fanParam.play, packet.fanParam.duty);
-            if (packet.fanParam.duty > 0)
+            if (packet.fanParam.duty > -1)
                 temp_ctrl_fan_duty_set(packet.fanParam.duty);
             
-            if (packet.fanParam.play >= 0)
+            if (packet.fanParam.play > -1)
                 temp_ctrl_fan_play(packet.fanParam.play);
         }
 #endif
@@ -304,15 +304,12 @@ Next:
 bool read_string(pb_istream_t *stream, const pb_field_t *field, void **arg)
 {    
     memset(_udp_multicast_dist, 0x00, UDP_MULTICAST_DIST_MAX_SIZE);
-    if (stream->bytes_left > UDP_MULTICAST_DIST_MAX_SIZE - 1) {
-        ESP_LOGW(TAG, "stream->bytes_left[%d] failure", stream->bytes_left);
+    if (stream->bytes_left > UDP_MULTICAST_DIST_MAX_SIZE - 1)
         return false;
-    }
      
-    if (!pb_read(stream, (pb_byte_t*)_udp_multicast_dist, stream->bytes_left)) {
-        ESP_LOGW(TAG, "pb_read failure");
+    if (!pb_read(stream, (pb_byte_t*)_udp_multicast_dist, stream->bytes_left))
         return false;
-    }
+    
     return true;
 }
 
@@ -323,13 +320,21 @@ bool udp_multicast_match_name(const char *list)
     uint32_t nameLen = strlen(name);
     uint32_t listLen  = strlen(list);
 
-    while( listLen >= nameLen ) {
-        if (*ptr == ';' || ptr == list) {
-            if (memcmp( ptr, name, nameLen) == 0)
+    if (listLen < nameLen) {
+        return false;
+    } else if (memcmp(ptr, name, nameLen) == 0) {
+        return true;
+    } else {
+        ptr += 1;
+        listLen -= 1;
+    }
+    while( listLen > nameLen ) {
+        if (*ptr == ';') {
+            if (memcmp(ptr + 1, name, nameLen) == 0)
                 return true;
         } 
         ptr += 1;
         listLen -= 1;
-    }
+    } 
     return false;
 }

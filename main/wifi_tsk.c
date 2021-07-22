@@ -2,6 +2,7 @@
 #include <esp_event.h>
 #include <esp_log.h>
 #include "wifi_tsk.h"
+#include "udp_multicast_tsk.h"
 #include "datetime.h"
 #include "device.h"
 
@@ -162,6 +163,8 @@ void wifi_tsk(void * parm)
 
 time_sync_handle:
     device_set_led_mode(DEVICE_LED_MODE_OPEN);
+    ESP_LOGI( TAG, "Start Udp Multicast Task." );
+    udp_multicast_tsk_start();
     /* sntp handle */
     while(1) {
         if (wifi_tsk_state_sta == _wifiTsk.state && _wifiTsk.isConnect) {

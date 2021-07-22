@@ -162,8 +162,6 @@ void device_main_tsk(void * parm)
     ESP_LOGI( TAG, "Start Websocket Task." );
     wss_tsk_start();
     vTaskDelay(pdMS_TO_TICKS(10000));
-    ESP_LOGI( TAG, "Start Udp Multicast Task." );
-    udp_multicast_tsk_start();
     while (1) {
         uxBits = xEventGroupWaitBits( _device.event_group, uxBitsToWaitFor, true, false, pdMS_TO_TICKS(1000) ); 
         if (uxBits & DEVICE_REQ_RECOVERY_FACTORY_BIT) {
