@@ -96,7 +96,7 @@ void led_pwm_output(led_chan_t ch, led_value_t percent)
 #else    
     ledc_set_duty(ledc_chan_cfg[ch].speed_mode, 
                   ledc_chan_cfg[ch].channel, 
-                  LED_CURRENT_2_DUTY(targ, ledc_output_cfg[ch].max));
+                  targ * LED_PWM_DUTY_MAX / LED_VALUE_MAX);
     ledc_update_duty(ledc_chan_cfg[ch].speed_mode,
                      ledc_chan_cfg[ch].channel);
 #endif
