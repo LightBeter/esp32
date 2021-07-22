@@ -163,34 +163,34 @@ void wss_callback(uint8_t num, WEBSOCKET_TYPE_t type, char* msg, uint64_t len)
 {
     switch(type) {
     case WEBSOCKET_CONNECT:
-        ESP_LOGI(TAG, "client %i connected!", num);
+        ESP_LOGI(TAG, "client[%i] connected!", num);
         _wss_tsk.clients[num].lifetime = WS_CLIENT_LIFETIME;
         return;
     case WEBSOCKET_BIN:
-        //ESP_LOGI(TAG, "client %i sent binary message of size %i", num, (uint32_t)len);
+        //ESP_LOGI(TAG, "client[%i] sent binary message of size %i", num, (uint32_t)len);
         wss_callback_bin(num, msg, len);
         return;
     case WEBSOCKET_PING:
-        //ESP_LOGI(TAG, "client %i pinged us with message of size %i", num, (uint32_t)len);
+        //ESP_LOGI(TAG, "client[%i] pinged us with message of size %i", num, (uint32_t)len);
         _wss_tsk.clients[num].lifetime = WS_CLIENT_LIFETIME;
         return;
     case WEBSOCKET_PONG:
-        //ESP_LOGI(TAG,"client %i responded to the ping",num);
+        //ESP_LOGI(TAG,"client[%i] responded to the ping",num);
         return;
     case WEBSOCKET_DISCONNECT_EXTERNAL:
-        ESP_LOGI(TAG, "client %i sent a disconnect message", num);
+        ESP_LOGI(TAG, "client[%i] sent a disconnect message", num);
         wss_callback_disconnect(num);
         break;
     case WEBSOCKET_DISCONNECT_INTERNAL:
-        ESP_LOGI(TAG, "client %i was disconnected", num);
+        ESP_LOGI(TAG, "client[%i] was disconnected", num);
         wss_callback_disconnect(num);
         break;
     case WEBSOCKET_DISCONNECT_ERROR:
-        ESP_LOGI(TAG, "client %i was disconnected due to an error", num);
+        ESP_LOGI(TAG, "client[%i] was disconnected due to an error", num);
         wss_callback_disconnect(num);
         break;
     case WEBSOCKET_TEXT:
-        ESP_LOGI(TAG, "client %i sent message(%i): %s", num, (uint32_t)len, msg);
+        ESP_LOGI(TAG, "client[%i] msg(%i): %s", num, (uint32_t)len, msg);
         wss_callback_text(num, msg, len);
         break;
     }
