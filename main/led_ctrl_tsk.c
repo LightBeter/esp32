@@ -117,6 +117,7 @@ bool led_ctrl_set_mode(const cJSON *packet)
         || _led_ctrl_tsk.mode != mode->valueint) {
         _led_ctrl_tsk.sw = sw->valueint != 0 ? true : false;
         _led_ctrl_tsk.mode = mode->valueint;
+        _led_ctrl_demo.remaining = 0;
         _led_ctrl_tsk.curSaveToken++;
         device_set_led(LED_CTRL_MODE_MANUAL == _led_ctrl_tsk.mode ? DEVICE_LED_1 : DEVICE_LED_2);
     }
@@ -133,6 +134,7 @@ bool led_ctrl_set_mode_ex(bool sw, led_ctrl_mode_t mode)
     if (_led_ctrl_tsk.sw != sw || _led_ctrl_tsk.mode != mode) {
         _led_ctrl_tsk.sw   = sw;
         _led_ctrl_tsk.mode = mode;
+        _led_ctrl_demo.remaining = 0;
         _led_ctrl_tsk.curSaveToken++;
         device_set_led(LED_CTRL_MODE_MANUAL == _led_ctrl_tsk.mode ? DEVICE_LED_1 : DEVICE_LED_2);
     }
