@@ -360,7 +360,7 @@ void led_ctrl_tsk(void * parm)
         led_ctrl_unlock();
         for (index = 0; index < LED_CHAN_COUNT; index++)
             led_pwm_output(index, _led_ctrl_tsk.output[index]);
-        vTaskDelay(pdMS_TO_TICKS(1000 * 1));
+        vTaskDelay(pdMS_TO_TICKS(500));
     }
 }
 
