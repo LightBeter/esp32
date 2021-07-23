@@ -9,8 +9,11 @@
 #define LED_PWM_TIMER                   LEDC_TIMER_0
 #define LED_PWM_DUTY_RESOLUTION         LEDC_TIMER_11_BIT
 #define LED_PWM_DUTY_MAX                ((0x1 << LED_PWM_DUTY_RESOLUTION) - 1)
+#define LED_PWM_FREQ                    (18 * 1000)
 #define LED_PWM_FADE_ENABLE             1
 #define LED_PWM_FADE_TIME               (500)
+#define LED_PWM_FADE_SCALE              (6)
+#define LED_PWM_FADE_CYCLE_NUM          (18 * 4)
 
 #define LED_CURRENT_2_DUTY(_c_, _max_)         (_c_ * LED_PWM_DUTY_MAX / _max_)
 #define LED_OUTPUT_CFG(_min_, _range)    { \
@@ -38,7 +41,6 @@ const ledc_channel_config_t ledc_chan_cfg[LED_CHAN_COUNT] = {
     [LED_CHAN_UV_415]    = LED_CHANNEL_CFG(LEDC_CHANNEL_6, GPIO_NUM_12),
 };
 
-#define LED_PWM_FREQ                   (18 * 1000)
 const led_output_cfg_t ledc_output_cfg[LED_CHAN_COUNT] = {
     [LED_CHAN_WHITE]     = LED_OUTPUT_CFG( 80, 840 ),
     [LED_CHAN_DARK_BLUE] = LED_OUTPUT_CFG( 80, 840 ), 
@@ -86,13 +88,18 @@ void led_pwm_output(led_chan_t ch, led_value_t percent)
        targ = ledc_output_cfg[ch].range * (percent - 5) / LED_VALUE_MAX + ledc_output_cfg[ch].min;
     }   
 #if defined(LED_PWM_FADE_ENABLE) && (LED_PWM_FADE_ENABLE == 1)
-    ledc_set_fade_with_time(ledc_chan_cfg[ch].speed_mode, 
-                            ledc_chan_cfg[ch].channel, 
-                            targ * LED_PWM_DUTY_MAX / LED_VALUE_MAX, 
-                            LED_PWM_FADE_TIME);                          
-    ledc_fade_start(ledc_chan_cfg[ch].speed_mode, 
-                    ledc_chan_cfg[ch].channel, 
-                    LEDC_FADE_NO_WAIT);
+    // ledc_set_fade_with_time(ledc_chan_cfg[ch].speed_mode, 
+    //                         ledc_chan_cfg[ch].channel, 
+    //                         targ * LED_PWM_DUTY_MAX / LED_VALUE_MAX, 
+    //                         LED_PWM_FADE_TIME);                          
+    // ledc_fade_start(ledc_chan_cfg[ch].speed_mode, 
+    //                 ledc_chan_cfg[ch].channel, 
+    //                 LEDC_FADE_NO_WAIT);
+    ledc_set_fade_step_and_start(ledc_chan_cfg[ch].speed_mode, ledc_chan_cfg[ch].channel,
+                                 targ * LED_PWM_DUTY_MAX / LED_VALUE_MAX, 
+                                 LED_PWM_FADE_SCALE,
+                                 LED_PWM_FADE_CYCLE_NUM,
+                                 LEDC_FADE_NO_WAIT);
 #else    
     ledc_set_duty(ledc_chan_cfg[ch].speed_mode, 
                   ledc_chan_cfg[ch].channel, 
