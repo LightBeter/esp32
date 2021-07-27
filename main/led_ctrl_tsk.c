@@ -337,7 +337,7 @@ void led_ctrl_tsk(void * parm)
     {
         led_ctrl_lock();
         /* save new config */
-        if (save_tick++ > 3) {
+        if (save_tick++ > 6) {
             save_tick = 0;
             led_ctrl_save_config();
         }
