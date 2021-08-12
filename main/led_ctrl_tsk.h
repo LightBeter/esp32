@@ -38,6 +38,7 @@ typedef int led_ctrl_sch_id_t;
 typedef struct led_ctrl_tsk_tag {
     xTaskHandle         handle; 
     SemaphoreHandle_t   mutex;
+    EventGroupHandle_t  eventGroup;  
     led_ctrl_mode_t     mode;
     bool                sw;
     led_ctrl_sch_id_t   schId;

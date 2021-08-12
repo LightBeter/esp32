@@ -88,6 +88,8 @@ void mdns_stop()
 
 void device_init()
 {
+    /* initialize log */
+    esp_log_level_set("*", ESP_LOG_WARN);
     /* Initialize tcp/ip protocol stack */
     esp_netif_init();
     /* Initialize event loop */

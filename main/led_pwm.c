@@ -87,14 +87,7 @@ void led_pwm_output(led_chan_t ch, led_value_t percent)
     } else {
        targ = ledc_output_cfg[ch].range * (percent - 5) / LED_VALUE_MAX + ledc_output_cfg[ch].min;
     }   
-#if defined(LED_PWM_FADE_ENABLE) && (LED_PWM_FADE_ENABLE == 1)
-    // ledc_set_fade_with_time(ledc_chan_cfg[ch].speed_mode, 
-    //                         ledc_chan_cfg[ch].channel, 
-    //                         targ * LED_PWM_DUTY_MAX / LED_VALUE_MAX, 
-    //                         LED_PWM_FADE_TIME);                          
-    // ledc_fade_start(ledc_chan_cfg[ch].speed_mode, 
-    //                 ledc_chan_cfg[ch].channel, 
-    //                 LEDC_FADE_NO_WAIT);
+#if defined(LED_PWM_FADE_ENABLE) && (LED_PWM_FADE_ENABLE == 1)                         
     ledc_set_fade_step_and_start(ledc_chan_cfg[ch].speed_mode, ledc_chan_cfg[ch].channel,
                                  targ * LED_PWM_DUTY_MAX / LED_VALUE_MAX, 
                                  LED_PWM_FADE_SCALE,

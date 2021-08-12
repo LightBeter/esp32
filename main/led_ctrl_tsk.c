@@ -9,9 +9,10 @@
 #include "led_ctrl_misc.h"
 #include "temp_ctrl_tsk.h"
 
-#define TAG                    "LedCtrl"
-#define TSK_NAME               TAG
-#define TSK_STACK_SIZE         4096
+#define TAG                         "LedCtrl"
+#define TSK_NAME                    TAG
+#define TSK_STACK_SIZE              4096
+#define LED_CTRL_TSK_EVENT_UPDATE   BIT0
 
 void led_ctrl_lock();
 void led_ctrl_unlock();
@@ -32,6 +33,7 @@ void led_ctrl_tsk_init()
     /* initialise task runtime */
     _led_ctrl_tsk.handle = NULL;
     _led_ctrl_tsk.mutex  = xSemaphoreCreateMutex();
+    _led_ctrl_tsk.eventGroup= xEventGroupCreate();
     _led_ctrl_tsk.mode   = LED_CTRL_MODE_SCHEDULE;
     _led_ctrl_tsk.sw     = false;
     _led_ctrl_tsk.schId  = 0;
@@ -51,6 +53,7 @@ void led_ctrl_tsk_init()
 void led_ctrl_tsk_deinit()
 {
     led_ctrl_save_config();
+    vEventGroupDelete(_led_ctrl_tsk.eventGroup);
     vSemaphoreDelete(_led_ctrl_tsk.mutex);
 }
 
@@ -113,15 +116,16 @@ bool led_ctrl_set_mode(const cJSON *packet)
         return false;  
     } 
     led_ctrl_lock();
-    if (_led_ctrl_tsk.sw != sw->valueint
-        || _led_ctrl_tsk.mode != mode->valueint) {
-        _led_ctrl_tsk.sw = sw->valueint != 0 ? true : false;
-        _led_ctrl_tsk.mode = mode->valueint;
-        _led_ctrl_demo.remaining = 0;
-        _led_ctrl_tsk.curSaveToken++;
-        device_set_led(LED_CTRL_MODE_MANUAL == _led_ctrl_tsk.mode ? DEVICE_LED_1 : DEVICE_LED_2);
+    if (_led_ctrl_tsk.sw == sw->valueint && _led_ctrl_tsk.mode == mode->valueint) {
+        led_ctrl_unlock(); 
+        return true;
     }
+    _led_ctrl_tsk.sw = sw->valueint != 0 ? true : false;
+    _led_ctrl_tsk.mode = mode->valueint;
+    _led_ctrl_demo.remaining = 0;
+    _led_ctrl_tsk.curSaveToken++;
     led_ctrl_unlock();
+    xEventGroupSetBits(_led_ctrl_tsk.eventGroup, LED_CTRL_TSK_EVENT_UPDATE);
     return true;
 }
 
@@ -131,14 +135,16 @@ bool led_ctrl_set_mode_ex(bool sw, led_ctrl_mode_t mode)
         return false;
 
     led_ctrl_lock();
-    if (_led_ctrl_tsk.sw != sw || _led_ctrl_tsk.mode != mode) {
-        _led_ctrl_tsk.sw   = sw;
-        _led_ctrl_tsk.mode = mode;
-        _led_ctrl_demo.remaining = 0;
-        _led_ctrl_tsk.curSaveToken++;
-        device_set_led(LED_CTRL_MODE_MANUAL == _led_ctrl_tsk.mode ? DEVICE_LED_1 : DEVICE_LED_2);
+    if (_led_ctrl_tsk.sw == sw && _led_ctrl_tsk.mode == mode) {
+        led_ctrl_unlock(); 
+        return true;
     }
+    _led_ctrl_tsk.sw   = sw;
+    _led_ctrl_tsk.mode = mode;
+    _led_ctrl_demo.remaining = 0;
+    _led_ctrl_tsk.curSaveToken++;
     led_ctrl_unlock(); 
+    xEventGroupSetBits(_led_ctrl_tsk.eventGroup, LED_CTRL_TSK_EVENT_UPDATE);
     return true; 
 }
 
@@ -165,6 +171,7 @@ bool led_ctrl_set_demo(const cJSON *packet)
     _led_ctrl_demo.remaining = lifetime;
     memcpy(_led_ctrl_demo.targ, targ, sizeof(led_value_t) * LED_CHAN_COUNT);
     led_ctrl_unlock();
+    xEventGroupSetBits(_led_ctrl_tsk.eventGroup, LED_CTRL_TSK_EVENT_UPDATE);
     return true;
 }
 
@@ -180,6 +187,7 @@ bool led_ctrl_set_demo_ex(uint16_t lifetime, led_value_t *values)
     _led_ctrl_demo.remaining = lifetime;
     memcpy(_led_ctrl_demo.targ, values, sizeof(led_value_t) * LED_CHAN_COUNT);
     led_ctrl_unlock(); 
+    xEventGroupSetBits(_led_ctrl_tsk.eventGroup, LED_CTRL_TSK_EVENT_UPDATE);
     return true;
 }
 
@@ -206,6 +214,7 @@ bool led_ctrl_set_manual(const cJSON *packet)
     _led_ctrl_demo.remaining = 0;
     _led_ctrl_tsk.curSaveToken++;
     led_ctrl_unlock();
+    xEventGroupSetBits(_led_ctrl_tsk.eventGroup, LED_CTRL_TSK_EVENT_UPDATE);
     return true;
 }
 
@@ -222,6 +231,7 @@ bool led_ctrl_set_manual_ex(led_value_t *values)
     _led_ctrl_demo.remaining = 0;
     _led_ctrl_tsk.curSaveToken++;
     led_ctrl_unlock();
+    xEventGroupSetBits(_led_ctrl_tsk.eventGroup, LED_CTRL_TSK_EVENT_UPDATE);
     return true;
 }
 
@@ -329,16 +339,15 @@ void led_ctrl_save_config()
 
 void led_ctrl_tsk(void * parm)
 {
+    const EventBits_t uxBitsToWaitFor = LED_CTRL_TSK_EVENT_UPDATE;
     led_chan_t index = 0;
-    uint8_t save_tick = 0;
-    
+
     vTaskDelay(pdMS_TO_TICKS(1000 * 3));
     while (1) 
     {
         led_ctrl_lock();
         /* save new config */
-        if (save_tick++ > 6) {
-            save_tick = 0;
+        if (time(NULL) % 3 == 0) {
             led_ctrl_save_config();
         }
         /* update output */
@@ -360,7 +369,9 @@ void led_ctrl_tsk(void * parm)
         led_ctrl_unlock();
         for (index = 0; index < LED_CHAN_COUNT; index++)
             led_pwm_output(index, _led_ctrl_tsk.output[index]);
-        vTaskDelay(pdMS_TO_TICKS(500));
+
+        device_set_led(LED_CTRL_MODE_MANUAL == _led_ctrl_tsk.mode ? DEVICE_LED_1 : DEVICE_LED_2);
+        xEventGroupWaitBits(_led_ctrl_tsk.eventGroup, uxBitsToWaitFor, true, false, pdMS_TO_TICKS(1000)); 
     }
 }
 
