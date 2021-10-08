@@ -103,6 +103,17 @@ void wifi_stop()
     }   
 }
 
+esp_netif_t* wifi_netif()
+{
+    if (wifi_tsk_state_sta == _wifiTsk.state) {
+        return _staNetif;
+    } else if (wifi_tsk_state_ap == _wifiTsk.state) {
+        return _apNetif;
+    } else {
+        return NULL;
+    }
+}
+
 void wifi_eventHandler(void* arg, esp_event_base_t event_base,
                             int32_t event_id, void* event_data)
 {

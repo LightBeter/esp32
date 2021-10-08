@@ -7,12 +7,14 @@
 #include "led_ctrl_tsk.h"
 #include "led_ctrl_misc.h"
 #include "temp_ctrl_tsk.h"
+#include "wifi_tsk.h"
 #include "wss_cmd_handle.h"
 #include "multicast.pb.h"
 #include "pb_decode.h"
 #include "device.h"
 
 #define TAG                                    "UDP_MULTICAST"
+#define LISTEN_ALL_IF                          0
 #define UDP_MULTICAST_ADDR                     "238.0.0.8"
 #define UDP_MULTICAST_PORT                     9966
 #define UDP_MULTICAST_RECV_TSK_STACK_SIZE      2048
@@ -36,7 +38,17 @@ int socket_add_ipv4_multicast_group(int sock)
     struct in_addr iaddr = { 0 };
     int err = 0;
     // Configure source interface
+#if LISTEN_ALL_IF    
     imreq.imr_interface.s_addr = IPADDR_ANY;
+#else
+    esp_netif_ip_info_t ip_info = { 0 };
+    err = esp_netif_get_ip_info(wifi_netif(), &ip_info);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to get IP address info. Error 0x%x", err);
+        goto exit;
+    }
+    inet_addr_from_ip4addr(&iaddr, &ip_info.ip);
+#endif // LISTEN_ALL_IF
     // Configure multicast address to listen to
     err = inet_aton(UDP_MULTICAST_ADDR, &imreq.imr_multiaddr.s_addr);
     if (err != 1) {

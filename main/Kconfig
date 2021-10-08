@@ -1,0 +1,12 @@
+menu "Application"
+
+choice
+    prompt "LED Driver type"
+    default AL8860
+    config LED_DRIVER_AL8860
+        bool "AL8860"
+    config LED_DRIVER_H5118
+        bool "H5118"
+endchoice
+
+endmenu                             

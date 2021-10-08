@@ -7,7 +7,15 @@
 #include <esp_image_format.h>
 #include <esp_wifi.h>
 
-#define DEVICE_MODEL                       "LB150"
+
+#if defined(CONFIG_LED_DRIVER_AL8860) && CONFIG_LED_DRIVER_AL8860
+#define DEVICE_MODEL               "LB150"
+#elif defined(CONFIG_LED_DRIVER_H5118) && CONFIG_LED_DRIVER_H5118
+#define DEVICE_MODEL               "LB150v2"
+#else
+#error "Error, The LED driver type is not defined!!"
+#endif
+
 #define DEVICE_SERIAL_NUM_LEN               12           
 #define DEVICE_REQ_REBOOT_BIT               BIT0
 #define DEVICE_REQ_RECOVERY_FACTORY_BIT     BIT1

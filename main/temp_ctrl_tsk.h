@@ -10,7 +10,8 @@
 extern "C" {
 #endif
 
-#define FAN_PWM_CTRL                1
+//#define FAN_PWM_CTRL                1
+#define FAN_PWM_CTRL                0
 #define INVALID_FAN_DUTY(_duty_)     (_duty_ < 10 || _duty_ > 100)
 #define INVALID_FAN_PLAY(_play_)     (_play_ < 0 || _play_ > 30)
 

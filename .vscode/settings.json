@@ -108,7 +108,11 @@
 		"ota.h": "c",
 		"esp_ota_ops.h": "c",
 		"esp_image_format.h": "c",
-		"esp_flash_partitions.h": "c"
+		"esp_flash_partitions.h": "c",
+		"multicast.pb.h": "c",
+		"led_ctrl_misc.h": "c",
+		"wss_cmd_handle.h": "c",
+		"ledc.h": "c"
 	},
 
 	"powershell.integratedConsole.suppressStartupBanner": true,

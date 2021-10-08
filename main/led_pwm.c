@@ -41,6 +41,7 @@ const ledc_channel_config_t ledc_chan_cfg[LED_CHAN_COUNT] = {
     [LED_CHAN_UV_415]    = LED_CHANNEL_CFG(LEDC_CHANNEL_6, GPIO_NUM_12),
 };
 
+#if defined(CONFIG_LED_DRIVER_AL8860) && CONFIG_LED_DRIVER_AL8860
 const led_output_cfg_t ledc_output_cfg[LED_CHAN_COUNT] = {
     [LED_CHAN_WHITE]     = LED_OUTPUT_CFG( 80, 840 ),
     [LED_CHAN_DARK_BLUE] = LED_OUTPUT_CFG( 80, 840 ), 
@@ -50,6 +51,19 @@ const led_output_cfg_t ledc_output_cfg[LED_CHAN_COUNT] = {
     [LED_CHAN_UV_405]    = LED_OUTPUT_CFG( 80, 890 ), 
     [LED_CHAN_UV_415]    = LED_OUTPUT_CFG( 80, 890 ), 
 };
+#elif defined(CONFIG_LED_DRIVER_H5118) && CONFIG_LED_DRIVER_H5118
+const led_output_cfg_t ledc_output_cfg[LED_CHAN_COUNT] = {
+    [LED_CHAN_WHITE]     = LED_OUTPUT_CFG( 10, 900 ),
+    [LED_CHAN_DARK_BLUE] = LED_OUTPUT_CFG( 10, 900 ), 
+    [LED_CHAN_BLUE]      = LED_OUTPUT_CFG( 10, 900 ),  
+    [LED_CHAN_RED]       = LED_OUTPUT_CFG( 10, 900 ),     
+    [LED_CHAN_GREEN]     = LED_OUTPUT_CFG( 10, 900 ), 
+    [LED_CHAN_UV_405]    = LED_OUTPUT_CFG( 10, 900 ), 
+    [LED_CHAN_UV_415]    = LED_OUTPUT_CFG( 10, 900 ), 
+};
+#else
+#error "Error, The LED driver type is not defined!!"
+#endif
 
 
 led_value_t ledc_chan_output[LED_CHAN_COUNT] = { 0, 0, 0, 0, 0, 0, 0 };

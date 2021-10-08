@@ -29,6 +29,7 @@ void wifi_tsk_init();
 void wifi_tsk_deinit();
 void wifi_tsk_start();
 void wifi_tsk_stop();
+esp_netif_t* wifi_netif();
 
 #ifdef __cplusplus
 }
