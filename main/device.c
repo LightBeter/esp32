@@ -134,8 +134,6 @@ void device_init()
     gpio_config(&io_conf);
     gpio_set_level(GPIO_CHAN_LED_1, LED_CLOSE_LEVEL);
     gpio_set_level(GPIO_CHAN_LED_2, LED_CLOSE_LEVEL);
-    _device.curLed = DEVICE_LED_1;
-    _device.curLedMode = DEVICE_LED_MODE_CLOSE;
 }
 
 void  device_run()
@@ -148,7 +146,7 @@ void device_main_tsk(void * parm)
     //size_t freeHeapSize;
     EventBits_t uxBits;
     gpio_num_t  led;
-    uint32_t    level;
+    uint32_t    level = LED_CLOSE_LEVEL;
     const EventBits_t uxBitsToWaitFor = (DEVICE_REQ_REBOOT_BIT | DEVICE_REQ_RECOVERY_FACTORY_BIT);
     /* Start Task */
     ESP_LOGI( TAG, "Start mDNS." );
@@ -163,7 +161,6 @@ void device_main_tsk(void * parm)
     wifi_ap_scan_tsk_start();
     ESP_LOGI( TAG, "Start Websocket Task." );
     wss_tsk_start();
-    vTaskDelay(pdMS_TO_TICKS(10000));
     while (1) {
         uxBits = xEventGroupWaitBits( _device.event_group, uxBitsToWaitFor, true, false, pdMS_TO_TICKS(1000) ); 
         if (uxBits & DEVICE_REQ_RECOVERY_FACTORY_BIT) {
@@ -188,9 +185,10 @@ void device_main_tsk(void * parm)
         } else if (DEVICE_LED_MODE_CLOSE == _device.curLedMode) {
             level = LED_CLOSE_LEVEL;
         } else {
-            level = gpio_get_level(led);
+            //level = gpio_get_level(led);
             level = ~level & 0x1;
         }
+
         gpio_set_level(led, level);   
         // freeHeapSize = heap_caps_get_free_size(MALLOC_CAP_8BIT);
         // ESP_LOGI( TAG, "heap free size %zu.", freeHeapSize );
