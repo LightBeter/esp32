@@ -1,8 +1,17 @@
 menu "Application"
 
 choice
+    prompt "Device Model"
+    default DEVICE_MODEL_LB150
+    config DEVICE_MODEL_LB150
+        bool "LB150"
+    config DEVICE_MODEL_LM25
+        bool "LM25"
+endchoice
+
+choice
     prompt "LED Driver type"
-    default AL8860
+    default LED_DRIVER_AL8860
     config LED_DRIVER_AL8860
         bool "AL8860"
     config LED_DRIVER_H5118

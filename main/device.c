@@ -121,7 +121,11 @@ void device_init()
     ESP_ERROR_CHECK( esp_wifi_get_mac(ESP_IF_WIFI_AP , mac) );
     sprintf( _device.serialnum, "%02X%02X%02X%02X%02X%02X", 
             mac[0], mac[1], mac[2], mac[3], mac[4], mac[5] );
+#if defined(CONFIG_DEVICE_MODEL_LB150) && CONFIG_DEVICE_MODEL_LB150
     sprintf( _device.hostname, DEVICE_MODEL "_%02X%02X%02X", mac[3], mac[4], mac[5] );
+#else
+    sprintf( _device.hostname, DEVICE_MODEL "-%02X%02X%02X", mac[3], mac[4], mac[5] );
+#endif
     /* device event group */
     _device.event_group = xEventGroupCreate();
     /* initial LEDs */

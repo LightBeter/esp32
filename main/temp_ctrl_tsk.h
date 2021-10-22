@@ -10,8 +10,11 @@
 extern "C" {
 #endif
 
-//#define FAN_PWM_CTRL                1
+#if defined(CONFIG_DEVICE_MODEL_LB150) && CONFIG_DEVICE_MODEL_LB150
 #define FAN_PWM_CTRL                0
+#else
+#define FAN_PWM_CTRL                1
+#endif
 #define INVALID_FAN_DUTY(_duty_)     (_duty_ < 10 || _duty_ > 100)
 #define INVALID_FAN_PLAY(_play_)     (_play_ < 0 || _play_ > 30)
 
