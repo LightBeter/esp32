@@ -10,7 +10,7 @@
 #define TAG                         "storage"
 #define NVS_WIFI_NAMESPACE          "app_wifi"
 #define NVS_TZ_DEFAILT              (-8 * 60)
-#define NVS_FAN_DUTY_DEFAILT        (100)
+#define NVS_FAN_DUTY_DEFAILT        (30)
 
 #ifdef __cplusplus
 extern "C" {
@@ -111,6 +111,7 @@ void storage_read_wificonf(wifi_config_t *conf)
     if (err != ESP_OK) {
         ESP_LOGW( TAG, "%s Error (%s) opening NVS handle!\n", __FUNCTION__, esp_err_to_name(err));
         storage_unlock();
+        memset(conf, 0x00, sizeof(wifi_config_t)); 
         return;
     }
     /* ssid */
@@ -199,6 +200,7 @@ void storage_read_tz(int *tz)
     if (err != ESP_OK) {
         ESP_LOGW( TAG, "%s Error (%s) opening NVS handle!\n", __FUNCTION__, esp_err_to_name(err));
         storage_unlock();
+        *tz = NVS_TZ_DEFAILT;
         return;
     }
     err = nvs_get_i32(handle, "time_tz", tz);
@@ -242,6 +244,7 @@ void storage_read_fan_duty(uint16_t *duty)
     if (err != ESP_OK) {
         ESP_LOGW( TAG, "%s Error (%s) opening NVS handle!\n", __FUNCTION__, esp_err_to_name(err));
         storage_unlock();
+        *duty = NVS_FAN_DUTY_DEFAILT;
         return;
     }
     err = nvs_get_u16(handle, "fan_duty", duty);
