@@ -20,6 +20,7 @@ uint16_t led_ctrl_current_time();
 void led_ctrl_get_by_sch();
 void led_ctrl_save_config();
 void led_ctrl_tsk(void * parm);
+void led_ctrl_boot_play();
 
 led_ctrl_tsk_t      _led_ctrl_tsk;
 led_ctrl_demo_t     _led_ctrl_demo;
@@ -342,7 +343,8 @@ void led_ctrl_tsk(void * parm)
     const EventBits_t uxBitsToWaitFor = LED_CTRL_TSK_EVENT_UPDATE;
     led_chan_t index = 0;
 
-    vTaskDelay(pdMS_TO_TICKS(1000 * 3));
+    //vTaskDelay(pdMS_TO_TICKS(1000 * 3));
+    led_ctrl_boot_play();
     while (1) 
     {
         led_ctrl_lock();
@@ -458,4 +460,22 @@ void led_ctrl_get_by_sch()
             _led_ctrl_tsk.output[3], _led_ctrl_tsk.output[4],
             _led_ctrl_tsk.output[5], _led_ctrl_tsk.output[6]);
 #endif
+}
+
+void led_ctrl_boot_play()
+{    
+    for (uint8_t chan = 0 ; chan < LED_CHAN_COUNT; chan++) { 
+        led_pwm_output_play(chan, 50, 1);
+        vTaskDelay(pdMS_TO_TICKS(700));
+        led_pwm_output_play(chan, 0, 1);
+        vTaskDelay(pdMS_TO_TICKS(200));
+    }
+    for (uint8_t chan = 0 ; chan < LED_CHAN_COUNT; chan++) { 
+        led_pwm_output_play(chan, 50, 1);
+    }
+    vTaskDelay(pdMS_TO_TICKS(700));
+    for (uint8_t chan = 0 ; chan < LED_CHAN_COUNT; chan++) { 
+        led_pwm_output_play(chan, 0, 1);
+    }
+    vTaskDelay(pdMS_TO_TICKS(200));
 }
