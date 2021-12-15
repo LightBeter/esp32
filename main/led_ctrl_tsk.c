@@ -464,17 +464,18 @@ void led_ctrl_get_by_sch()
 
 void led_ctrl_boot_play()
 {    
-    for (uint8_t chan = 0 ; chan < LED_CHAN_COUNT; chan++) { 
+    uint8_t chan = 0;
+    for (chan = 0 ; chan < LED_CHAN_COUNT; chan++) { 
         led_pwm_output_play(chan, 50, 1);
         vTaskDelay(pdMS_TO_TICKS(700));
         led_pwm_output_play(chan, 0, 1);
         vTaskDelay(pdMS_TO_TICKS(200));
     }
-    for (uint8_t chan = 0 ; chan < LED_CHAN_COUNT; chan++) { 
+    for (chan = 0 ; chan < LED_CHAN_COUNT; chan++) { 
         led_pwm_output_play(chan, 50, 1);
     }
     vTaskDelay(pdMS_TO_TICKS(700));
-    for (uint8_t chan = 0 ; chan < LED_CHAN_COUNT; chan++) { 
+    for (chan = 0 ; chan < LED_CHAN_COUNT; chan++) { 
         led_pwm_output_play(chan, 0, 1);
     }
     vTaskDelay(pdMS_TO_TICKS(200));

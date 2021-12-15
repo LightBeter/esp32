@@ -10,7 +10,7 @@
 #define TSK_NAME                    TAG
 #define TSK_STACK_SIZE              3072
 #define WIFI_AP_DEFAULT_PASSWORD    "00000000"
-#define WIFI_AP_MAX_STA_CONN        6
+#define WIFI_AP_MAX_STA_CONN        10
 
 #define WIFI_TSK_EVENT_STA_GOT_IP   BIT0
 

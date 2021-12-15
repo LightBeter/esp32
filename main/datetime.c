@@ -162,7 +162,7 @@ void datetime_extrtc_init(void)
 	conf.sda_pullup_en = GPIO_PULLUP_ENABLE;
 	conf.scl_pullup_en = GPIO_PULLUP_ENABLE;
 	conf.master.clk_speed = 100000;
-    //conf.clk_flags = 0;
+    conf.clk_flags = I2C_SCLK_SRC_FLAG_FOR_NOMAL;
 	ESP_ERROR_CHECK( i2c_param_config(EXT_RTC_I2C_NUM, &conf) );
 	ESP_ERROR_CHECK( i2c_driver_install(EXT_RTC_I2C_NUM, I2C_MODE_MASTER, 0, 0, 0) );
 }
