@@ -35,12 +35,12 @@ wss_respond_code_t write_dev_time_handle(cJSON *request, cJSON *respone)
 
     utc = cJSON_GetObjectItem(request, "utc");
     if (!cJSON_IsNumber(utc)) {
-        ESP_LOGI(TAG, "%s invalid utc.", __FUNCTION__);
+        ESP_LOGE(TAG, "%s invalid utc.", __FUNCTION__);
         return wss_respond_code_invalid_param;
     } 
     zone = cJSON_GetObjectItem(request, "tz");
     if (!cJSON_IsNumber(zone)) {
-        ESP_LOGI(TAG, "%s invalid timezone.", __FUNCTION__);
+        ESP_LOGE(TAG, "%s invalid timezone.", __FUNCTION__);
         return wss_respond_code_invalid_param;
     } 
     datetime_set_tz( zone->valuedouble );

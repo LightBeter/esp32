@@ -37,6 +37,7 @@ void wifi_tsk_init()
     _staNetif = esp_netif_create_default_wifi_sta();
 
     ESP_ERROR_CHECK( esp_wifi_init(&_wifiTsk.initConf) );
+    ESP_ERROR_CHECK( esp_wifi_restore() );
     ESP_ERROR_CHECK( esp_wifi_set_ps(WIFI_PS_NONE) );
     ESP_ERROR_CHECK( esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_eventHandler, NULL));
     ESP_ERROR_CHECK( esp_event_handler_register(IP_EVENT,   IP_EVENT_STA_GOT_IP, &wifi_eventHandler, NULL));
@@ -98,7 +99,6 @@ void wifi_stop()
 {
     if (wifi_tsk_state_idle != _wifiTsk.state) {
         ESP_ERROR_CHECK( esp_wifi_stop() );
-        ESP_ERROR_CHECK( esp_wifi_restore() );
         _wifiTsk.state = wifi_tsk_state_idle;
     }   
 }
