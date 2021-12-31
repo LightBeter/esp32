@@ -185,14 +185,14 @@ esp_err_t datetime_extrtc_read(time_t *t)
 {	
     uint8_t data[7];
 	esp_err_t errRc;
-
+    
 	i2c_cmd_handle_t cmd = i2c_cmd_link_create();
 	ESP_ERROR_CHECK( i2c_master_start(cmd) );
 	ESP_ERROR_CHECK( i2c_master_write_byte(cmd, (DS1307_ADDRESS << 1) | I2C_MASTER_WRITE, 1 /* expect ack */) );
 	ESP_ERROR_CHECK( i2c_master_write_byte(cmd, 0x0, 1));
 	ESP_ERROR_CHECK( i2c_master_start(cmd));
 	ESP_ERROR_CHECK( i2c_master_write_byte(cmd, (DS1307_ADDRESS << 1) | I2C_MASTER_READ, 1 /* expect ack */) );
-	ESP_ERROR_CHECK( i2c_master_read(cmd, data, 7, 0) );
+	ESP_ERROR_CHECK( i2c_master_read(cmd, data, 7, I2C_MASTER_LAST_NACK) );
 	ESP_ERROR_CHECK( i2c_master_stop(cmd) );
     errRc = i2c_master_cmd_begin( EXT_RTC_I2C_NUM, cmd, 1000/portTICK_PERIOD_MS);
     i2c_cmd_link_delete(cmd);
@@ -205,6 +205,7 @@ esp_err_t datetime_extrtc_read(time_t *t)
 	tm.tm_sec  = bcdToInt(data[0]);
 	tm.tm_min  = bcdToInt(data[1]);
 	tm.tm_hour = bcdToInt(data[2]);
+    tm.tm_wday = bcdToInt(data[3]) - 1;
 	tm.tm_mday = bcdToInt(data[4]);
 	tm.tm_mon  = bcdToInt(data[5]) - 1; // 0-11 - Note: The month on the DS1307 is 1-12.
 	tm.tm_year = bcdToInt(data[6]) + 100; // Years since 1900
@@ -215,21 +216,24 @@ esp_err_t datetime_extrtc_read(time_t *t)
 
 void datetime_extrtc_write(time_t t)
 {
+    uint8_t data[7];
 	struct tm tm;
-	gmtime_r(&t, &tm);
+	
+    gmtime_r(&t, &tm);
+    data[0] = intToBCD(tm.tm_sec);
+    data[1] = intToBCD(tm.tm_min);
+    data[2] = intToBCD(tm.tm_hour);
+    data[3] = intToBCD(tm.tm_wday+1);
+    data[4] = intToBCD(tm.tm_mday);
+    data[5] = intToBCD(tm.tm_mon+1);
+    data[6] = intToBCD(tm.tm_year-100);
 
 	esp_err_t errRc;
 	i2c_cmd_handle_t cmd = i2c_cmd_link_create();
 	ESP_ERROR_CHECK(i2c_master_start(cmd));
 	ESP_ERROR_CHECK(i2c_master_write_byte( cmd, (DS1307_ADDRESS << 1) | I2C_MASTER_WRITE, 1 /* expect ack */));
 	ESP_ERROR_CHECK(i2c_master_write_byte( cmd, 0x0, 1));
-	ESP_ERROR_CHECK(i2c_master_write_byte( cmd, intToBCD(tm.tm_sec), 1) );      // seconds
-	ESP_ERROR_CHECK(i2c_master_write_byte( cmd, intToBCD(tm.tm_min), 1) );     // minutes
-	ESP_ERROR_CHECK(i2c_master_write_byte( cmd, intToBCD(tm.tm_hour), 1) );    // hours
-	ESP_ERROR_CHECK(i2c_master_write_byte( cmd, intToBCD(tm.tm_wday+1), 1) );  // week day
-	ESP_ERROR_CHECK(i2c_master_write_byte( cmd, intToBCD(tm.tm_mday), 1) );     // date of month
-	ESP_ERROR_CHECK(i2c_master_write_byte( cmd, intToBCD(tm.tm_mon+1), 1) );    // month
-	ESP_ERROR_CHECK(i2c_master_write_byte( cmd, intToBCD(tm.tm_year-100), 1 )); // year
+	ESP_ERROR_CHECK(i2c_master_write( cmd, data, 7, 1) );
 	ESP_ERROR_CHECK(i2c_master_stop(cmd));
 	errRc = i2c_master_cmd_begin(EXT_RTC_I2C_NUM, cmd, 1000/portTICK_PERIOD_MS);
 	if (errRc != ESP_OK) {
