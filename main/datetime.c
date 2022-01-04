@@ -236,12 +236,13 @@ void datetime_extrtc_write(time_t t)
 	ESP_ERROR_CHECK(i2c_master_write( cmd, data, 7, 1) );
 	ESP_ERROR_CHECK(i2c_master_stop(cmd));
 	errRc = i2c_master_cmd_begin(EXT_RTC_I2C_NUM, cmd, 1000/portTICK_PERIOD_MS);
+    i2c_cmd_link_delete(cmd);
 	if (errRc != ESP_OK) {
 		ESP_LOGE( TAG, "%s: i2c_master_cmd_begin: %d", __FUNCTION__, errRc );
 	} else {
         ESP_LOGI( TAG, "%s: write external rtc date/time is %s", __FUNCTION__, asctime(&tm) );
     }
-	i2c_cmd_link_delete(cmd);
+
 }
 
 void datetime_sync_extrtc()
