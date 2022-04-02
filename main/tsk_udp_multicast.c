@@ -1,17 +1,20 @@
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include <freertos/queue.h>
 #include <lwip/err.h>
 #include <lwip/sockets.h>
 #include <lwip/sys.h>
 #include <lwip/netdb.h>
 #include <esp_log.h>
-#include "udp_multicast_tsk.h"
-#include "led_ctrl_tsk.h"
-#include "led_ctrl_misc.h"
-#include "temp_ctrl_tsk.h"
-#include "wifi_tsk.h"
+#include "tsk_udp_multicast.h"
+#include "tsk_ledctrl.h"
+#include "tsk_ledctrl_misc.h"
+#include "tsk_temp_ctrl.h"
+#include "tsk_wifi.h"
 #include "wss_cmd_handle.h"
 #include "multicast.pb.h"
 #include "pb_decode.h"
-#include "device.h"
+#include "misc.h"
 
 #define TAG                                    "UDP_MULTICAST"
 #define LISTEN_ALL_IF                          0
@@ -21,16 +24,19 @@
 #define UDP_MULTICAST_HANDLE_TSK_STACK_SIZE    4096
 #define UDP_MULTICAST_DIST_MAX_SIZE            256
 
-void udp_multicast_recv_tsk(void * parm);
-void udp_multicast_handle_tsk(void * parm);
-bool udp_multicast_match_name(const char *list);
+void multicast_recv_tsk(void * parm);
+void multicast_handle_tsk(void * parm);
+bool multicast_match_name(const char *list);
 bool read_string(pb_istream_t *stream, const pb_field_t *field, void **arg);
 
-udp_multicast_tsk_type _udp_multicast_tsk;
-udp_multicast_packet*  _udp_multicast_pool[UDP_MULTICAST_PACKET_POOL_SIZE] =  { 
-    NULL, NULL, NULL, NULL, NULL, NULL
-};
-char _udp_multicast_dist[UDP_MULTICAST_DIST_MAX_SIZE];
+static xTaskHandle     recv_tsk_handle = NULL;
+static xTaskHandle     tsk_handle = NULL;
+static QueueHandle_t   freeQueue;
+static QueueHandle_t   handleQueue;
+static int             sock = -1;
+static char multicast_dist_list[UDP_MULTICAST_DIST_MAX_SIZE];   
+static udp_multicast_packet_t multicast_buffer[UDP_MULTICAST_PACKET_POOL_SIZE];
+
 
 int socket_add_ipv4_multicast_group(int sock)
 {
@@ -118,95 +124,87 @@ err_handle:
     return -1;
 }
 
-void udp_multicast_tsk_init()
+void tsk_udp_multicast_init()
 {
-    _udp_multicast_tsk.recvTsk = NULL;
-    _udp_multicast_tsk.handleTsk = NULL;
-    _udp_multicast_tsk.sock = -1;
-    _udp_multicast_tsk.handleQueue = xQueueCreate(UDP_MULTICAST_PACKET_POOL_SIZE, sizeof(udp_multicast_packet*));
-    _udp_multicast_tsk.freeQueue = xQueueCreate(UDP_MULTICAST_PACKET_POOL_SIZE, sizeof(udp_multicast_packet*));
+    udp_multicast_packet_t *packet;
+    handleQueue = xQueueCreate(UDP_MULTICAST_PACKET_POOL_SIZE, sizeof(udp_multicast_packet_t*));
+    freeQueue = xQueueCreate(UDP_MULTICAST_PACKET_POOL_SIZE, sizeof(udp_multicast_packet_t*));
     for (int i = 0; i < UDP_MULTICAST_PACKET_POOL_SIZE; i++) {
-        _udp_multicast_pool[i] =  (udp_multicast_packet*)malloc(sizeof(udp_multicast_packet));
-        xQueueSend(_udp_multicast_tsk.freeQueue, &_udp_multicast_pool[i], portMAX_DELAY);
+        packet = &multicast_buffer[i];
+        xQueueSend(freeQueue, &packet, portMAX_DELAY);
     }
 }
 
-void udp_multicast_tsk_deinit()
+void tsk_udp_multicast_deinit()
 {
-    xQueueReset(_udp_multicast_tsk.handleQueue);
-    xQueueReset(_udp_multicast_tsk.freeQueue);
-    for (int i = 0; i < UDP_MULTICAST_PACKET_POOL_SIZE; i++) {
-        if (_udp_multicast_pool[i]) {
-            free(_udp_multicast_pool[i]);
-            _udp_multicast_pool[i] = NULL;
-        }
-    }
+    xQueueReset(handleQueue);
+    xQueueReset(freeQueue);
 }
 
-void udp_multicast_tsk_start()
+void tsk_udp_multicast_start()
 {
-    _udp_multicast_tsk.sock = create_multicast_ipv4_socket();
-    if (_udp_multicast_tsk.sock < 0)
+    sock = create_multicast_ipv4_socket();
+    if (sock < 0)
         return;
 
-    if (!_udp_multicast_tsk.handleTsk) {
-        xTaskCreate(udp_multicast_handle_tsk, 
-                    "udp_multicast_handle_tsk", 
+    if (!tsk_handle) {
+        xTaskCreate(multicast_handle_tsk, 
+                    "multicast_handle_tsk", 
                     UDP_MULTICAST_HANDLE_TSK_STACK_SIZE, 
                     NULL, 
                     3, 
-                    &_udp_multicast_tsk.handleTsk);
+                    &tsk_handle);
     }
-    if (!_udp_multicast_tsk.recvTsk) {
-        xTaskCreate(udp_multicast_recv_tsk, 
-                    "udp_multicast_recv_tsk", 
+    if (!recv_tsk_handle) {
+        xTaskCreate(multicast_recv_tsk, 
+                    "multicast_recv_tsk", 
                     UDP_MULTICAST_RECV_TSK_STACK_SIZE,
                     NULL, 
                     3, 
-                    &_udp_multicast_tsk.recvTsk);
+                    &recv_tsk_handle);
     }
 }
 
-void udp_multicast_tsk_stop()
+void tsk_udp_multicast_stop()
 {
-    if (_udp_multicast_tsk.recvTsk) {
-        vTaskDelete(_udp_multicast_tsk.recvTsk);
-        _udp_multicast_tsk.recvTsk = NULL;
+    if (recv_tsk_handle) {
+        vTaskDelete(recv_tsk_handle);
+        recv_tsk_handle = NULL;
     }
-    if (_udp_multicast_tsk.handleTsk) {
-        vTaskDelete(_udp_multicast_tsk.handleTsk);
-        _udp_multicast_tsk.handleTsk = NULL;
+    if (tsk_handle) {
+        vTaskDelete(tsk_handle);
+        tsk_handle = NULL;
     }
 
-    if (_udp_multicast_tsk.sock >= 0) {
+    if (sock >= 0) {
         ESP_LOGE(TAG, "shutdown socket");
-        shutdown(_udp_multicast_tsk.sock, 0);
+        shutdown(sock, 0);
         // ESP_LOGE(TAG, "close socket");
-        // close(_udp_multicast_tsk.sock);
-        _udp_multicast_tsk.sock = -1;
+        // close(sock);
+        sock = -1;
     }
 }
 
-void udp_multicast_recv_tsk(void* parm) 
+void multicast_recv_tsk(void* parm) 
 {
     struct timeval tv = { 5, 0 };
     fd_set rfds;
     int s;
     struct sockaddr_storage raddr;
     socklen_t socklen;
-    udp_multicast_packet *packet;
+    udp_multicast_packet_t *packet;
 
     ESP_LOGI(TAG, "Udp Multicase Start Recv");
     while (1) {
         if (!packet)
-            xQueueReceive(_udp_multicast_tsk.freeQueue, &packet, portMAX_DELAY);
+            xQueueReceive(freeQueue, &packet, portMAX_DELAY);
 
         if (!packet)
             continue;
 
         FD_ZERO(&rfds);
-        FD_SET(_udp_multicast_tsk.sock, &rfds);
-        s = select(_udp_multicast_tsk.sock + 1, &rfds, NULL, NULL, &tv);
+        FD_SET(sock, &rfds);
+        s = select(sock + 1, &rfds, NULL, NULL, &tv);
         if (s < 0) {
             ESP_LOGE(TAG, "Select failed: errno %d", errno);
             continue;
@@ -214,36 +212,36 @@ void udp_multicast_recv_tsk(void* parm)
             continue;
         }
         
-        if (!FD_ISSET(_udp_multicast_tsk.sock, &rfds))
+        if (!FD_ISSET(sock, &rfds))
             continue;
   
         socklen = sizeof(raddr);
-        packet->len = recvfrom(_udp_multicast_tsk.sock, packet->data, UDP_MULTICAST_PACKET_MAX_SIZE, 0, (struct sockaddr*)&raddr, &socklen);
+        packet->len = recvfrom(sock, packet->data, UDP_MULTICAST_PACKET_MAX_SIZE, 0, (struct sockaddr*)&raddr, &socklen);
         if (packet->len <= 0 || packet->len > UDP_MULTICAST_PACKET_MAX_SIZE) {
             ESP_LOGE(TAG, "multicast recvfrom failed, size(%d) errno %d", packet->len, errno );
             continue;
         }
 
-        xQueueSend(_udp_multicast_tsk.handleQueue, &packet, portMAX_DELAY);
+        xQueueSend(handleQueue, &packet, portMAX_DELAY);
         packet = NULL;
     }
-    _udp_multicast_tsk.recvTsk = NULL;
+    recv_tsk_handle = NULL;
     vTaskDelete(NULL);
 }
 
-void udp_multicast_handle_tsk(void* parm) 
+void multicast_handle_tsk(void* parm) 
 {
-    udp_multicast_packet *rawPacket = NULL;
+    udp_multicast_packet_t *rawPacket = NULL;
     pb_istream_t    stream;
     led_value_t values[LED_CHAN_COUNT];
 
     while (1) { 
-        xQueueReceive(_udp_multicast_tsk.handleQueue, &rawPacket, portMAX_DELAY);
+        xQueueReceive(handleQueue, &rawPacket, portMAX_DELAY);
         if (NULL == rawPacket)
             continue; 
 
         MulticastPacket packet = MulticastPacket_init_default;
-        packet.dist.arg = _udp_multicast_dist;
+        packet.dist.arg = multicast_dist_list;
         packet.dist.funcs.decode = read_string;
         stream = pb_istream_from_buffer(rawPacket->data, rawPacket->len);
         if (!pb_decode(&stream, MulticastPacket_fields, &packet)) {
@@ -251,7 +249,7 @@ void udp_multicast_handle_tsk(void* parm)
             goto Next;
         }
 #if 1
-        ESP_LOGI(TAG, "multicast cmd[%d](%d): %s", packet.cmd, rawPacket->len, _udp_multicast_dist);
+        ESP_LOGI(TAG, "multicast cmd[%d](%d): %s", packet.cmd, rawPacket->len, multicast_dist_list);
         if (packet.has_modeParam) 
             ESP_LOGI(TAG, "has modeParam sw[%u] mode[%d]", packet.modeParam.sw, packet.modeParam.mode);
         if (packet.has_manualParam) 
@@ -269,11 +267,11 @@ void udp_multicast_handle_tsk(void* parm)
         if (packet.has_fanParam)
             ESP_LOGI(TAG, "has fanParam play(%d) duty(%d)", packet.fanParam.play, packet.fanParam.duty);
 #endif
-        if (!udp_multicast_match_name(_udp_multicast_dist))
+        if (!multicast_match_name(multicast_dist_list))
             goto Next;
 
         if (wss_cmd_w_ledctrl_mode == packet.cmd && packet.has_modeParam) {
-            led_ctrl_set_mode_ex(packet.modeParam.sw, (led_ctrl_mode_t)packet.modeParam.mode);
+            ledctrl_set_mode(packet.modeParam.sw, (led_mode_t)packet.modeParam.mode);
         }
 
         if (wss_cmd_w_ledctrl_manual == packet.cmd && packet.has_manualParam) {
@@ -284,8 +282,8 @@ void udp_multicast_handle_tsk(void* parm)
             values[4] = packet.manualParam.values.chan5;
             values[5] = packet.manualParam.values.chan6;
             values[6] = packet.manualParam.values.chan7;
-            if (led_ctrl_set_manual_ex(values))
-                led_ctrl_set_mode_ex(true, LED_CTRL_MODE_MANUAL);
+            if (ledctrl_set_manual(values))
+                ledctrl_set_mode(true, LED_CTRL_MODE_MANUAL);
         }
 
         if (wss_cmd_w_ledctrl_demo_output == packet.cmd && packet.has_playParam) {
@@ -296,38 +294,37 @@ void udp_multicast_handle_tsk(void* parm)
             values[4] = packet.playParam.values.chan5;
             values[5] = packet.playParam.values.chan6;
             values[6] = packet.playParam.values.chan7;
-            led_ctrl_set_demo_ex(packet.playParam.play, values);
+            ledctrl_set_demo(packet.playParam.play, values);
         }
-#if defined(FAN_PWM_CTRL) && (FAN_PWM_CTRL == 1)
+
         if (wss_cmd_w_fan_duty == packet.cmd && packet.has_fanParam) {
             if (packet.fanParam.duty > -1)
-                temp_ctrl_fan_duty_set(packet.fanParam.duty);
+                tempctrl_set_fanduty(packet.fanParam.duty);
             
             if (packet.fanParam.play > -1)
-                temp_ctrl_fan_play(packet.fanParam.play);
+                tempctrl_set_fanplay(packet.fanParam.play);
         }
-#endif
 Next:
-        xQueueSend(_udp_multicast_tsk.freeQueue, &rawPacket, portMAX_DELAY);
+        xQueueSend(freeQueue, &rawPacket, portMAX_DELAY);
         rawPacket = NULL;
     }
 }
 
 bool read_string(pb_istream_t *stream, const pb_field_t *field, void **arg)
 {    
-    memset(_udp_multicast_dist, 0x00, UDP_MULTICAST_DIST_MAX_SIZE);
+    memset(multicast_dist_list, 0x00, UDP_MULTICAST_DIST_MAX_SIZE);
     if (stream->bytes_left > UDP_MULTICAST_DIST_MAX_SIZE - 1)
         return false;
      
-    if (!pb_read(stream, (pb_byte_t*)_udp_multicast_dist, stream->bytes_left))
+    if (!pb_read(stream, (pb_byte_t*)multicast_dist_list, stream->bytes_left))
         return false;
     
     return true;
 }
 
-bool udp_multicast_match_name(const char *list)
+bool multicast_match_name(const char *list)
 {
-    const char *name = device_hostname();
+    const char *name = hostname();
     const char *ptr  = list;
     uint32_t nameLen = strlen(name);
     uint32_t listLen  = strlen(list);

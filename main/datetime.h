@@ -1,23 +1,13 @@
 #ifndef _DATETIME_H
 #define _DATETIME_H
 
+#include <stdint.h>
 #include <time.h>
-#include <esp_sntp.h>
-#include <cJSON.h>
+#include <esp_err.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-typedef struct {
-    time_t  reqTime;
-    time_t  doneTime;
-} datetime_sync_type;
-
-typedef struct {
-    int32_t            tz;
-    datetime_sync_type sync;
-} datetime_type;
 
 /* datetime Api */
 void datetime_init();
@@ -25,8 +15,6 @@ void datetime_deinit();
 void datetime_set_tz(int tz);
 void datetime_set(time_t t);
 void datetime_get(time_t *t, int *tz);
-void datetime_resp(cJSON *respone);
-
 void datetime_sync_sntp();
 void datetime_sync_extrtc();
 /* SNTP Api */

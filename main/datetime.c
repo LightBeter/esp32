@@ -1,12 +1,13 @@
 #include <string.h>
-#include <time.h>
 #include <sys/time.h>
 #include <driver/i2c.h>
-#include "esp_log.h"
+#include <esp_sntp.h>
+#include <esp_log.h>
 #include "datetime.h"
 #include "storage.h"
 
 #define TAG                 "DateTime"
+#define DEFAILT_TZ          (-8 * 60)
 #define SNTP_SERVER         "pool.ntp.org"
 #define SYNC_CYCLE          (60 * 60 * 24)
 #define SYNC_NTP_TIMEOUT    (1 * 60)
@@ -16,33 +17,35 @@
 #define EXT_RTC_SDA_PIN     16
 #define DS1307_ADDRESS      0x68
 
-
 void sntp_sync_cb(struct timeval *tv);
 uint8_t intToBCD(uint8_t num);
 uint8_t bcdToInt(uint8_t bcd);
 
-datetime_type  _datetime = { 0, { 0, 0} };
+static int32_t timezone = 0;
+static time_t  reqTime  = 0;
+static time_t  doneTime = 0;
 
 void datetime_init()
 {
     time_t t = 0;
+    ESP_LOGI( TAG, "initialize" );
     /* initial sntp */
     datetime_sntp_init();
     /* initial extern rtc */
     datetime_extrtc_init();
     /* initial timezone */
-    storage_read_tz(&_datetime.tz);
-    datetime_set_tz(_datetime.tz);
+    if (!storage_read_tz(&timezone)) {
+        timezone = DEFAILT_TZ;
+    }
+    datetime_set_tz(timezone);
     /* initial datetime */
     datetime_extrtc_read(&t);
     datetime_set(t);
-    /* initial sync status */
-    _datetime.sync.reqTime = 0;
-    _datetime.sync.doneTime = 0;
 }
 
 void datetime_deinit()
 {
+    ESP_LOGI( TAG, "deinitialize" );
     /* initial extern rtc */
     datetime_extrtc_deinit();
 }
@@ -66,9 +69,9 @@ void datetime_set_tz(int tz)
     setenv("TZ", str_buf, 1);
     tzset();
     /* save timezone */
-    if (_datetime.tz != tz) {
+    if (timezone != tz) {
         storage_write_tz(tz);
-        _datetime.tz = tz;
+        timezone = tz;
     }
 }
 
@@ -90,16 +93,7 @@ void datetime_set(time_t t)
 void datetime_get(time_t *t, int *tz)
 {    
     *t = time(NULL);
-    *tz = _datetime.tz;
-}
-
-void datetime_resp(cJSON *respone)
-{
-    time_t  utc;
-    int tz;
-    datetime_get(&utc, &tz);
-    cJSON_AddNumberToObject(respone, "utc", utc);
-    cJSON_AddNumberToObject(respone, "tz", tz);
+    *tz = timezone;
 }
 
 void datetime_sntp_init()
@@ -125,8 +119,8 @@ void sntp_sync_cb(struct timeval *tv)
     time_t  t = tv->tv_sec;
 
     datetime_extrtc_write(t);
-    _datetime.sync.doneTime = t;
-    _datetime.sync.reqTime = 0;
+    doneTime = t;
+    reqTime = 0;
     tm = localtime(&t);
     ESP_LOGI(TAG, "sntp complete, New York date/time is: %s", asctime(tm));
 }
@@ -135,18 +129,18 @@ void datetime_sync_sntp()
 {
     time_t now, diff;
     now = time(NULL);
-    if (_datetime.sync.reqTime != 0) {
-        diff = difftime(now, _datetime.sync.reqTime);
+    if (reqTime != 0) {
+        diff = difftime(now, reqTime);
         if (diff > SYNC_NTP_TIMEOUT) {
-            _datetime.sync.reqTime = now;
+            reqTime = now;
             datetime_sntp_stop();
             datetime_sntp_start();
             ESP_LOGI( TAG, "retry sntp......." );
         }
-    } else if (_datetime.sync.reqTime == 0) {
-        diff = difftime(now, _datetime.sync.doneTime);
-        if (diff > SYNC_CYCLE || 0 == _datetime.sync.doneTime) {
-            _datetime.sync.reqTime = now;
+    } else if (reqTime == 0) {
+        diff = difftime(now, doneTime);
+        if (diff > SYNC_CYCLE || 0 == doneTime) {
+            reqTime = now;
             datetime_sntp_start();
             ESP_LOGI( TAG, "sntp......." );
         }
@@ -209,7 +203,7 @@ esp_err_t datetime_extrtc_read(time_t *t)
 	tm.tm_mday = bcdToInt(data[4]);
 	tm.tm_mon  = bcdToInt(data[5]) - 1; // 0-11 - Note: The month on the DS1307 is 1-12.
 	tm.tm_year = bcdToInt(data[6]) + 100; // Years since 1900
-	*t = mktime(&tm) - (_datetime.tz * 60);
+	*t = mktime(&tm) - (timezone * 60);
     ESP_LOGI( TAG, "%s: read external rtc date/time is %s", __FUNCTION__, asctime(&tm) );
 	return ESP_OK;
 }
@@ -242,14 +236,13 @@ void datetime_extrtc_write(time_t t)
 	} else {
         ESP_LOGI( TAG, "%s: write external rtc date/time is %s", __FUNCTION__, asctime(&tm) );
     }
-
 }
 
 void datetime_sync_extrtc()
 {
     struct timeval  tv = { 0, 0 };
     struct tm *tm;
-    time_t diff = difftime(time(NULL), _datetime.sync.doneTime);
+    time_t diff = difftime(time(NULL), doneTime);
     if (diff < SYNC_CYCLE) {
         return;
     }
@@ -260,5 +253,5 @@ void datetime_sync_extrtc()
         tm = localtime(&tv.tv_sec);
         ESP_LOGI( TAG, "%s: set new date/time %s", __FUNCTION__, asctime(tm) );
     }
-    _datetime.sync.doneTime = tv.tv_sec;
+    doneTime = tv.tv_sec;
 }

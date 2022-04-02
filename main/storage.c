@@ -1,59 +1,43 @@
 #include <string.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
 #include <esp_ota_ops.h>
 #include <esp_partition.h>
-#include <nvs_flash.h>
 #include <esp_spiffs.h>
+#include <nvs_flash.h>
 #include <esp_log.h>
 #include "storage.h"
-#include "temp_ctrl_tsk.h"
 
-#define TAG                         "storage"
-#define NVS_WIFI_NAMESPACE          "app_wifi"
-#define NVS_TZ_DEFAILT              (-8 * 60)
-#define NVS_FAN_DUTY_DEFAILT        (30)
+#define TAG                  "storage"
+#define NVS_DATA_NAMESPACE   "app_wifi"
+#define STORAGE_OPEN_R()     storage_open(NVS_READONLY)
+#define STORAGE_OPEN_RW()    storage_open(NVS_READWRITE)
+#define STORAGE_CLOSE()      storage_close(&storage_handle)
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-storage_t _storage;
+esp_err_t storage_open(nvs_open_mode_t open_mode);
+esp_err_t storage_close();
+esp_err_t storage_get_u16(const char *key, uint16_t *value);
+esp_err_t storage_set_u16(const char *key, uint16_t value);
+esp_err_t storage_get_i32(const char *key, int32_t *value);
+esp_err_t storage_set_i32(const char *key, int32_t value);
+esp_err_t storage_get_blob(const char *key, void *out_value, size_t maxlen, size_t *outlen);
+esp_err_t storage_set_blob(const char *key, const void *value, size_t len);
 
-void spiffs_init();
-void spiffs_deinit();
-void storage_lock();
-void storage_unlock();
+static SemaphoreHandle_t storage_mutex;
+static nvs_handle        storage_handle;
 
 void storage_lock()
 {
-    while( xSemaphoreTake(_storage.mutex, portMAX_DELAY) != pdTRUE );
+    while( xSemaphoreTake(storage_mutex, portMAX_DELAY) != pdTRUE );
 }
 
 void storage_unlock()
 {
-    while( xSemaphoreGive(_storage.mutex) != pdTRUE );
-}
-
-void storage_init()
-{
-    esp_err_t ret;
-    /* Initialize NVS */
-    ret = nvs_flash_init();
-    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-      ESP_ERROR_CHECK(nvs_flash_erase());
-      ret = nvs_flash_init();
-    }
-    ESP_ERROR_CHECK(ret);
-    /* Initialize spiffs */
-    spiffs_init();
-    _storage.mutex  = xSemaphoreCreateMutex();
-}
-
-void storage_deinit()
-{
-    vSemaphoreDelete(_storage.mutex);
-    /* Deinitialize spiffs */
-    spiffs_deinit();
-    ESP_ERROR_CHECK(nvs_flash_deinit());
+    while( xSemaphoreGive(storage_mutex) != pdTRUE );
 }
 
 void spiffs_init()
@@ -89,193 +73,219 @@ void spiffs_deinit()
     ESP_LOGI(TAG, "SPIFFS unmounted");
 }
 
-void storage_read_appdesc(esp_app_desc_t *app_info)
+void storage_init()
+{
+    esp_err_t ret;
+    ESP_LOGI( TAG, "initialize" );
+    /* Initialize NVS */
+    ret = nvs_flash_init();
+    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+      ESP_ERROR_CHECK(nvs_flash_erase());
+      ret = nvs_flash_init();
+    }
+    ESP_ERROR_CHECK(ret);
+    spiffs_init();
+    storage_mutex  = xSemaphoreCreateMutex();
+}
+
+void storage_deinit()
+{
+    ESP_LOGI( TAG, "deinitialize" );
+    vSemaphoreDelete(storage_mutex);
+    spiffs_deinit();
+    ESP_ERROR_CHECK(nvs_flash_deinit());
+}
+
+bool storage_read_appdesc(esp_app_desc_t *app_info)
 {
     const esp_partition_t *running = esp_ota_get_running_partition();
-    ESP_LOGW(TAG, "Current running partition address 0x%08x", running->address);
+    //ESP_LOGI( TAG, "Current running partition address 0x%08x", running->address );
     if (esp_ota_get_partition_description(running, app_info) == ESP_OK) {
-        ESP_LOGI(TAG, "Running firmware(%s) version: %s", app_info->project_name, app_info->version);
+        ESP_LOGI( TAG, "Running firmware(%s) version: %s", app_info->project_name, app_info->version );
+        return true;
     } else {
-        ESP_LOGW(TAG, "load firmware version failure");  
+        ESP_LOGW( TAG, "load firmware version failure" );  
+        return false;
     }
 }
 
-void storage_read_wificonf(wifi_config_t *conf)
+esp_err_t storage_open(nvs_open_mode_t open_mode)
 {
-    esp_err_t err;
-    nvs_handle handle;
-    size_t len;
-
-    storage_lock();
-    err = nvs_open(NVS_WIFI_NAMESPACE, NVS_READONLY, &handle);
+    storage_lock();   
+    esp_err_t err = nvs_open(NVS_DATA_NAMESPACE, open_mode, &storage_handle);
     if (err != ESP_OK) {
-        ESP_LOGW( TAG, "%s Error (%s) opening NVS handle!\n", __FUNCTION__, esp_err_to_name(err));
+        ESP_LOGW( TAG, "Error (%s) opening NVS %s(%s)!", NVS_DATA_NAMESPACE, NVS_READONLY == open_mode ? "r": "rw", esp_err_to_name(err) );
         storage_unlock();
-        memset(conf, 0x00, sizeof(wifi_config_t)); 
-        return;
-    }
-    /* ssid */
-    len = sizeof(conf->sta.ssid);
-    err = nvs_get_blob(handle, "wifi_ssid", conf->sta.ssid, &len);
-    if (ESP_OK != err || len != sizeof(conf->sta.ssid)) {
-        ESP_LOGW( TAG, "%s Error (%s) wifi_ssid!\n", __FUNCTION__, esp_err_to_name(err));
-        goto default_handle;
-    }
-    /* password */
-    len = sizeof(conf->sta.password);
-    err = nvs_get_blob(handle, "wifi_pwd", conf->sta.password, &len);
-    if (ESP_OK != err || len != sizeof(conf->sta.password)) {
-        ESP_LOGW( TAG, "%s Error (%s) wifi_pwd!\n", __FUNCTION__, esp_err_to_name(err));
-        goto default_handle;
-    }
-    /* bssid_set */
-    err = nvs_get_u8(handle, "wifi_bssid_set", (uint8_t*)&conf->sta.bssid_set);
-    if (ESP_OK != err) {
-        ESP_LOGW( TAG, "%s Error (%s) wifi_bssid_set!\n", __FUNCTION__, esp_err_to_name(err));
-        goto default_handle;
-    }
-    /* bssid */
-    if (conf->sta.bssid_set) {
-        len = sizeof(conf->sta.bssid);
-        err = nvs_get_blob(handle, "wifi_bssid", conf->sta.bssid, &len);
-        if (ESP_OK != err || len != sizeof(conf->sta.bssid)) {
-            ESP_LOGW( TAG, "%s Error (%s) bssid!\n", __FUNCTION__, esp_err_to_name(err));
-            goto default_handle;
-        }
-    }
-    nvs_close(handle);
-    storage_unlock();
-    return;
-default_handle:
-    nvs_close(handle);
-    storage_unlock();
-    memset(conf, 0x00, sizeof(wifi_config_t)); 
+    } 
+    return err;
 }
 
-void storage_write_wificonf(const wifi_config_t *conf)
+esp_err_t storage_close()
+{
+    nvs_close(storage_handle);
+    storage_unlock();
+    return ESP_OK;
+}
+
+esp_err_t storage_get_u16(const char *key, uint16_t *value)
+{
+    esp_err_t err = nvs_get_u16(storage_handle, key, value);
+    if (ESP_OK != err) 
+        ESP_LOGW( TAG, "get key(%s) value Error (%s)!", key, esp_err_to_name(err) ); 
+    return err;
+}
+
+esp_err_t storage_set_u16(const char *key, uint16_t value)
+{
+    esp_err_t err = nvs_set_u16(storage_handle, key, value);
+    if (ESP_OK != err) 
+        ESP_LOGW( TAG, "set key(%s) value Error (%s)!", key, esp_err_to_name(err) ); 
+    return err;
+}
+
+esp_err_t storage_get_i32(const char *key, int32_t *value)
+{
+    esp_err_t err = nvs_get_i32(storage_handle, key, value);
+    if (ESP_OK != err) 
+        ESP_LOGW( TAG, "get key(%s) value Error (%s)!", key, esp_err_to_name(err) ); 
+    return err;
+}
+
+esp_err_t storage_set_i32(const char *key, int32_t value)
+{
+    esp_err_t err = nvs_set_i32(storage_handle, key, value);
+    if (ESP_OK != err) 
+        ESP_LOGW( TAG, "set key(%s) value Error (%s)!", key, esp_err_to_name(err) ); 
+    return err;
+}
+
+esp_err_t storage_get_blob(const char *key, void *out_value, size_t maxlen, size_t *outlen)
+{
+    size_t len = maxlen;
+    esp_err_t err = nvs_get_blob(storage_handle, key, out_value, &len);
+    if (ESP_OK != err) 
+        ESP_LOGW( TAG, "get key(%s) value Error (%s)!", key, esp_err_to_name(err) );
+    return err;    
+}
+
+esp_err_t storage_set_blob(const char *key, const void *value, size_t len)
+{
+    esp_err_t err = nvs_set_blob(storage_handle, key, value, len);
+    if (ESP_OK != err) 
+        ESP_LOGW( TAG, "set key(%s) value Error (%s)!", key, esp_err_to_name(err) );
+    return err;
+}
+
+bool storage_read_wifi_sta(char ssid[32], char password[64])
 {
     esp_err_t err;
-    nvs_handle handle;
+    size_t len = 0;
 
-    storage_lock();
-    err = nvs_open(NVS_WIFI_NAMESPACE, NVS_READWRITE, &handle);
-    if (err != ESP_OK) {
-        ESP_LOGW( TAG, "%s Error (%s) opening NVS handle!\n", __FUNCTION__, esp_err_to_name(err));
-        storage_unlock();
-        return;
-    }
-    err = nvs_set_blob(handle, "wifi_ssid", conf->sta.ssid, sizeof(conf->sta.ssid));
-    if (ESP_OK != err) {
-        ESP_LOGW( TAG, "%s Error (%s) wifi_ssid!\n", __FUNCTION__, esp_err_to_name(err));
+    err = STORAGE_OPEN_R();
+    if (err != ESP_OK)
+        return false;
+
+    err = storage_get_blob("wifi_ssid", ssid, 32, &len);
+    if (ESP_OK != err)
         goto exit;
-    }
-    err = nvs_set_blob(handle, "wifi_pwd", conf->sta.password, sizeof(conf->sta.password));
-    if (ESP_OK != err) {
-        ESP_LOGW( TAG, "%s Error (%s) wifi_pwd!\n", __FUNCTION__, esp_err_to_name(err));
+
+    err = storage_get_blob("wifi_pwd", password, 64, &len);
+    if (ESP_OK != err)
         goto exit;
-    }
-    err = nvs_set_u8(handle, "wifi_bssid_set", conf->sta.bssid_set);
-    if (ESP_OK != err) {
-        ESP_LOGW( TAG, "%s Error (%s) wifi_bssid_set!\n", __FUNCTION__, esp_err_to_name(err));
-        goto exit;
-    }
-    err = nvs_set_blob(handle, "wifi_bssid", conf->sta.bssid, 6);
-    if (ESP_OK != err) {
-        ESP_LOGW( TAG, "%s Error (%s) wifi_bssid!\n", __FUNCTION__, esp_err_to_name(err));
-        goto exit;
-    }
-    ESP_ERROR_CHECK( nvs_commit(handle) );
+
 exit:    
-    nvs_close(handle);
-    storage_unlock();
+    STORAGE_CLOSE();
+    return ESP_OK == err;
 }
 
-void storage_read_tz(int *tz)
+bool storage_write_wifi_sta(const char ssid[32], const char password[64])
 {
     esp_err_t err;
-    nvs_handle handle;
 
-    storage_lock();
-    err = nvs_open(NVS_WIFI_NAMESPACE, NVS_READONLY, &handle);
-    if (err != ESP_OK) {
-        ESP_LOGW( TAG, "%s Error (%s) opening NVS handle!\n", __FUNCTION__, esp_err_to_name(err));
-        storage_unlock();
-        *tz = NVS_TZ_DEFAILT;
-        return;
-    }
-    err = nvs_get_i32(handle, "time_tz", tz);
-    if (ESP_OK != err) {
-        ESP_LOGW( TAG, "%s Error (%s) time_tz!\n", __FUNCTION__, esp_err_to_name(err));
-        *tz = NVS_TZ_DEFAILT;
-    } 
-    nvs_close(handle);
-    storage_unlock();
+    if (ESP_OK != STORAGE_OPEN_RW())
+        return false;
+
+    err = storage_set_blob("wifi_ssid", ssid, 32);
+    if (ESP_OK != err)
+        goto exit;
+
+    err = storage_set_blob("sta_pwd", password, 64);
+    if (ESP_OK != err)
+        goto exit;
+
+exit:  
+    if (ESP_OK == err) 
+        ESP_ERROR_CHECK(nvs_commit(storage_handle));    
+    STORAGE_CLOSE();
+    return ESP_OK == err;
 }
 
-void storage_write_tz(int tz)
+bool storage_read_tz(int32_t *tz)
 {
     esp_err_t err;
-    nvs_handle handle;
- 
-    storage_lock();   
-    err = nvs_open(NVS_WIFI_NAMESPACE, NVS_READWRITE, &handle);
-    if (err != ESP_OK) {
-        ESP_LOGW( TAG, "%s Error (%s) opening NVS handle!\n", __FUNCTION__, esp_err_to_name(err));
-        storage_unlock();
-        return;
-    }
-    err = nvs_set_i32(handle, "time_tz", tz);
-    if (ESP_OK != err) {
-        ESP_LOGW( TAG, "%s Error (%s) time_tz!\n", __FUNCTION__, esp_err_to_name(err));
-    } else {
-        ESP_ERROR_CHECK( nvs_commit(handle) );
-    }
-    nvs_close(handle);
-    storage_unlock();
+
+    if (ESP_OK != STORAGE_OPEN_R())
+        return false;
+
+    err = storage_get_i32("time_tz", tz);
+    if (ESP_OK != err)
+        goto exit;
+
+exit:    
+    STORAGE_CLOSE();
+    return ESP_OK == err; 
 }
 
-void storage_read_fan_duty(uint16_t *duty)
+bool storage_write_tz(int tz)
 {
     esp_err_t err;
-    nvs_handle handle;
 
-    storage_lock();   
-    err = nvs_open(NVS_WIFI_NAMESPACE, NVS_READONLY, &handle);
-    if (err != ESP_OK) {
-        ESP_LOGW( TAG, "%s Error (%s) opening NVS handle!\n", __FUNCTION__, esp_err_to_name(err));
-        storage_unlock();
-        *duty = NVS_FAN_DUTY_DEFAILT;
-        return;
-    }
-    err = nvs_get_u16(handle, "fan_duty", duty);
-    if (ESP_OK != err || INVALID_FAN_DUTY(*duty)) {
-        ESP_LOGW( TAG, "%s Error (%s) fan duty!\n", __FUNCTION__, esp_err_to_name(err));
-        *duty = NVS_FAN_DUTY_DEFAILT;
-    } 
-    nvs_close(handle);
-    storage_unlock();
+    if (ESP_OK != STORAGE_OPEN_RW())
+        return false;
+
+    err = storage_set_i32("time_tz", tz);
+    if (ESP_OK != err)
+        goto exit;
+
+exit:    
+    if (ESP_OK == err) 
+        ESP_ERROR_CHECK(nvs_commit(storage_handle));  
+    STORAGE_CLOSE();
+    return ESP_OK == err;
 }
 
-void storage_write_fan_duty(uint16_t duty)
+bool storage_read_fan_duty(uint16_t *duty)
 {
     esp_err_t err;
-    nvs_handle handle;
-    
-    storage_lock();   
-    err = nvs_open(NVS_WIFI_NAMESPACE, NVS_READWRITE, &handle);
-    if (err != ESP_OK) {
-        ESP_LOGW( TAG, "%s Error (%s) opening NVS handle!\n", __FUNCTION__, esp_err_to_name(err));
-        storage_unlock();
-        return;
-    }
-    err = nvs_set_u16(handle, "fan_duty", duty);
-    if (ESP_OK != err) {
-        ESP_LOGW( TAG, "%s Error (%s) fan duty!\n", __FUNCTION__, esp_err_to_name(err));
-    } else {
-        ESP_ERROR_CHECK( nvs_commit(handle) );
-    }
-    nvs_close(handle);
-    storage_unlock();
+
+    if (ESP_OK != STORAGE_OPEN_R())
+        return false;
+        
+    err = storage_get_u16("fan_duty", duty);
+    if (ESP_OK != err)
+        goto exit;
+
+exit:    
+    STORAGE_CLOSE();
+    return ESP_OK == err ;
+}
+
+bool storage_write_fan_duty(uint16_t duty)
+{
+    esp_err_t err;
+
+    if (ESP_OK != STORAGE_OPEN_RW())
+        return false;
+
+    err = storage_set_u16("fan_duty", duty);
+    if (ESP_OK != err)
+        goto exit;
+
+exit:    
+    if (ESP_OK == err) 
+        ESP_ERROR_CHECK(nvs_commit(storage_handle));  
+    STORAGE_CLOSE();
+    return ESP_OK == err;
 }
 
 #ifdef __cplusplus

@@ -1,18 +1,22 @@
 #include <string.h>
-#include <esp_log.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include <freertos/queue.h>
 #include <lwip/api.h>
 #include <cJSON.h>
-#include "wss_tsk.h"
+#include <esp_log.h>
+#include "websocket_server.h"
+#include "tsk_wss.h"
 #include "wss_cmd_handle.h"
 #include "ota.h"
 
 #define TAG                         "WSS"
-#define TSK_NAME                     TAG
+#define TSK_NAME                    TAG
 #define SERVER_TSK_STACK_SIZE       3072
 #define HANDLE_TSK_STACK_SIZE       4096
-#define WS_CLIENT_QUEUE_SIZE         10 
-#define WS_CLIENT_LIFETIME           (48 * 1000)
-#define WS_CLIENT_RECV_TIME          1000 
+#define WS_CLIENT_QUEUE_SIZE        10 
+#define WS_CLIENT_LIFETIME          (48 * 1000)
+#define WS_CLIENT_RECV_TIME         1000 
 
 void wss_client_reset(int num);
 void wss_server_tsk(void * parm);
@@ -22,49 +26,53 @@ void wss_callback_bin(uint8_t num, char *msg, uint64_t len);
 void wss_callback_text(uint8_t num, char* msg, uint64_t len);
 void wss_callback_disconnect(uint8_t num);
 
-wss_tsk_type _wss_tsk;
+static xTaskHandle     server_tsk_handle = NULL;
+static xTaskHandle     tsk_handle = NULL;
+static QueueHandle_t   clientQueue;
+static wss_client_t    clients[WEBSOCKET_SERVER_MAX_CLIENTS];
 
 void wss_client_reset(int num)
 {
-    _wss_tsk.clients[num].valid = false;
-    _wss_tsk.clients[num].lifetime = 0;  
+    clients[num].valid = false;
+    clients[num].lifetime = 0;  
 }
 
-void wss_tsk_init()
+void tsk_wss_init()
 {
-    _wss_tsk.serverTsk = NULL;
-    _wss_tsk.handleTsk = NULL;
-    _wss_tsk.clientQueue = xQueueCreate(WS_CLIENT_QUEUE_SIZE, sizeof(struct netconn*));
-    for(int i = 0; i < WEBSOCKET_SERVER_MAX_CLIENTS; i++) {
+    ESP_LOGI( TAG, " initialise" );
+    clientQueue = xQueueCreate(WS_CLIENT_QUEUE_SIZE, sizeof(struct netconn*));
+    for(int i = 0; i < WEBSOCKET_SERVER_MAX_CLIENTS; i++)
         wss_client_reset(i);
-    }
 }
 
-void wss_tsk_deinit()
+void tsk_wss_deinit()
 {
-
+    ESP_LOGI( TAG, "deinitialize" );
+    vQueueDelete(clientQueue);
 }
 
-void wss_tsk_start()
+void tsk_wss_start()
 {
-    if (!_wss_tsk.serverTsk) {
-        xTaskCreate(wss_server_tsk, "ws_server_tsk", SERVER_TSK_STACK_SIZE, NULL, 3, &_wss_tsk.serverTsk);
+    ESP_LOGI( TAG, "start" );
+    if (!server_tsk_handle) {
+        xTaskCreate(wss_server_tsk, "ws_server_tsk", SERVER_TSK_STACK_SIZE, NULL, 3, &server_tsk_handle);
     }
-    if (!_wss_tsk.handleTsk) {
-        xTaskCreate(wss_handle_tsk, "ws_handle_tsk", HANDLE_TSK_STACK_SIZE, NULL, 3, &_wss_tsk.handleTsk);
+    if (!tsk_handle) {
+        xTaskCreate(wss_handle_tsk, "ws_handle_tsk", HANDLE_TSK_STACK_SIZE, NULL, 3, &tsk_handle);
     }
     ws_server_start();
 }
 
-void wss_tsk_stop()
+void tsk_wss_stop()
 {
-    if (_wss_tsk.handleTsk) {
-        vTaskDelete(_wss_tsk.handleTsk);
-        _wss_tsk.handleTsk = NULL;
+    ESP_LOGI( TAG, "stop" );
+    if (tsk_handle) {
+        vTaskDelete(tsk_handle);
+        tsk_handle = NULL;
     }
-    if (_wss_tsk.serverTsk) {
-        vTaskDelete(_wss_tsk.serverTsk);
-        _wss_tsk.serverTsk = NULL;
+    if (server_tsk_handle) {
+        vTaskDelete(server_tsk_handle);
+        server_tsk_handle = NULL;
     }
     ws_server_stop();
 }
@@ -81,14 +89,14 @@ void wss_server_tsk(void * parm)
     while (1) {
         err = netconn_accept(conn, &client);
         if(err == ERR_OK) {
-            xQueueSendToBack(_wss_tsk.clientQueue, &client, portMAX_DELAY);
+            xQueueSendToBack(clientQueue, &client, portMAX_DELAY);
         } else {
             ESP_LOGW( TAG, "%s netconn_accept failure %d", __FUNCTION__, err);
         }
     }
     netconn_close(conn);
     netconn_delete(conn);
-    _wss_tsk.serverTsk = NULL;
+    server_tsk_handle = NULL;
     vTaskDelete(NULL);
 }
 
@@ -105,12 +113,12 @@ void wss_handle_tsk(void* parm)
     ESP_LOGI(TAG, "WebSocket Server Start handle");
     while (1) {
         client = NULL;
-        xQueueReceive(_wss_tsk.clientQueue, &client, pdMS_TO_TICKS(2000));
+        xQueueReceive(clientQueue, &client, pdMS_TO_TICKS(2000));
         if (!client) {
             for (client_num = 0; client_num < WEBSOCKET_SERVER_MAX_CLIENTS; client_num++) {
-                if (_wss_tsk.clients[client_num].valid) {
-                    _wss_tsk.clients[client_num].lifetime -= 2000;
-                    if (_wss_tsk.clients[client_num].lifetime < 0) {
+                if (clients[client_num].valid) {
+                    clients[client_num].lifetime -= 2000;
+                    if (clients[client_num].lifetime < 0) {
                         ESP_LOGI( TAG, "websocket client %d lifetime timeover, remove", client_num );
                         ws_server_remove_client(client_num); 
                     }
@@ -138,8 +146,8 @@ void wss_handle_tsk(void* parm)
             ESP_LOGI( TAG, "Requesting websocket on /" );
             client_num = ws_server_add_client( client, buf, buflen, "/", wss_callback);
             if (client_num >= 0) {
-                _wss_tsk.clients[client_num].valid = true;
-                _wss_tsk.clients[client_num].lifetime = WS_CLIENT_LIFETIME;
+                clients[client_num].valid = true;
+                clients[client_num].lifetime = WS_CLIENT_LIFETIME;
                 netbuf_delete(inbuf);
                 isWebSocket = true;
             } else {
@@ -155,7 +163,7 @@ next:
             netbuf_delete( inbuf ); 
         }
     }
-    _wss_tsk.handleTsk = NULL;
+    tsk_handle = NULL;
     vTaskDelete(NULL);
 }
 
@@ -164,7 +172,7 @@ void wss_callback(uint8_t num, WEBSOCKET_TYPE_t type, char* msg, uint64_t len)
     switch(type) {
     case WEBSOCKET_CONNECT:
         ESP_LOGI(TAG, "client[%i] connected!", num);
-        _wss_tsk.clients[num].lifetime = WS_CLIENT_LIFETIME;
+        clients[num].lifetime = WS_CLIENT_LIFETIME;
         return;
     case WEBSOCKET_BIN:
         //ESP_LOGI(TAG, "client[%i] sent binary message of size %i", num, (uint32_t)len);
@@ -172,7 +180,7 @@ void wss_callback(uint8_t num, WEBSOCKET_TYPE_t type, char* msg, uint64_t len)
         return;
     case WEBSOCKET_PING:
         //ESP_LOGI(TAG, "client[%i] pinged us with message of size %i", num, (uint32_t)len);
-        _wss_tsk.clients[num].lifetime = WS_CLIENT_LIFETIME;
+        clients[num].lifetime = WS_CLIENT_LIFETIME;
         return;
     case WEBSOCKET_PONG:
         //ESP_LOGI(TAG,"client[%i] responded to the ping",num);
@@ -219,7 +227,7 @@ void wss_callback_bin(uint8_t client, char *msg, uint64_t len)
             resp[1] = 0;
         }
     }
-    _wss_tsk.clients[client].lifetime = WS_CLIENT_LIFETIME;  
+    clients[client].lifetime = WS_CLIENT_LIFETIME;  
     resp[0] = msg[0];
     ws_server_send_bin_client_from_callback( client, resp, 2 );
 }
@@ -325,7 +333,7 @@ void wss_callback_text(uint8_t client, char* msg, uint64_t len)
         code = wss_respond_code_invalid_cmd;
         break;
     }
-    _wss_tsk.clients[client].lifetime = WS_CLIENT_LIFETIME;
+    clients[client].lifetime = WS_CLIENT_LIFETIME;
 send_respond: 
     cJSON_AddStringToObject(respone, "token", token);   
     cJSON_AddNumberToObject(respone, "cmd",   cmd);
