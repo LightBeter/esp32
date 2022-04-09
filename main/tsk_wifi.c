@@ -13,11 +13,11 @@
 
 #define TAG                         "WifiTsk"
 #define TSK_NAME                    TAG
-#define TSK_STACK_SIZE              3072
+#define TSK_STACK_SIZE              4096
 #define WIFI_AP_DEFAULT_PASSWORD    "00000000"
 #define WIFI_AP_MAX_STA_CONN        10
-
 #define WIFI_TSK_EVENT_STA_GOT_IP   BIT0
+#define WIFI_TSK_EVENT_AP_START     BIT1
 
 void wifi_start_sta();
 void wifi_start_ap();
@@ -165,7 +165,9 @@ void wifi_eventHandler(void* arg, esp_event_base_t event_base,
             if (wifi_tsk_state_sta == wifiState) esp_wifi_connect();
             ESP_LOGI( TAG, "station disconnected from AP" );
         } else if (WIFI_EVENT_AP_START == event_id) {
-            esp_netif_set_hostname(wifiApNetif, hostname());  
+            ESP_LOGI( TAG, "Soft AP Start" );
+            esp_netif_set_hostname(wifiApNetif, hostname()); 
+            xEventGroupSetBits(wifiEventGroup, WIFI_TSK_EVENT_AP_START); 
         }
     } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
         wifiConnected = true;
@@ -177,7 +179,6 @@ void wifi_eventHandler(void* arg, esp_event_base_t event_base,
 
 void wifi_tsk(void * parm)
 {
-    const EventBits_t uxBitsToWaitFor = WIFI_TSK_EVENT_STA_GOT_IP;
     bool        sta_done = false;
     uint32_t    tick = 0;
     EventBits_t uxBits;
@@ -185,13 +186,14 @@ void wifi_tsk(void * parm)
     /* wifi handle */
     if (strlen((char*)staSSID) == 0) {
         wifi_start_ap();
+        xEventGroupWaitBits(wifiEventGroup, WIFI_TSK_EVENT_AP_START, true, false, portMAX_DELAY); 
         goto time_sync_handle;
     }
     
     led_set_mode(INDICATOR_MODE_FLASH);
     wifi_start_sta();  
     while (tick++ < 60 && !sta_done) {
-        uxBits = xEventGroupWaitBits(wifiEventGroup, uxBitsToWaitFor, true, false, pdMS_TO_TICKS(1000)); 
+        uxBits = xEventGroupWaitBits(wifiEventGroup, WIFI_TSK_EVENT_STA_GOT_IP, true, false, pdMS_TO_TICKS(1000)); 
         if (uxBits & WIFI_TSK_EVENT_STA_GOT_IP) {
             sta_done = true;
             ESP_LOGI( TAG, "sta connect to ap done." );
@@ -201,7 +203,8 @@ void wifi_tsk(void * parm)
     if (!sta_done) {
         ESP_LOGI( TAG, "sta connect to ap time out, change to ap mode." );
         wifi_stop();
-        wifi_start_ap();  
+        wifi_start_ap();
+        xEventGroupWaitBits(wifiEventGroup, WIFI_TSK_EVENT_AP_START, true, false, portMAX_DELAY);   
     } 
 
 time_sync_handle:

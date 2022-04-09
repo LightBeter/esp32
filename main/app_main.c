@@ -7,7 +7,7 @@
 #include "tsk_wifi_scan.h"
 #include "tsk_wss.h"
 #include "tsk_udp_multicast.h"
-#include "tsk_temp_ctrl.h"
+#include "tsk_tempctrl.h"
 #include "tsk_ledctrl.h"
 #include "storage.h"
 #include "datetime.h"
@@ -20,6 +20,7 @@ void app_main() {
     ESP_ERROR_CHECK( esp_netif_init() );
     ESP_ERROR_CHECK( esp_event_loop_create_default() );
     storage_init();
+    datetime_init();
     tsk_wifi_init();
     tsk_init_wifi_scan();
     tsk_wss_init();

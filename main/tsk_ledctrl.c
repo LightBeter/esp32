@@ -9,7 +9,7 @@
 #include <freertos/event_groups.h>
 #include "tsk_ledctrl.h"
 #include "tsk_ledctrl_misc.h"
-#include "tsk_temp_ctrl.h"
+#include "tsk_tempctrl.h"
 #include "misc.h"
 
 #define TAG                         "LedCtrl"

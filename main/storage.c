@@ -209,7 +209,7 @@ bool storage_write_wifi_sta(const char ssid[32], const char password[64])
     if (ESP_OK != err)
         goto exit;
 
-    err = storage_set_blob("sta_pwd", password, 64);
+    err = storage_set_blob("wifi_pwd", password, 64);
     if (ESP_OK != err)
         goto exit;
 

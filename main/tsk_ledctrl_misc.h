@@ -7,9 +7,9 @@
 #define LED_CTRL_SCH_TIME_MAX       (24 * 60 -1)
 #define LED_CTRL_TSK_EVENT_UPDATE   BIT0
 
-#define is_vaild_mode(_mode_)     (_mode_ > -1 && _mode_ < LED_CTRL_MODE_COUNT)
-#define is_vaild_output(_val_)    (_val_ > -1 && _val_ <= LED_VALUE_MAX)
-#define is_vaild_sch_time(_t_)    (_t_ > -1 && _t <= LED_CTRL_SCH_TIME_MAX)
+#define is_vaild_mode(_mode_)     (_mode_>= 0  && _mode_ < LED_CTRL_MODE_COUNT)
+#define is_vaild_output(_val_)    (_val_ >= 0 && _val_ <= LED_VALUE_MAX)
+#define is_vaild_sch_time(_t_)    (_t_ >= 0 && _t_ <= LED_CTRL_SCH_TIME_MAX)
 
 typedef enum ledctrl_mode_tag {
     LED_CTRL_MODE_MANUAL = 0,

@@ -7,15 +7,8 @@ choice
         bool "LB150"
     config DEVICE_MODEL_LM25
         bool "LM25"
-endchoice
-
-choice
-    prompt "LED Driver type"
-    default LED_DRIVER_AL8860
-    config LED_DRIVER_AL8860
-        bool "AL8860"
-    config LED_DRIVER_H5118
-        bool "H5118"
+    config DEVICE_MODEL_LM15
+        bool "LM15"
 endchoice
 
 endmenu                             

@@ -198,7 +198,7 @@ void wss_callback(uint8_t num, WEBSOCKET_TYPE_t type, char* msg, uint64_t len)
         wss_callback_disconnect(num);
         break;
     case WEBSOCKET_TEXT:
-        ESP_LOGI(TAG, "client[%i] msg(%i): %s", num, (uint32_t)len, msg);
+        ESP_LOGI(TAG, "client[%i] sent: %s", num, msg);
         wss_callback_text(num, msg, len);
         break;
     }

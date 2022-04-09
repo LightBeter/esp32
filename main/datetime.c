@@ -149,21 +149,22 @@ void datetime_sync_sntp()
 
 void datetime_extrtc_init(void)
 {
-	i2c_config_t conf;
-	conf.mode = I2C_MODE_MASTER;
-	conf.sda_io_num = EXT_RTC_SDA_PIN;
-	conf.scl_io_num = EXT_RTC_SCL_PIN;
-	conf.sda_pullup_en = GPIO_PULLUP_ENABLE;
-	conf.scl_pullup_en = GPIO_PULLUP_ENABLE;
-	conf.master.clk_speed = 100000;
-    conf.clk_flags = I2C_SCLK_SRC_FLAG_FOR_NOMAL;
+    i2c_config_t conf = {
+        .mode = I2C_MODE_MASTER,
+        .sda_io_num = EXT_RTC_SDA_PIN,
+        .scl_io_num = EXT_RTC_SCL_PIN,
+        .sda_pullup_en = GPIO_PULLUP_ENABLE,
+        .scl_pullup_en = GPIO_PULLUP_ENABLE,
+        .master.clk_speed = 100000,
+        .clk_flags = I2C_SCLK_SRC_FLAG_FOR_NOMAL,
+    };
 	ESP_ERROR_CHECK( i2c_param_config(EXT_RTC_I2C_NUM, &conf) );
-	ESP_ERROR_CHECK( i2c_driver_install(EXT_RTC_I2C_NUM, I2C_MODE_MASTER, 0, 0, 0) );
+	ESP_ERROR_CHECK( i2c_driver_install(EXT_RTC_I2C_NUM, conf.mode, 0, 0, 0) );
 }
 
 void datetime_extrtc_deinit(void)
 {
-	ESP_ERROR_CHECK( i2c_driver_delete(I2C_NUM_0) );
+	ESP_ERROR_CHECK( i2c_driver_delete(EXT_RTC_I2C_NUM) );
 }
 
 

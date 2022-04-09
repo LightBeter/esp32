@@ -9,7 +9,7 @@
 #include "tsk_udp_multicast.h"
 #include "tsk_ledctrl.h"
 #include "tsk_ledctrl_misc.h"
-#include "tsk_temp_ctrl.h"
+#include "tsk_tempctrl.h"
 #include "tsk_wifi.h"
 #include "wss_cmd_handle.h"
 #include "multicast.pb.h"
@@ -271,7 +271,7 @@ void multicast_handle_tsk(void* parm)
             goto Next;
 
         if (wss_cmd_w_ledctrl_mode == packet.cmd && packet.has_modeParam) {
-            ledctrl_set_mode(packet.modeParam.sw, (led_mode_t)packet.modeParam.mode);
+            ledctrl_set_mode(packet.modeParam.sw, (ledctrl_mode_t)packet.modeParam.mode);
         }
 
         if (wss_cmd_w_ledctrl_manual == packet.cmd && packet.has_manualParam) {

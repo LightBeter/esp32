@@ -8,7 +8,16 @@
 extern "C" {
 #endif
 
-#define DEVICE_MODEL                      "RMS01"
+#if defined(CONFIG_DEVICE_MODEL_LB150) && CONFIG_DEVICE_MODEL_LB150
+#define DEVICE_MODEL                      "LB150"
+#elif defined(CONFIG_DEVICE_MODEL_LM25) && CONFIG_DEVICE_MODEL_LM25
+#define DEVICE_MODEL                      "LM25"
+#elif defined(CONFIG_DEVICE_MODEL_LM15) && CONFIG_DEVICE_MODEL_LM15
+#define DEVICE_MODEL                      "LM15"
+#else
+#error "Error, The device model is not defined!!"
+#endif
+
 #define GLOBAL_EVENT_REBOOT               BIT0
 #define GLOBAL_EVENT_RECOVERY_FACTORY     BIT1
 

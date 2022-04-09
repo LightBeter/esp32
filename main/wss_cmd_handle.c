@@ -3,7 +3,7 @@
 #include "wss_cmd_handle.h"
 #include "tsk_wss.h"
 #include "datetime.h"
-#include "tsk_temp_ctrl.h"
+#include "tsk_tempctrl.h"
 #include "tsk_ledctrl.h"
 #include "tsk_ledctrl_misc.h"
 #include "tsk_wifi_scan.h"
