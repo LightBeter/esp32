@@ -34,7 +34,7 @@ void app_main() {
     global_event_init();
     ota_init();
     /* Start Service & Task */
-    mdns_start();
+    //mdns_start();
     tsk_tempctrl_start();
     tsk_ledctrl_start();
     tsk_wifi_start();
@@ -58,7 +58,7 @@ void app_main() {
     tsk_wifi_stop();
     tsk_ledctrl_stop();
     tsk_tempctrl_stop();
-    mdns_stop();
+    //mdns_stop();
     /* Deinitialise */
     tsk_udp_multicast_deinit();
     tsk_wss_deinit();

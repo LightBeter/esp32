@@ -76,6 +76,7 @@ void tsk_wifi_stop()
         vTaskDelete(tsk_handle);
         tsk_handle = NULL; 
     }
+    mdns_stop();
     wifi_stop();
 }
 
@@ -209,6 +210,7 @@ void wifi_tsk(void * parm)
 
 time_sync_handle:
     led_set_mode(INDICATOR_MODE_OPEN);
+    mdns_start();
     tsk_udp_multicast_start();
     /* sntp handle */
     while(1) {

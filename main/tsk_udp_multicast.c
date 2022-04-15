@@ -22,7 +22,7 @@
 #define UDP_MULTICAST_PORT                     9966
 #define UDP_MULTICAST_RECV_TSK_STACK_SIZE      4096
 #define UDP_MULTICAST_HANDLE_TSK_STACK_SIZE    4096
-#define UDP_MULTICAST_DIST_MAX_SIZE            256
+#define UDP_MULTICAST_DIST_MAX_SIZE            512
 
 void multicast_recv_tsk(void * parm);
 void multicast_handle_tsk(void * parm);
@@ -177,9 +177,9 @@ void tsk_udp_multicast_stop()
     }
 
     if (sock >= 0) {
-        ESP_LOGE(TAG, "shutdown socket");
+        ESP_LOGI(TAG, "shutdown socket");
         shutdown(sock, 0);
-        // ESP_LOGE(TAG, "close socket");
+        // ESP_LOGI(TAG, "close socket");
         // close(sock);
         sock = -1;
     }
@@ -231,9 +231,10 @@ void multicast_recv_tsk(void* parm)
 
 void multicast_handle_tsk(void* parm) 
 {
+    static led_value_t values[LED_CHAN_COUNT];
     udp_multicast_packet_t *rawPacket = NULL;
     pb_istream_t    stream;
-    led_value_t values[LED_CHAN_COUNT];
+
 
     while (1) { 
         xQueueReceive(handleQueue, &rawPacket, portMAX_DELAY);
