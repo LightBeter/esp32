@@ -64,6 +64,8 @@ void tsk_wifi_deinit()
 void tsk_wifi_start()
 {
     ESP_LOGI( TAG, "start" );
+    esp_netif_set_hostname(wifiStaNetif, hostname());
+    esp_netif_set_hostname(wifiApNetif, hostname()); 
     if (!tsk_handle) {
         xTaskCreate(wifi_tsk, TAG, TSK_STACK_SIZE, NULL, 5, &tsk_handle);
     }
@@ -153,12 +155,12 @@ void wifi_eventHandler(void* arg, esp_event_base_t event_base,
 {
     if (event_base == WIFI_EVENT) {
         if (WIFI_EVENT_STA_START == event_id) {
-            esp_netif_set_hostname(wifiStaNetif, hostname());
+            //esp_netif_set_hostname(wifiStaNetif, hostname());
             esp_wifi_connect();
             ESP_LOGI( TAG, "station start" );
         } else if (WIFI_EVENT_STA_STOP == event_id) {
             wifiConnected = false;
-            ESP_LOGI( TAG, "sstation start" );
+            ESP_LOGI( TAG, "station stop" );
         } else if (WIFI_EVENT_STA_CONNECTED == event_id) {
             ESP_LOGI( TAG, "station connected from AP" );
         } else if (WIFI_EVENT_STA_DISCONNECTED == event_id) {
@@ -167,7 +169,7 @@ void wifi_eventHandler(void* arg, esp_event_base_t event_base,
             ESP_LOGI( TAG, "station disconnected from AP" );
         } else if (WIFI_EVENT_AP_START == event_id) {
             ESP_LOGI( TAG, "Soft AP Start" );
-            esp_netif_set_hostname(wifiApNetif, hostname()); 
+            //esp_netif_set_hostname(wifiApNetif, hostname()); 
             xEventGroupSetBits(wifiEventGroup, WIFI_TSK_EVENT_AP_START); 
         }
     } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
@@ -191,7 +193,7 @@ void wifi_tsk(void * parm)
         goto time_sync_handle;
     }
     
-    led_set_mode(INDICATOR_MODE_FLASH);
+    indicator_set_flash(true);
     wifi_start_sta();  
     while (tick++ < 60 && !sta_done) {
         uxBits = xEventGroupWaitBits(wifiEventGroup, WIFI_TSK_EVENT_STA_GOT_IP, true, false, pdMS_TO_TICKS(1000)); 
@@ -209,7 +211,7 @@ void wifi_tsk(void * parm)
     } 
 
 time_sync_handle:
-    led_set_mode(INDICATOR_MODE_OPEN);
+    indicator_set_flash(false);
     mdns_start();
     tsk_udp_multicast_start();
     /* sntp handle */

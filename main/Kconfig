@@ -2,7 +2,7 @@ menu "Application"
 
 choice
     prompt "Device Model"
-    default DEVICE_MODEL_LB150
+    default DEVICE_MODEL_LM25
     config DEVICE_MODEL_LB150
         bool "LB150"
     config DEVICE_MODEL_LM25

@@ -9,6 +9,7 @@ extern "C" {
 
 void storage_init();
 void storage_deinit();
+void storage_delete_all();
 bool storage_read_appdesc(esp_app_desc_t *app_info);
 bool storage_read_wifi_sta(char ssid[32], char password[64]);
 bool storage_write_wifi_sta(const char ssid[32], const char password[64]);

@@ -26,12 +26,6 @@ typedef enum {
    INDICATOR_CHAN_AUTO,
 } Indicator_chen_t;
 
-typedef enum {
-    INDICATOR_MODE_OPEN = 0,
-    INDICATOR_MODE_CLOSE,
-    INDICATOR_MODE_FLASH,
-} Indicator_mode_t;
-
 void app_version_init();
 const char* app_version();
 
@@ -44,12 +38,11 @@ const char* hostname();
 void mdns_start();
 void mdns_stop();
 
-void led_init();
-void led_update();
-void led_set_chan(Indicator_chen_t chan);
-void led_set_mode(Indicator_mode_t mode);
-
-
+void indicator_init();
+void indicator_update();
+void indicator_set_chan(Indicator_chen_t chan);
+void indicator_set_flash(bool flash);
+void indicator_set_state(bool state);
 
 void global_event_init();
 void global_event_set(const EventBits_t uxBitsToSet);

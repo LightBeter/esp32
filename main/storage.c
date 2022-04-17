@@ -8,11 +8,12 @@
 #include <esp_log.h>
 #include "storage.h"
 
-#define TAG                  "storage"
-#define NVS_DATA_NAMESPACE   "app_wifi"
-#define STORAGE_OPEN_R()     storage_open(NVS_READONLY)
-#define STORAGE_OPEN_RW()    storage_open(NVS_READWRITE)
-#define STORAGE_CLOSE()      storage_close(&storage_handle)
+#define TAG                     "storage"
+#define SPIFFS_PARTITION_LABLE  "app_data"
+#define NVS_DATA_NAMESPACE      "app_wifi"
+#define STORAGE_OPEN_R()        storage_open(NVS_READONLY)
+#define STORAGE_OPEN_RW()       storage_open(NVS_READWRITE)
+#define STORAGE_CLOSE()         storage_close(&storage_handle)
 
 #ifdef __cplusplus
 extern "C" {
@@ -95,6 +96,27 @@ void storage_deinit()
     spiffs_deinit();
     ESP_ERROR_CHECK(nvs_flash_deinit());
 }
+
+void storage_delete_all()
+{
+    esp_err_t err;
+    /* format nvs */
+    if (ESP_OK == STORAGE_OPEN_RW()) {
+        err = nvs_erase_all(storage_handle);
+        if (ESP_OK != err) {
+            ESP_LOGE( TAG, "nvs erase all failure %d", err);
+        } else {
+            nvs_commit(storage_handle);
+        }
+        STORAGE_CLOSE();
+    }
+    /* format spiffs */
+    err = esp_spiffs_format(NULL);
+    if (ESP_OK != err) {
+        ESP_LOGE( TAG, "spiffs format failure %d", err);
+    } 
+}
+
 
 bool storage_read_appdesc(esp_app_desc_t *app_info)
 {

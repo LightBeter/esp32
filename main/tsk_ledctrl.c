@@ -46,7 +46,7 @@ void tsk_ledctrl_init()
     memset(&led_demo, 0x00, sizeof(ledctrl_demo_t));
     /* load led ctrl config  */
     ledctrl_read_config();
-    led_set_chan(LED_CTRL_MODE_MANUAL == led_mode ? INDICATOR_CHAN_MANUAL : INDICATOR_CHAN_AUTO);
+    indicator_set_chan(LED_CTRL_MODE_MANUAL == led_mode ? INDICATOR_CHAN_MANUAL : INDICATOR_CHAN_AUTO);
 }
 
 void tsk_ledctrl_deinit()
@@ -114,6 +114,7 @@ void led_ctrl_tsk(void * parm)
 {
     const EventBits_t uxBitsToWaitFor = LED_CTRL_TSK_EVENT_UPDATE;
     led_chan_t index = 0;
+    bool indicator_state = false;
 
     led_ctrl_boot_play();
     while (1) 
@@ -139,10 +140,13 @@ void led_ctrl_tsk(void * parm)
                 led_ctrl_get_by_sch();
             }
         }
+        indicator_state = led_sw;
         tsk_ledctrl_unlock();
         for (index = 0; index < LED_CHAN_COUNT; index++)
             led_pwm_output(index, led_output[index]);
-        led_set_chan(LED_CTRL_MODE_MANUAL == led_mode ? INDICATOR_CHAN_MANUAL : INDICATOR_CHAN_AUTO);
+
+        indicator_set_state(indicator_state);
+        indicator_set_chan(LED_CTRL_MODE_MANUAL == led_mode ? INDICATOR_CHAN_MANUAL : INDICATOR_CHAN_AUTO);
         xEventGroupWaitBits(led_event_group, uxBitsToWaitFor, true, false, pdMS_TO_TICKS(1000)); 
     }
 }

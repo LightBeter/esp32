@@ -16,6 +16,7 @@
 #define EXT_RTC_SCL_PIN     17
 #define EXT_RTC_SDA_PIN     16
 #define DS1307_ADDRESS      0x68
+#define I2C_MASTER_TIMEOUT_MS    (1000 / portTICK_PERIOD_MS)
 
 void sntp_sync_cb(struct timeval *tv);
 uint8_t intToBCD(uint8_t num);
@@ -178,6 +179,7 @@ uint8_t bcdToInt(uint8_t bcd) {
 
 esp_err_t datetime_extrtc_read(time_t *t)
 {	
+    struct tm tm;
     uint8_t data[7];
 	esp_err_t errRc;
     
@@ -189,14 +191,13 @@ esp_err_t datetime_extrtc_read(time_t *t)
 	ESP_ERROR_CHECK( i2c_master_write_byte(cmd, (DS1307_ADDRESS << 1) | I2C_MASTER_READ, 1 /* expect ack */) );
 	ESP_ERROR_CHECK( i2c_master_read(cmd, data, 7, I2C_MASTER_LAST_NACK) );
 	ESP_ERROR_CHECK( i2c_master_stop(cmd) );
-    errRc = i2c_master_cmd_begin( EXT_RTC_I2C_NUM, cmd, 1000/portTICK_PERIOD_MS);
+    errRc = i2c_master_cmd_begin( EXT_RTC_I2C_NUM, cmd, I2C_MASTER_TIMEOUT_MS);
     i2c_cmd_link_delete(cmd);
     if (errRc != ESP_OK) {
 		ESP_LOGE( TAG, "%s: i2c_master_cmd_begin: %d", __FUNCTION__, errRc );
         return errRc;
 	}
 
-	struct tm tm;
 	tm.tm_sec  = bcdToInt(data[0]);
 	tm.tm_min  = bcdToInt(data[1]);
 	tm.tm_hour = bcdToInt(data[2]);
@@ -212,6 +213,7 @@ esp_err_t datetime_extrtc_read(time_t *t)
 void datetime_extrtc_write(time_t t)
 {
     uint8_t data[7];
+    esp_err_t errRc;
 	struct tm tm;
 	
     gmtime_r(&t, &tm);
@@ -223,14 +225,13 @@ void datetime_extrtc_write(time_t t)
     data[5] = intToBCD(tm.tm_mon+1);
     data[6] = intToBCD(tm.tm_year-100);
 
-	esp_err_t errRc;
 	i2c_cmd_handle_t cmd = i2c_cmd_link_create();
 	ESP_ERROR_CHECK(i2c_master_start(cmd));
 	ESP_ERROR_CHECK(i2c_master_write_byte( cmd, (DS1307_ADDRESS << 1) | I2C_MASTER_WRITE, 1 /* expect ack */));
 	ESP_ERROR_CHECK(i2c_master_write_byte( cmd, 0x0, 1));
 	ESP_ERROR_CHECK(i2c_master_write( cmd, data, 7, 1) );
 	ESP_ERROR_CHECK(i2c_master_stop(cmd));
-	errRc = i2c_master_cmd_begin(EXT_RTC_I2C_NUM, cmd, 1000/portTICK_PERIOD_MS);
+	errRc = i2c_master_cmd_begin(EXT_RTC_I2C_NUM, cmd, I2C_MASTER_TIMEOUT_MS);
     i2c_cmd_link_delete(cmd);
 	if (errRc != ESP_OK) {
 		ESP_LOGE( TAG, "%s: i2c_master_cmd_begin: %d", __FUNCTION__, errRc );
@@ -254,5 +255,5 @@ void datetime_sync_extrtc()
         tm = localtime(&tv.tv_sec);
         ESP_LOGI( TAG, "%s: set new date/time %s", __FUNCTION__, asctime(tm) );
     }
-    doneTime = tv.tv_sec;
+    doneTime = time(NULL);
 }

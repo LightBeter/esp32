@@ -171,6 +171,7 @@ void tsk_udp_multicast_stop()
         vTaskDelete(recv_tsk_handle);
         recv_tsk_handle = NULL;
     }
+    
     if (tsk_handle) {
         vTaskDelete(tsk_handle);
         tsk_handle = NULL;
