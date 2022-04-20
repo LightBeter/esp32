@@ -198,13 +198,13 @@ esp_err_t datetime_extrtc_read(time_t *t)
         return errRc;
 	}
 
-	tm.tm_sec  = bcdToInt(data[0]);
-	tm.tm_min  = bcdToInt(data[1]);
-	tm.tm_hour = bcdToInt(data[2]);
-    tm.tm_wday = bcdToInt(data[3]) - 1;
-	tm.tm_mday = bcdToInt(data[4]);
-	tm.tm_mon  = bcdToInt(data[5]) - 1; // 0-11 - Note: The month on the DS1307 is 1-12.
-	tm.tm_year = bcdToInt(data[6]) + 100; // Years since 1900
+	tm.tm_sec  = bcdToInt(data[0] & 0x7f);
+	tm.tm_min  = bcdToInt(data[1] & 0x7f);
+	tm.tm_hour = bcdToInt(data[2] & 0x3f);
+    tm.tm_wday = bcdToInt(data[3] & 0x07) - 1;
+	tm.tm_mday = bcdToInt(data[4] & 0x3f);
+	tm.tm_mon  = bcdToInt(data[5] & 0x1f) - 1; // 0-11 - Note: The month on the DS1307 is 1-12.
+	tm.tm_year = bcdToInt(data[6] & 0xff) + 100; // Years since 1900
 	*t = mktime(&tm) - (timezone * 60);
     ESP_LOGI( TAG, "%s: read external rtc date/time is %s", __FUNCTION__, asctime(&tm) );
 	return ESP_OK;
@@ -217,13 +217,16 @@ void datetime_extrtc_write(time_t t)
 	struct tm tm;
 	
     gmtime_r(&t, &tm);
-    data[0] = intToBCD(tm.tm_sec);
-    data[1] = intToBCD(tm.tm_min);
-    data[2] = intToBCD(tm.tm_hour);
-    data[3] = intToBCD(tm.tm_wday+1);
-    data[4] = intToBCD(tm.tm_mday);
-    data[5] = intToBCD(tm.tm_mon+1);
-    data[6] = intToBCD(tm.tm_year-100);
+    data[0] = intToBCD(tm.tm_sec) & 0x7f;
+    data[1] = intToBCD(tm.tm_min) & 0x7f;
+    data[2] = intToBCD(tm.tm_hour) & 0x3f;
+    data[3] = intToBCD(tm.tm_wday+1) & 0x07;
+    data[4] = intToBCD(tm.tm_mday) & 0x3f;
+    data[5] = intToBCD(tm.tm_mon+1) & 0x1f;
+    data[6] = intToBCD(tm.tm_year-100) & 0xff;
+
+    ESP_LOGI( TAG, "%s: write %02X%02X%02X%02X%02X%02X%02X", __FUNCTION__, 
+                    data[0], data[1], data[2], data[3], data[4], data[5], data[6]);
 
 	i2c_cmd_handle_t cmd = i2c_cmd_link_create();
 	ESP_ERROR_CHECK(i2c_master_start(cmd));
