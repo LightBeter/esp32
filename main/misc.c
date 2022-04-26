@@ -128,6 +128,7 @@ void indicator_set_state(bool state)
 void indicator_update()
 {    
     static uint8_t heartbeat = 0;
+    
     if (true == led_flash) {
         led_level = ~led_level & 0x1;
     } else if (true == led_state) {
