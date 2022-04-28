@@ -225,8 +225,8 @@ void datetime_extrtc_write(time_t t)
     data[5] = intToBCD(tm.tm_mon+1) & 0x1f;
     data[6] = intToBCD(tm.tm_year-100) & 0xff;
 
-    ESP_LOGI( TAG, "%s: write %02X%02X%02X%02X%02X%02X%02X", __FUNCTION__, 
-                    data[0], data[1], data[2], data[3], data[4], data[5], data[6]);
+    // ESP_LOGI( TAG, "%s: write %02X%02X%02X%02X%02X%02X%02X", __FUNCTION__, 
+    //                 data[0], data[1], data[2], data[3], data[4], data[5], data[6]);
 
 	i2c_cmd_handle_t cmd = i2c_cmd_link_create();
 	ESP_ERROR_CHECK(i2c_master_start(cmd));

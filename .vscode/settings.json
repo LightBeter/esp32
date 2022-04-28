@@ -136,7 +136,11 @@
 		"pb.h": "c",
 		"tsk_led_ctrl.h": "c",
 		"tsk_ledctrl_misc.h": "c",
-		"tsk_ledctrl.h": "c"
+		"tsk_ledctrl.h": "c",
+		"gpio.h": "c",
+		"gpio_periph.h": "c",
+		"soc_caps.h": "c",
+		"format": "c"
 	},
 
 	"powershell.integratedConsole.suppressStartupBanner": true,

@@ -3,7 +3,7 @@
 #include <freertos/queue.h>
 #include <driver/gpio.h>
 #include <esp_log.h>
-
+#include <time.h>
 #include "tsk_key.h"
 #include "misc.h"
 #include "tsk_ledctrl_misc.h"
@@ -21,7 +21,7 @@ static xQueueHandle gpio_evt_queue = NULL;
 
 void key_isr_handler(void* arg)
 {
-    uint8_t level = gpio_get_level(KEY_GPIO_PIN) & 0x1;
+    uint8_t level = gpio_get_level(KEY_GPIO_PIN);
     xQueueSendFromISR(gpio_evt_queue, &level, NULL);
 }
 
@@ -29,13 +29,13 @@ void tsk_key_init()
 {
     gpio_config_t io_conf;
     ESP_LOGI( TAG, "initialize" );
-    io_conf.intr_type = GPIO_INTR_ANYEDGE;
+    io_conf.intr_type = GPIO_INTR_NEGEDGE;
     io_conf.mode = GPIO_MODE_INPUT;
     io_conf.pin_bit_mask = 1ULL << KEY_GPIO_PIN;
     io_conf.pull_down_en = 0;
     io_conf.pull_up_en = 0;
     gpio_config(&io_conf);
-    gpio_evt_queue = xQueueCreate(12, sizeof(uint8_t));
+    gpio_evt_queue = xQueueCreate(4, sizeof(uint8_t));
 }
 
 void tsk_key_deinit()
@@ -77,25 +77,27 @@ void tsk_key_stop()
 
 void key_tsk(void * parm)
 {
-    uint8_t hold_time = 0;
-    uint8_t state = KEY_STATE_UP, level;
+    //uint8_t hold_time = 0;
+    uint8_t preLevel = KEY_STATE_UP, level;
+    clock_t tstart, tend;
 
-    while(hold_time < 5) {
-        if(xQueueReceive(gpio_evt_queue, &level, pdMS_TO_TICKS(1000))) {
-            hold_time = 0;
-            if (level == state)
-                continue;
-
-            state = level;
-            if (KEY_STATE_UP == state) {
-                /* key up */
+    tstart = tend = clock();
+    while (1) {    
+        if (pdTRUE != xQueueReceive(gpio_evt_queue, &level, pdMS_TO_TICKS(300))) {
+            level = gpio_get_level(KEY_GPIO_PIN)
+            ;
+        }       
+        tend = clock();
+        if (KEY_STATE_UP == level) {
+            tstart = tend;
+            if (level != preLevel)
                 ledctrl_set_mode(!ledctrl_switch(), ledctrl_mode());
-            } 
         } else {
-            hold_time = (KEY_STATE_DOWN == state) ? (hold_time + 1) : 0;
+            if ((tend - tstart) > (5 * CLOCKS_PER_SEC))
+                break;
         }
+        preLevel = level;
     }
-
     global_event_set(GLOBAL_EVENT_RECOVERY_FACTORY);
     tsk_handle = NULL;    
     vTaskDelete(NULL);

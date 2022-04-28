@@ -1,11 +1,8 @@
 #ifndef _TSK_KEY_H_
 #define _TSK_KEY_H_
 
-typedef enum {
-    KEY_STATE_DOWN = 0,
-    KEY_STATE_UP   = 1,
-} key_state_t;
-
+#define KEY_STATE_DOWN  0
+#define KEY_STATE_UP    1
 
 void tsk_key_init();
 void tsk_key_deinit();
