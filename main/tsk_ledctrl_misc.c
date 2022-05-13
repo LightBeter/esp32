@@ -220,7 +220,7 @@ void ledctrl_read_config()
 default_handle:
     /* default manual */
     for (index = 0; index < LED_CHAN_COUNT; index++)
-        led_manual[index] = LED_VALUE_MAX * 0.25;
+        led_manual[index] = LED_VALUE_MAX * 0.3;
     /* default schedule */
     ledctrl_clean_sch();
     led_schedule[0].valid = true;
@@ -243,7 +243,7 @@ default_handle:
     led_mode = LED_CTRL_MODE_SCHEDULE;
     led_sw = false;
     led_schedule_Id = 0;
-    led_power = LED_VALUE_MAX;
+    led_power = LED_VALUE_MAX / 2;
     if (file) 
         fclose(file);
     return;
