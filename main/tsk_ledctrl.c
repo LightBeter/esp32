@@ -59,7 +59,7 @@ void tsk_ledctrl_deinit()
 void tsk_ledctrl_start()
 {
     if (!tsk_handle)
-        xTaskCreate(led_ctrl_tsk, TSK_NAME, TSK_STACK_SIZE, NULL, 3, &tsk_handle);
+        xTaskCreate(led_ctrl_tsk, TSK_NAME, TSK_STACK_SIZE, NULL, TSK_PRIORITY_LEDCTRL, &tsk_handle);
 }
 
 void tsk_ledctrl_stop()
@@ -70,7 +70,7 @@ void tsk_ledctrl_stop()
     }
     /* close all led */
     for (int index = 0; index < LED_CHAN_COUNT; index++)
-        led_pwm_output(index, 0) ;
+        led_pwm_output(index, 0);
 }
 
 void tsk_ledctrl_lock()

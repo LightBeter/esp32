@@ -18,6 +18,14 @@ extern "C" {
 #error "Error, The device model is not defined!!"
 #endif
 
+#define TSK_PRIORITY_LEDCTRL           8
+#define TSK_PRIORITY_TEMPCTRL          8
+#define TSK_PRIORITY_WIFI              7
+#define TSK_PRIORITY_WIFISCAN          7
+#define TSK_PRIORITY_WSS               6
+#define TSK_PRIORITY_MULTICAST         5
+#define TSK_PRIORITY_KEY               2
+
 #define GLOBAL_EVENT_REBOOT               BIT0
 #define GLOBAL_EVENT_RECOVERY_FACTORY     BIT1
 
@@ -50,6 +58,8 @@ EventBits_t global_event_wait(const EventBits_t uxBitsToWaitFor,
                               const BaseType_t xClearOnExit,
                               const BaseType_t xWaitForAllBits,
                               TickType_t xTicksToWait);
+
+void hearbeat_update();
 
 #ifdef __cplusplus
 }

@@ -152,7 +152,7 @@ void tsk_udp_multicast_start()
                     "multicast_handle_tsk", 
                     UDP_MULTICAST_HANDLE_TSK_STACK_SIZE, 
                     NULL, 
-                    3, 
+                    TSK_PRIORITY_MULTICAST, 
                     &tsk_handle);
     }
     if (!recv_tsk_handle) {
@@ -160,7 +160,7 @@ void tsk_udp_multicast_start()
                     "multicast_recv_tsk", 
                     UDP_MULTICAST_RECV_TSK_STACK_SIZE,
                     NULL, 
-                    3, 
+                    TSK_PRIORITY_MULTICAST, 
                     &recv_tsk_handle);
     }
 }

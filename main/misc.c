@@ -144,7 +144,13 @@ void indicator_update()
         gpio_set_level(LED_1_GPIO_PIN, LED_CLOSE_LEVEL);
         gpio_set_level(LED_2_GPIO_PIN, led_level);
     }
+    heartbeat = ~heartbeat & 0x1;
+    gpio_set_level(LED_3_GPIO_PIN, heartbeat);
+}
 
+void hearbeat_update()
+{
+    static uint8_t heartbeat = 0;
     heartbeat = ~heartbeat & 0x1;
     gpio_set_level(LED_3_GPIO_PIN, heartbeat);
 }

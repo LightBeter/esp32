@@ -8,6 +8,7 @@
 #include "websocket_server.h"
 #include "tsk_wss.h"
 #include "wss_cmd_handle.h"
+#include "misc.h"
 #include "ota.h"
 
 #define TAG                         "WSS"
@@ -55,10 +56,10 @@ void tsk_wss_start()
 {
     ESP_LOGI( TAG, "start" );
     if (!server_tsk_handle) {
-        xTaskCreate(wss_server_tsk, "ws_server_tsk", SERVER_TSK_STACK_SIZE, NULL, 3, &server_tsk_handle);
+        xTaskCreate(wss_server_tsk, "ws_server_tsk", SERVER_TSK_STACK_SIZE, NULL, TSK_PRIORITY_WSS, &server_tsk_handle);
     }
     if (!tsk_handle) {
-        xTaskCreate(wss_handle_tsk, "ws_handle_tsk", HANDLE_TSK_STACK_SIZE, NULL, 3, &tsk_handle);
+        xTaskCreate(wss_handle_tsk, "ws_handle_tsk", HANDLE_TSK_STACK_SIZE, NULL, TSK_PRIORITY_WSS, &tsk_handle);
     }
     ws_server_start();
 }

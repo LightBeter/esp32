@@ -102,12 +102,20 @@ void storage_delete_all()
     esp_err_t err;
     /* format nvs */
     if (ESP_OK == STORAGE_OPEN_RW()) {
+#if 1        
+        nvs_erase_key(storage_handle, "wifi_ssid");
+        nvs_erase_key(storage_handle, "wifi_pwd");
+        nvs_erase_key(storage_handle, "time_tz");
+        nvs_erase_key(storage_handle, "fan_duty");
+        nvs_commit(storage_handle);
+#else
         err = nvs_erase_all(storage_handle);
         if (ESP_OK != err) {
             ESP_LOGE( TAG, "nvs erase all failure %d", err);
         } else {
             nvs_commit(storage_handle);
         }
+#endif
         STORAGE_CLOSE();
     }
     /* format spiffs */

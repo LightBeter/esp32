@@ -21,7 +21,7 @@ static xQueueHandle gpio_evt_queue = NULL;
 
 void key_isr_handler(void* arg)
 {
-    uint8_t level = gpio_get_level(KEY_GPIO_PIN);
+    uint8_t level = KEY_STATE_DOWN;//gpio_get_level(KEY_GPIO_PIN);
     xQueueSendFromISR(gpio_evt_queue, &level, NULL);
 }
 
@@ -35,7 +35,7 @@ void tsk_key_init()
     io_conf.pull_down_en = 0;
     io_conf.pull_up_en = 0;
     gpio_config(&io_conf);
-    gpio_evt_queue = xQueueCreate(4, sizeof(uint8_t));
+    gpio_evt_queue = xQueueCreate(2, sizeof(uint8_t));
 }
 
 void tsk_key_deinit()
@@ -58,7 +58,7 @@ void tsk_key_start()
 {
     ESP_LOGI( TAG, "start" );
     if (!tsk_handle) {
-        xTaskCreate(key_tsk, TAG, TSK_STACK_SIZE, NULL, 5, &tsk_handle);
+        xTaskCreate(key_tsk, TAG, TSK_STACK_SIZE, NULL, TSK_PRIORITY_KEY, &tsk_handle);
     }
     gpio_install_isr_service(KEY_INTR_FLAG_DEFAULT);
     gpio_isr_handler_add(KEY_GPIO_PIN, key_isr_handler, NULL);
@@ -77,16 +77,14 @@ void tsk_key_stop()
 
 void key_tsk(void * parm)
 {
-    //uint8_t hold_time = 0;
     uint8_t preLevel = KEY_STATE_UP, level;
     clock_t tstart, tend;
 
     tstart = tend = clock();
     while (1) {    
-        if (pdTRUE != xQueueReceive(gpio_evt_queue, &level, pdMS_TO_TICKS(300))) {
-            level = gpio_get_level(KEY_GPIO_PIN)
-            ;
-        }       
+        if (pdTRUE != xQueueReceive(gpio_evt_queue, &level, pdMS_TO_TICKS(600))) {
+            level = gpio_get_level(KEY_GPIO_PIN);
+        }  
         tend = clock();
         if (KEY_STATE_UP == level) {
             tstart = tend;

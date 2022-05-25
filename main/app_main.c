@@ -59,7 +59,7 @@ void app_main() {
     tsk_tempctrl_start();
     tsk_ledctrl_start();
     tsk_wifi_start();
-    tsk_start_wifi_scan();
+    tsk_wifi_scan_start();
     tsk_wss_start();
     tsk_key_start();
     while (1) {
@@ -79,7 +79,7 @@ void app_main() {
     /* Stop Service & Task */
     tsk_udp_multicast_stop();
     tsk_wss_stop();
-    tsk_stop_wifi_scan();
+    tsk_wifi_scan_stop();
     tsk_wifi_stop();
     tsk_ledctrl_stop();
     tsk_tempctrl_stop();

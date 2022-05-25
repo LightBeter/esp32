@@ -10,6 +10,7 @@
 #include "tsk_tempctrl.h"
 #include "tsk_ledctrl_misc.h"
 #include "storage.h"
+#include "misc.h"
 #include "ringbuffer.h"
 
 #define TAG                         "TempCtrlTsk"
@@ -133,7 +134,7 @@ void tsk_tempctrl_start()
 {
     ESP_LOGI( TAG, "start" );
     if (!tsk_handle) 
-        xTaskCreate(temp_ctrl_tsk, TSK_NAME, TSK_STACK_SIZE, NULL, 4, &tsk_handle);
+        xTaskCreate(temp_ctrl_tsk, TSK_NAME, TSK_STACK_SIZE, NULL, TSK_PRIORITY_TEMPCTRL, &tsk_handle);
 }
 
 void tsk_tempctrl_stop()

@@ -9,6 +9,7 @@
 #include "tsk_wifi_scan.h"
 #include "wss_cmd_handle.h"
 #include "websocket_server.h"
+#include "misc.h"
 
 #define TAG                           "tsk_wifiscan"
 #define TSK_STACK_SIZE                4096
@@ -43,15 +44,15 @@ void tsk_deinit_wifi_scan()
     vEventGroupDelete(wifi_scan_event_handle);
 }
 
-void tsk_start_wifi_scan()
+void tsk_wifi_scan_start()
 {
     ESP_LOGI( TAG, "start" );
     if (!tsk_handle) {
-        xTaskCreate(wifi_ap_scan_tsk, TAG, TSK_STACK_SIZE, NULL, 5, &tsk_handle);
+        xTaskCreate(wifi_ap_scan_tsk, TAG, TSK_STACK_SIZE, NULL, TSK_PRIORITY_WIFISCAN, &tsk_handle);
     }
 }
 
-void tsk_stop_wifi_scan()
+void tsk_wifi_scan_stop()
 {
     ESP_LOGI( TAG, "stop" );
     if (tsk_handle) {
@@ -101,7 +102,7 @@ void wifi_ap_scan_tsk(void * parm)
     bool scan_done = true;
 
     while (1) {
-        uxBits = xEventGroupWaitBits(wifi_scan_event_handle, uxBitsToWaitFor, true, false, pdMS_TO_TICKS(1000)); 
+        uxBits = xEventGroupWaitBits(wifi_scan_event_handle, uxBitsToWaitFor, true, false, portMAX_DELAY); 
         if (uxBits & WIFI_SCAN_TSK_EVENT_DONE) {
             wifi_ap_num = WIFI_SCAN_MAX;
             scan_done = true;
@@ -114,6 +115,7 @@ void wifi_ap_scan_tsk(void * parm)
             ESP_ERROR_CHECK( esp_wifi_scan_start(&wifi_scan_config, false) );
         }
     }
+    tsk_handle = NULL;
     vTaskDelete(NULL);
 }
 

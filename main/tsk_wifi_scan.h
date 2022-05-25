@@ -9,8 +9,8 @@ extern "C" {
 
 void tsk_init_wifi_scan();
 void tsk_deinit_wifi_scan();
-void tsk_start_wifi_scan();
-void tsk_stop_wifi_scan();
+void tsk_wifi_scan_start();
+void tsk_wifi_scan_stop();
 void tsk_trigger_wifi_scan(int client);
 
 #ifdef __cplusplus
