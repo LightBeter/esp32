@@ -226,6 +226,10 @@ void temp_ctrl_fan_update()
             }
         }
     }
+
+    if (output > 0 && output < 40)
+        output = 40;
+
     ledc_set_duty(FAN_PWM_SPEED_MODE, FAN_PWM_CHANNEL, (output / 100.0) * FAN_PWM_DUTY_MAX );
     ledc_update_duty(FAN_PWM_SPEED_MODE, FAN_PWM_CHANNEL);
 }
