@@ -42,7 +42,7 @@ void app_main() {
     storage_init();
     datetime_init();
     tsk_wifi_init();
-    tsk_init_wifi_scan();
+    tsk_wifi_scan_init();
     tsk_wss_init();
     tsk_udp_multicast_init();
     tsk_tempctrl_init();

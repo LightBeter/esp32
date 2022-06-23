@@ -14,7 +14,7 @@ void ota_lock();
 void ota_unlock();
 
 static esp_ota_handle_t        handle;
-static SemaphoreHandle_t       mutex;
+static SemaphoreHandle_t       mutex = NULL;
 static const esp_partition_t  *partition = NULL;
 static ota_state_t ota_state = OTA_IDLE;
 static int       ota_client = 0;

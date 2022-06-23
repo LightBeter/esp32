@@ -1,8 +1,8 @@
 #ifndef _TSK_UDP_MULTICASE_H
 #define _TSK_UDP_MULTICASE_H
 
-#define UDP_MULTICAST_PACKET_MAX_SIZE       384
-#define UDP_MULTICAST_PACKET_POOL_SIZE      6
+#define UDP_MULTICAST_PACKET_MAX_SIZE       256
+#define UDP_MULTICAST_PACKET_POOL_SIZE      4
 
 #ifdef __cplusplus
 extern "C" {

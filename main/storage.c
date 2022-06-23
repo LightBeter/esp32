@@ -28,7 +28,7 @@ esp_err_t storage_set_i32(const char *key, int32_t value);
 esp_err_t storage_get_blob(const char *key, void *out_value, size_t maxlen, size_t *outlen);
 esp_err_t storage_set_blob(const char *key, const void *value, size_t len);
 
-static SemaphoreHandle_t storage_mutex;
+static SemaphoreHandle_t storage_mutex = NULL;
 static nvs_handle        storage_handle;
 
 void storage_lock()
@@ -78,6 +78,7 @@ void storage_init()
 {
     esp_err_t ret;
     ESP_LOGI( TAG, "initialize" );
+    storage_mutex  = xSemaphoreCreateMutex();
     /* Initialize NVS */
     ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
@@ -85,8 +86,7 @@ void storage_init()
       ret = nvs_flash_init();
     }
     ESP_ERROR_CHECK(ret);
-    spiffs_init();
-    storage_mutex  = xSemaphoreCreateMutex();
+    spiffs_init();   
 }
 
 void storage_deinit()

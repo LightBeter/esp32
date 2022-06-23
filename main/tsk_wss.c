@@ -56,10 +56,10 @@ void tsk_wss_start()
 {
     ESP_LOGI( TAG, "start" );
     if (!server_tsk_handle) {
-        xTaskCreate(wss_server_tsk, "ws_server_tsk", SERVER_TSK_STACK_SIZE, NULL, TSK_PRIORITY_WSS, &server_tsk_handle);
+        xTaskCreatePinnedToCore(wss_server_tsk, "ws_server_tsk", SERVER_TSK_STACK_SIZE, NULL, TSK_PRIORITY_WSS, &server_tsk_handle, 1);
     }
     if (!tsk_handle) {
-        xTaskCreate(wss_handle_tsk, "ws_handle_tsk", HANDLE_TSK_STACK_SIZE, NULL, TSK_PRIORITY_WSS, &tsk_handle);
+        xTaskCreatePinnedToCore(wss_handle_tsk, "ws_handle_tsk", HANDLE_TSK_STACK_SIZE, NULL, TSK_PRIORITY_WSS, &tsk_handle, 1);
     }
     ws_server_start();
 }

@@ -7,7 +7,7 @@
 extern "C" {
 #endif
 
-void tsk_init_wifi_scan();
+void tsk_wifi_scan_init();
 void tsk_deinit_wifi_scan();
 void tsk_wifi_scan_start();
 void tsk_wifi_scan_stop();

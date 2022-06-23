@@ -134,7 +134,7 @@ void tsk_tempctrl_start()
 {
     ESP_LOGI( TAG, "start" );
     if (!tsk_handle) 
-        xTaskCreate(temp_ctrl_tsk, TSK_NAME, TSK_STACK_SIZE, NULL, TSK_PRIORITY_TEMPCTRL, &tsk_handle);
+        xTaskCreatePinnedToCore(temp_ctrl_tsk, TSK_NAME, TSK_STACK_SIZE, NULL, TSK_PRIORITY_TEMPCTRL, &tsk_handle, 0);
 }
 
 void tsk_tempctrl_stop()

@@ -67,7 +67,7 @@ void tsk_wifi_start()
     esp_netif_set_hostname(wifiStaNetif, hostname());
     esp_netif_set_hostname(wifiApNetif, hostname()); 
     if (!tsk_handle) {
-        xTaskCreate(wifi_tsk, TAG, TSK_STACK_SIZE, NULL, TSK_PRIORITY_WIFISCAN, &tsk_handle);
+        xTaskCreatePinnedToCore(wifi_tsk, TAG, TSK_STACK_SIZE, NULL, TSK_PRIORITY_WIFISCAN, &tsk_handle, 0);
     }
 }
 

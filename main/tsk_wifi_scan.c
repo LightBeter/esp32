@@ -30,7 +30,7 @@ static wifi_ap_record_t   wifi_ap_list[WIFI_SCAN_MAX];
 static uint16_t    wifi_ap_num = 0;
 static uint16_t    trigger_scan_clientFlags = 0;
 
-void tsk_init_wifi_scan()
+void tsk_wifi_scan_init()
 {
     ESP_LOGI( TAG, "initialize" );
     mutex = xSemaphoreCreateMutex();
@@ -48,7 +48,7 @@ void tsk_wifi_scan_start()
 {
     ESP_LOGI( TAG, "start" );
     if (!tsk_handle) {
-        xTaskCreate(wifi_ap_scan_tsk, TAG, TSK_STACK_SIZE, NULL, TSK_PRIORITY_WIFISCAN, &tsk_handle);
+        xTaskCreatePinnedToCore(wifi_ap_scan_tsk, TAG, TSK_STACK_SIZE, NULL, TSK_PRIORITY_WIFISCAN, &tsk_handle, 1);
     }
 }
 

@@ -22,7 +22,7 @@ void led_ctrl_tsk(void * parm);
 void led_ctrl_boot_play();
 
 static xTaskHandle         tsk_handle = NULL; 
-static SemaphoreHandle_t   mutex;
+static SemaphoreHandle_t   mutex = NULL;
 EventGroupHandle_t  led_event_group;
 led_value_t         led_output[LED_CHAN_COUNT];
 bool                led_sw = false;  
@@ -59,7 +59,7 @@ void tsk_ledctrl_deinit()
 void tsk_ledctrl_start()
 {
     if (!tsk_handle)
-        xTaskCreate(led_ctrl_tsk, TSK_NAME, TSK_STACK_SIZE, NULL, TSK_PRIORITY_LEDCTRL, &tsk_handle);
+        xTaskCreatePinnedToCore(led_ctrl_tsk, TSK_NAME, TSK_STACK_SIZE, NULL, TSK_PRIORITY_LEDCTRL, &tsk_handle, 1);
 }
 
 void tsk_ledctrl_stop()

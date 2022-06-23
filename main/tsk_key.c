@@ -58,7 +58,7 @@ void tsk_key_start()
 {
     ESP_LOGI( TAG, "start" );
     if (!tsk_handle) {
-        xTaskCreate(key_tsk, TAG, TSK_STACK_SIZE, NULL, TSK_PRIORITY_KEY, &tsk_handle);
+        xTaskCreatePinnedToCore(key_tsk, TAG, TSK_STACK_SIZE, NULL, TSK_PRIORITY_KEY, &tsk_handle, 0);
     }
     gpio_install_isr_service(KEY_INTR_FLAG_DEFAULT);
     gpio_isr_handler_add(KEY_GPIO_PIN, key_isr_handler, NULL);

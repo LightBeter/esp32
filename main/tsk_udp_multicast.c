@@ -22,7 +22,7 @@
 #define UDP_MULTICAST_PORT                     9966
 #define UDP_MULTICAST_RECV_TSK_STACK_SIZE      4096
 #define UDP_MULTICAST_HANDLE_TSK_STACK_SIZE    4096
-#define UDP_MULTICAST_DIST_MAX_SIZE            512
+#define UDP_MULTICAST_DIST_MAX_SIZE            256
 
 void multicast_recv_tsk(void * parm);
 void multicast_handle_tsk(void * parm);
@@ -127,6 +127,7 @@ err_handle:
 void tsk_udp_multicast_init()
 {
     udp_multicast_packet_t *packet;
+
     handleQueue = xQueueCreate(UDP_MULTICAST_PACKET_POOL_SIZE, sizeof(udp_multicast_packet_t*));
     freeQueue = xQueueCreate(UDP_MULTICAST_PACKET_POOL_SIZE, sizeof(udp_multicast_packet_t*));
     for (int i = 0; i < UDP_MULTICAST_PACKET_POOL_SIZE; i++) {
@@ -148,20 +149,22 @@ void tsk_udp_multicast_start()
         return;
 
     if (!tsk_handle) {
-        xTaskCreate(multicast_handle_tsk, 
+        xTaskCreatePinnedToCore(multicast_handle_tsk, 
                     "multicast_handle_tsk", 
                     UDP_MULTICAST_HANDLE_TSK_STACK_SIZE, 
                     NULL, 
                     TSK_PRIORITY_MULTICAST, 
-                    &tsk_handle);
+                    &tsk_handle,
+                    1);
     }
     if (!recv_tsk_handle) {
-        xTaskCreate(multicast_recv_tsk, 
+        xTaskCreatePinnedToCore(multicast_recv_tsk, 
                     "multicast_recv_tsk", 
                     UDP_MULTICAST_RECV_TSK_STACK_SIZE,
                     NULL, 
                     TSK_PRIORITY_MULTICAST, 
-                    &recv_tsk_handle);
+                    &recv_tsk_handle,
+                    1);
     }
 }
 
@@ -219,10 +222,9 @@ void multicast_recv_tsk(void* parm)
         socklen = sizeof(raddr);
         packet->len = recvfrom(sock, packet->data, UDP_MULTICAST_PACKET_MAX_SIZE, 0, (struct sockaddr*)&raddr, &socklen);
         if (packet->len <= 0 || packet->len > UDP_MULTICAST_PACKET_MAX_SIZE) {
-            ESP_LOGE(TAG, "multicast recvfrom failed, size(%d) errno %d", packet->len, errno );
+            ESP_LOGE(TAG, "multicast recvfrom failed, size(%d) errno %d", packet->len, errno);
             continue;
         }
-
         xQueueSend(handleQueue, &packet, portMAX_DELAY);
         packet = NULL;
     }
