@@ -111,12 +111,15 @@ void tsk_tempctrl_init()
     if (!storage_read_fan_duty(&fanDuty)) {
         fanDuty = FAN_DUTY_DEFAILT;
         storage_write_fan_duty(fanDuty);
-    }
+    } 
 
     if (INVALID_FAN_DUTY(fanDuty)) {
         ESP_LOGW( TAG, "invalid fan duty %d\n", fanDuty);
         fanDuty = FAN_DUTY_DEFAILT;  
     }
+
+    ledc_set_duty(FAN_PWM_SPEED_MODE, FAN_PWM_CHANNEL, 0);
+    ledc_update_duty(FAN_PWM_SPEED_MODE, FAN_PWM_CHANNEL);
 }
 
 void tsk_tempctrl_deinit()

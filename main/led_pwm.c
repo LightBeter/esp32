@@ -5,7 +5,7 @@
 #include "led_pwm.h"
 
 #define TAG                             "LedPwm"
-#define LED_PWM_SPEED_MODE              LEDC_HIGH_SPEED_MODE
+#define LED_PWM_SPEED_MODE              LEDC_LOW_SPEED_MODE //LEDC_HIGH_SPEED_MODE
 #define LED_PWM_TIMER                   LEDC_TIMER_0
 #define LED_PWM_DUTY_RESOLUTION         LEDC_TIMER_11_BIT
 #define LED_PWM_DUTY_MAX                ((0x1 << LED_PWM_DUTY_RESOLUTION) - 1)
@@ -80,13 +80,39 @@ void led_pwm_initialise()
     }
 #if defined(LED_PWM_FADE_ENABLE) && (LED_PWM_FADE_ENABLE == 1)
     ESP_ERROR_CHECK( ledc_fade_func_install(0) );
-#endif
+    for (int i = 0; i < LED_CHAN_COUNT; i++) {
+        ledc_set_fade_step_and_start(ledc_chan_cfg[i].speed_mode, 
+                                     ledc_chan_cfg[i].channel, 
+                                     0, 
+                                     LED_PWM_FADE_SCALE,
+                                     LED_PWM_FADE_CYCLE_NUM, 
+                                     LEDC_FADE_WAIT_DONE);
+    }
+#else 
+    for (int i = 0; i < LED_CHAN_COUNT; i++) {
+        ledc_set_duty(ledc_chan_cfg[i].speed_mode, ledc_chan_cfg[i].channel, 0);
+        ledc_update_duty(ledc_chan_cfg[i].speed_mode, ledc_chan_cfg[i].channel);
+    }
+#endif  
 }
 
 void led_pwm_deinitialise()
 {
 #if defined(LED_PWM_FADE_ENABLE) && (LED_PWM_FADE_ENABLE == 1)
+    for (int i = 0; i < LED_CHAN_COUNT; i++) {
+        ledc_set_fade_step_and_start(ledc_chan_cfg[i].speed_mode, 
+                                     ledc_chan_cfg[i].channel, 
+                                     0, 
+                                     LED_PWM_FADE_SCALE,
+                                     LED_PWM_FADE_CYCLE_NUM, 
+                                     LEDC_FADE_WAIT_DONE);
+    }
     ledc_fade_func_uninstall();
+#else
+    for (int i = 0; i < LED_CHAN_COUNT; i++) {
+        ledc_set_duty(ledc_chan_cfg[i].speed_mode, ledc_chan_cfg[i].channel, 0);
+        ledc_update_duty(ledc_chan_cfg[i].speed_mode, ledc_chan_cfg[i].channel);
+    }        
 #endif    
 }
 
@@ -136,10 +162,18 @@ void led_pwm_output_play(led_chan_t ch, led_value_t percent, uint32_t scale)
        targ = 0; 
     } else {
        targ = ledc_output_cfg[ch].range * (percent - 5) / LED_VALUE_MAX + ledc_output_cfg[ch].min;
-    }                           
+    }
+#if defined(LED_PWM_FADE_ENABLE) && (LED_PWM_FADE_ENABLE == 1)                                
     ledc_set_fade_step_and_start(ledc_chan_cfg[ch].speed_mode, ledc_chan_cfg[ch].channel,
                                  targ * LED_PWM_DUTY_MAX / LED_VALUE_MAX, 
                                  scale,
                                  LED_PWM_FADE_CYCLE_NUM,
                                  LEDC_FADE_NO_WAIT);
+#else    
+    ledc_set_duty(ledc_chan_cfg[ch].speed_mode, 
+                  ledc_chan_cfg[ch].channel, 
+                  targ * LED_PWM_DUTY_MAX / LED_VALUE_MAX);
+    ledc_update_duty(ledc_chan_cfg[ch].speed_mode,
+                     ledc_chan_cfg[ch].channel);
+#endif
 }

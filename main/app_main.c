@@ -45,8 +45,8 @@ void app_main() {
     tsk_wifi_scan_init();
     tsk_wss_init();
     tsk_udp_multicast_init();
-    tsk_tempctrl_init();
     tsk_ledctrl_init();
+    tsk_tempctrl_init();
     tsk_key_init();
     app_version_init();
     serialnum_init();
@@ -56,8 +56,8 @@ void app_main() {
     ota_init();
     /* Start Service & Task */
     //mdns_start();
-    tsk_tempctrl_start();
     tsk_ledctrl_start();
+    tsk_tempctrl_start();
     tsk_wifi_start();
     tsk_wifi_scan_start();
     tsk_wss_start();
@@ -81,8 +81,8 @@ void app_main() {
     tsk_wss_stop();
     tsk_wifi_scan_stop();
     tsk_wifi_stop();
-    tsk_ledctrl_stop();
     tsk_tempctrl_stop();
+    tsk_ledctrl_stop();
     //mdns_stop();
     /* Deinitialise */
     tsk_key_deinit();
@@ -90,8 +90,8 @@ void app_main() {
     tsk_wss_deinit();
     tsk_deinit_wifi_scan();
     tsk_wifi_deinit();
-    tsk_ledctrl_deinit();
     tsk_tempctrl_deinit();
+    tsk_ledctrl_deinit();
     ota_deinit();
     datetime_deinit();
     if (uxBits & GLOBAL_EVENT_RECOVERY_FACTORY)
