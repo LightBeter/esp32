@@ -170,7 +170,7 @@ void ledctrl_read_config()
     /* led switch */
     ret = fread(&led_sw, sizeof(bool), 1, file);
     if (ret != 1) {
-        ESP_LOGE(TAG, "Failed to read config param led switch");
+        ESP_LOGW(TAG, "Failed to read config param led switch");
         goto default_handle;
     }
     /* mode */

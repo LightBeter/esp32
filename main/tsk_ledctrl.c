@@ -54,6 +54,7 @@ void tsk_ledctrl_deinit()
     led_ctrl_save_config();
     vEventGroupDelete(led_event_group);
     vSemaphoreDelete(mutex);
+    led_pwm_deinitialise();
 }
 
 void tsk_ledctrl_start()

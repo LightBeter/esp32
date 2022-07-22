@@ -108,8 +108,10 @@ void tsk_tempctrl_init()
     for (int index = 0; index < ADC_CHAN_COUNT; index++)
         ringbuffer_init( &adcBufs[index], ADC_BUFFER_LEN );
 
-    if (!storage_read_fan_duty(&fanDuty))
+    if (!storage_read_fan_duty(&fanDuty)) {
         fanDuty = FAN_DUTY_DEFAILT;
+        storage_write_fan_duty(fanDuty);
+    }
 
     if (INVALID_FAN_DUTY(fanDuty)) {
         ESP_LOGW( TAG, "invalid fan duty %d\n", fanDuty);

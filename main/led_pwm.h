@@ -34,6 +34,7 @@ typedef struct {
 } led_chan_state_t;
 
 void led_pwm_initialise();
+void led_pwm_deinitialise();
 void led_pwm_output(led_chan_t ch, led_value_t percent);
 void led_pwm_output_play(led_chan_t ch, led_value_t percent, uint32_t scale);
 

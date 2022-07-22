@@ -10,7 +10,7 @@ choice
     config DEVICE_MODEL_LM15
         bool "LM15"
     config DEVICE_MODEL_LM30
-        bool "LM15"
+        bool "LM30"
 endchoice
 
 endmenu                             

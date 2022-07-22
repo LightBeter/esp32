@@ -83,6 +83,13 @@ void led_pwm_initialise()
 #endif
 }
 
+void led_pwm_deinitialise()
+{
+#if defined(LED_PWM_FADE_ENABLE) && (LED_PWM_FADE_ENABLE == 1)
+    ledc_fade_func_uninstall();
+#endif    
+}
+
 void led_pwm_output(led_chan_t ch, led_value_t percent)
 {
     uint32_t targ;

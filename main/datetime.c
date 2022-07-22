@@ -37,6 +37,7 @@ void datetime_init()
     /* initial timezone */
     if (!storage_read_tz(&timezone)) {
         timezone = DEFAILT_TZ;
+        storage_write_tz(timezone);
     }
     datetime_set_tz(timezone);
     /* initial datetime */
