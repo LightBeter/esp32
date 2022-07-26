@@ -8,7 +8,7 @@
 #include "tsk_ledctrl.h"
 
 #define TAG                "LedCtrl"
-#define TSK_NAME               TAG
+#define TSK_NAME            TAG
 
 extern EventGroupHandle_t  led_event_group;
 extern led_value_t         led_output[LED_CHAN_COUNT];
@@ -185,6 +185,7 @@ void ledctrl_read_config()
         ESP_LOGE(TAG, "Failed to read config param manual");
         goto default_handle;
     }
+
     for (index = 0; index < LED_CHAN_COUNT; index++) {
         if (!is_vaild_output(led_manual[index]))
             goto default_handle;
@@ -195,11 +196,13 @@ void ledctrl_read_config()
         ESP_LOGE(TAG, "Failed to read config param schedule id");
         goto default_handle;
     }
+
     ret = fread(led_schedule, sizeof(led_sch_item_t), LED_CTRL_SCH_MAX, file);
     if (ret != LED_CTRL_SCH_MAX) {
         ESP_LOGE(TAG, "Failed to read config param schedule");
         goto default_handle;
     }
+
     for (index = 0; index < LED_CTRL_SCH_MAX; index++) {
         if (!led_schedule[index].valid)
             continue;
@@ -211,30 +214,37 @@ void ledctrl_read_config()
             if (!is_vaild_output(led_schedule[index].targ[chl]))
                 goto default_handle;
     }
+
     ret = fread(&led_power, sizeof(led_value_t), 1, file);
     if (ret != 1 || !is_vaild_output(led_power)) {
         led_power = LED_VALUE_MAX;
     }
+
     fclose(file);
     return;
+
 default_handle:
     /* default manual */
     for (index = 0; index < LED_CHAN_COUNT; index++)
         led_manual[index] = LED_VALUE_MAX * 0.3;
+
     /* default schedule */
     ledctrl_clean_sch();
     led_schedule[0].valid = true;
     led_schedule[0].time  = 6 * 60;
     for (index = 0; index < LED_CHAN_COUNT; index++) 
         led_schedule[0].targ[index] = LED_VALUE_MIN;
+
     led_schedule[1].valid = true;
     led_schedule[1].time  = 12 * 60;
     for (index = 0; index < LED_CHAN_COUNT; index++) 
         led_schedule[1].targ[index] = LED_VALUE_MAX * 0.5;
+
     led_schedule[2].valid = true;
     led_schedule[2].time  = 15 * 60;
     for (index = 0; index < LED_CHAN_COUNT; index++) 
         led_schedule[2].targ[index] = LED_VALUE_MAX * 0.5;
+
     led_schedule[3].valid = true;
     led_schedule[3].time  = 19 * 60;
     for (index = 0; index < LED_CHAN_COUNT; index++) 
@@ -244,8 +254,10 @@ default_handle:
     led_sw = false;
     led_schedule_Id = 0;
     led_power = LED_VALUE_MAX / 2;
+
     if (file) 
         fclose(file);
+    ledctrl_write_config();        
     return;
 }
 
@@ -283,11 +295,13 @@ void ledctrl_write_config()
         ESP_LOGE(TAG, "Failed to write config param schedule id");
         goto exit;
     }
+    
     ret = fwrite(led_schedule, sizeof(led_sch_item_t), LED_CTRL_SCH_MAX, file);
     if (ret != LED_CTRL_SCH_MAX) {
         ESP_LOGE(TAG, "Failed to write config param schedule");
         goto exit;
     }
+    
     ret = fwrite(&led_power, sizeof(led_value_t), 1, file);
     if (ret != 1) {
         ESP_LOGE(TAG, "Failed to write config param schedule");

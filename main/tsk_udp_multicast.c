@@ -29,7 +29,7 @@ void multicast_handle_tsk(void * parm);
 bool multicast_match_name(const char *list);
 bool read_string(pb_istream_t *stream, const pb_field_t *field, void **arg);
 
-static xTaskHandle     recv_tsk_handle = NULL;
+static xTaskHandle     tsk_recv = NULL;
 static xTaskHandle     tsk_handle = NULL;
 static QueueHandle_t   freeQueue;
 static QueueHandle_t   handleQueue;
@@ -150,29 +150,29 @@ void tsk_udp_multicast_start()
 
     if (!tsk_handle) {
         xTaskCreatePinnedToCore(multicast_handle_tsk, 
-                    "multicast_handle_tsk", 
+                    "multi_tsk", 
                     UDP_MULTICAST_HANDLE_TSK_STACK_SIZE, 
                     NULL, 
                     TSK_PRIORITY_MULTICAST, 
                     &tsk_handle,
                     1);
     }
-    if (!recv_tsk_handle) {
+    if (!tsk_recv) {
         xTaskCreatePinnedToCore(multicast_recv_tsk, 
-                    "multicast_recv_tsk", 
+                    "multi_recv_tsk", 
                     UDP_MULTICAST_RECV_TSK_STACK_SIZE,
                     NULL, 
                     TSK_PRIORITY_MULTICAST, 
-                    &recv_tsk_handle,
+                    &tsk_recv,
                     1);
     }
 }
 
 void tsk_udp_multicast_stop()
 {
-    if (recv_tsk_handle) {
-        vTaskDelete(recv_tsk_handle);
-        recv_tsk_handle = NULL;
+    if (tsk_recv) {
+        vTaskDelete(tsk_recv);
+        tsk_recv = NULL;
     }
     
     if (tsk_handle) {
@@ -228,7 +228,7 @@ void multicast_recv_tsk(void* parm)
         xQueueSend(handleQueue, &packet, portMAX_DELAY);
         packet = NULL;
     }
-    recv_tsk_handle = NULL;
+    tsk_recv = NULL;
     vTaskDelete(NULL);
 }
 

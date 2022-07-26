@@ -14,7 +14,7 @@
 #define TAG                         "WSS"
 #define TSK_NAME                    TAG
 #define SERVER_TSK_STACK_SIZE       3072
-#define HANDLE_TSK_STACK_SIZE       4096
+#define HANDLE_TSK_STACK_SIZE       5120 //4096
 #define WS_CLIENT_QUEUE_SIZE        10 
 #define WS_CLIENT_LIFETIME          (48 * 1000)
 #define WS_CLIENT_RECV_TIME         1000 

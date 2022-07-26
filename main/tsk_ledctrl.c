@@ -87,7 +87,7 @@ void tsk_ledctrl_unlock()
 void led_ctrl_save_config()
 {
     if (led_preSaveToken != led_curSaveToken) {
-        ledctrl_write_config(led_sw, led_mode, led_manual, led_schedule_Id, led_power, led_schedule);
+        ledctrl_write_config();
         led_preSaveToken = led_curSaveToken;
     }
 }
