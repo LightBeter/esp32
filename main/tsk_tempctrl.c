@@ -15,7 +15,7 @@
 
 #define TAG                         "TempCtrlTsk"
 #define TSK_NAME                    TAG
-#define TSK_STACK_SIZE              4096
+#define TSK_STACK_SIZE              (4 * 1024)
 #define TEMP_CTRL_SAMPLE_INTERVAL   200
 #define TEMP_CTRL_INTERVAL          (1000 / TEMP_CTRL_SAMPLE_INTERVAL)
 
@@ -36,7 +36,7 @@
 #define TEMP_CTRL_T3                50
 #define TEMP_CTRL_T4                56
 
-#define FAN_PWM_SPEED_MODE          LEDC_HIGH_SPEED_MODE
+#define FAN_PWM_SPEED_MODE          LEDC_LOW_SPEED_MODE
 #define FAN_PWM_TIMER               LEDC_TIMER_1
 #define FAN_PWM_GPIO                GPIO_CHAN_FAN
 #define FAN_PWM_CHANNEL             LEDC_CHANNEL_7

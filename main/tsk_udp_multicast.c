@@ -20,8 +20,8 @@
 #define LISTEN_ALL_IF                          0
 #define UDP_MULTICAST_ADDR                     "238.0.0.8"
 #define UDP_MULTICAST_PORT                     9966
-#define UDP_MULTICAST_RECV_TSK_STACK_SIZE      4096
-#define UDP_MULTICAST_HANDLE_TSK_STACK_SIZE    4096
+#define UDP_MULTICAST_RECV_TSK_STACK_SIZE      (4 * 1024)
+#define UDP_MULTICAST_HANDLE_TSK_STACK_SIZE    (5 * 1024)
 #define UDP_MULTICAST_DIST_MAX_SIZE            256
 
 void multicast_recv_tsk(void * parm);

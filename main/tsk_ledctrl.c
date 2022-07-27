@@ -14,7 +14,7 @@
 
 #define TAG                         "LedCtrl"
 #define TSK_NAME                    TAG
-#define TSK_STACK_SIZE              4096
+#define TSK_STACK_SIZE              (5 * 1024)
 
 void led_ctrl_get_by_sch();
 void led_ctrl_save_config();
@@ -114,6 +114,7 @@ void led_ctrl_boot_play()
 void led_ctrl_tsk(void * parm)
 {
     const EventBits_t uxBitsToWaitFor = LED_CTRL_TSK_EVENT_UPDATE;
+    EventBits_t events = 0;
     led_chan_t index = 0;
     bool indicator_state = false;
 
@@ -122,7 +123,7 @@ void led_ctrl_tsk(void * parm)
     {
         tsk_ledctrl_lock();
         /* save new config */
-        if (time(NULL) % 3 == 0) {
+        if (time(NULL) % 3 == 0 &&  0 == events) {
             led_ctrl_save_config();
         }
         /* update output */
@@ -148,7 +149,7 @@ void led_ctrl_tsk(void * parm)
 
         indicator_set_state(indicator_state);
         indicator_set_chan(LED_CTRL_MODE_MANUAL == led_mode ? INDICATOR_CHAN_MANUAL : INDICATOR_CHAN_AUTO);
-        xEventGroupWaitBits(led_event_group, uxBitsToWaitFor, true, false, pdMS_TO_TICKS(1000)); 
+        events = xEventGroupWaitBits(led_event_group, uxBitsToWaitFor, true, false, pdMS_TO_TICKS(1000)); 
     }
 }
 
