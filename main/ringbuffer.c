@@ -3,10 +3,9 @@
 
 void ringbuffer_init(ringbuffer_type *handle, uint16_t bufferSize)
 {
-    if (handle->buffer || 0 >= bufferSize) 
-        return;
+    assert( handle->buffer == NULL );
 
-    handle->buffer     = (uint16_t*)malloc(bufferSize * sizeof(uint16_t));
+    handle->buffer = (uint16_t*)malloc(bufferSize * sizeof(uint16_t));
     handle->bufferSize = bufferSize;
     handle->head  = 0;
     handle->tail  = 0;
@@ -16,9 +15,8 @@ void ringbuffer_init(ringbuffer_type *handle, uint16_t bufferSize)
 
 void ringbuffer_deinit(ringbuffer_type *handle)
 {
-    if (!handle->buffer) 
-        return;
-    
+    assert( handle->buffer != NULL );
+
     handle->head  = 0;
     handle->tail  = 0;
     handle->count = 0;

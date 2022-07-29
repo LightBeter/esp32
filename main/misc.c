@@ -15,8 +15,8 @@
 #define LED_CLOSE_LEVEL         0
 
 static char _version[32]  = "unknown";           /*!< Application version */
-static char _serialnum[DEVICE_SERIAL_NUM_LEN + 1];
-static char _hostname[32]; 
+static char _serialnum[DEVICE_SERIAL_NUM_LEN + 1] = "";
+static char _hostname[32] = ""; 
 static EventGroupHandle_t  global_event_group; 
 static Indicator_chen_t  led_chan = INDICATOR_CHAN_MANUAL;
 static bool led_state = false;

@@ -6,79 +6,79 @@
 #include <cJSON.h>
 #include <esp_log.h>
 #include "websocket_server.h"
-#include "tsk_wss.h"
-#include "wss_cmd_handle.h"
+#include "tsk_ws.h"
+#include "ws_cmd_handle.h"
 #include "misc.h"
 #include "ota.h"
 
-#define TAG                         "WSS"
+#define TAG                         "WS"
 #define TSK_NAME                    TAG
 #define SERVER_TSK_STACK_SIZE       (3 * 1024)
-#define HANDLE_TSK_STACK_SIZE       (5 * 1024) //4096
+#define HANDLE_TSK_STACK_SIZE       (4 * 1024) //4096
 #define WS_CLIENT_QUEUE_SIZE        10 
 #define WS_CLIENT_LIFETIME          (48 * 1000)
 #define WS_CLIENT_RECV_TIME         1000 
 
-void wss_client_reset(int num);
-void wss_server_tsk(void * parm);
-void wss_handle_tsk(void * parm);
-void wss_callback(uint8_t num, WEBSOCKET_TYPE_t type, char* msg, uint64_t len);
-void wss_callback_bin(uint8_t num, char *msg, uint64_t len);
-void wss_callback_text(uint8_t num, char* msg, uint64_t len);
-void wss_callback_disconnect(uint8_t num);
+void ws_client_reset(int num);
+void ws_accept_tsk(void * parm);
+void ws_connect_tsk(void * parm);
+void ws_callback(uint8_t num, WEBSOCKET_TYPE_t type, char* msg, uint64_t len);
+void ws_callback_bin(uint8_t num, char *msg, uint64_t len);
+void ws_callback_text(uint8_t num, char* msg, uint64_t len);
+void ws_callback_disconnect(uint8_t num);
 
-static xTaskHandle     server_tsk_handle = NULL;
-static xTaskHandle     tsk_handle = NULL;
-static QueueHandle_t   clientQueue;
-static wss_client_t    clients[WEBSOCKET_SERVER_MAX_CLIENTS];
+static xTaskHandle     ws_accept_tsk_handle = NULL;
+static xTaskHandle     ws_connect_tsk_handle = NULL;
+static QueueHandle_t   clientQueue = NULL;
+static ws_client_life_t     clientlifes[WEBSOCKET_SERVER_MAX_CLIENTS];
 
-void wss_client_reset(int num)
+void ws_client_reset(int num)
 {
-    clients[num].valid = false;
-    clients[num].lifetime = 0;  
+    clientlifes[num].valid = false;
+    clientlifes[num].lifetime = 0;  
 }
 
-void tsk_wss_init()
+void tsk_ws_init()
 {
     ESP_LOGI( TAG, " initialise" );
     clientQueue = xQueueCreate(WS_CLIENT_QUEUE_SIZE, sizeof(struct netconn*));
     for(int i = 0; i < WEBSOCKET_SERVER_MAX_CLIENTS; i++)
-        wss_client_reset(i);
+        ws_client_reset(i);
 }
 
-void tsk_wss_deinit()
+void tsk_ws_deinit()
 {
     ESP_LOGI( TAG, "deinitialize" );
     vQueueDelete(clientQueue);
 }
 
-void tsk_wss_start()
+void tsk_ws_start()
 {
     ESP_LOGI( TAG, "start" );
-    if (!server_tsk_handle) {
-        xTaskCreatePinnedToCore(wss_server_tsk, "ws_server_tsk", SERVER_TSK_STACK_SIZE, NULL, TSK_PRIORITY_WSS, &server_tsk_handle, 1);
+    if (!ws_accept_tsk_handle) {
+        xTaskCreatePinnedToCore(ws_accept_tsk, "ws_accept_tsk", SERVER_TSK_STACK_SIZE, NULL, TSK_PRIO_WS_ACCEPT, &ws_accept_tsk_handle, TSK_COREID_WS_ACCEPT);
     }
-    if (!tsk_handle) {
-        xTaskCreatePinnedToCore(wss_handle_tsk, "ws_handle_tsk", HANDLE_TSK_STACK_SIZE, NULL, TSK_PRIORITY_WSS, &tsk_handle, 1);
+    if (!ws_connect_tsk_handle) {
+        xTaskCreatePinnedToCore(ws_connect_tsk, "ws_connect_tsk", HANDLE_TSK_STACK_SIZE, NULL, TSK_PRIO_WS_CONNECT, &ws_connect_tsk_handle, TSK_COREID_WS_CONNECT);
     }
     ws_server_start();
 }
 
-void tsk_wss_stop()
+void tsk_ws_stop()
 {
     ESP_LOGI( TAG, "stop" );
-    if (tsk_handle) {
-        vTaskDelete(tsk_handle);
-        tsk_handle = NULL;
+    if (ws_connect_tsk_handle) {
+        vTaskDelete(ws_connect_tsk_handle);
+        ws_connect_tsk_handle = NULL;
     }
-    if (server_tsk_handle) {
-        vTaskDelete(server_tsk_handle);
-        server_tsk_handle = NULL;
+    if (ws_accept_tsk_handle) {
+        vTaskDelete(ws_accept_tsk_handle);
+        ws_accept_tsk_handle = NULL;
     }
     ws_server_stop();
 }
 
-void wss_server_tsk(void * parm)
+void ws_accept_tsk(void * parm)
 {
     struct netconn *conn, *client;
     err_t err;
@@ -97,14 +97,14 @@ void wss_server_tsk(void * parm)
     }
     netconn_close(conn);
     netconn_delete(conn);
-    server_tsk_handle = NULL;
+    ws_accept_tsk_handle = NULL;
     vTaskDelete(NULL);
 }
 
-void wss_handle_tsk(void* parm) 
+void ws_connect_tsk(void* parm) 
 {
     struct netconn* client;
-    struct netbuf* inbuf;
+    struct netbuf* inbuf = NULL;
     char* buf;
     uint16_t buflen;
     err_t err;
@@ -117,9 +117,9 @@ void wss_handle_tsk(void* parm)
         xQueueReceive(clientQueue, &client, pdMS_TO_TICKS(2000));
         if (!client) {
             for (client_num = 0; client_num < WEBSOCKET_SERVER_MAX_CLIENTS; client_num++) {
-                if (clients[client_num].valid) {
-                    clients[client_num].lifetime -= 2000;
-                    if (clients[client_num].lifetime < 0) {
+                if (clientlifes[client_num].valid) {
+                    clientlifes[client_num].lifetime -= 2000;
+                    if (clientlifes[client_num].lifetime < 0) {
                         ESP_LOGI( TAG, "websocket client %d lifetime timeover, remove", client_num );
                         ws_server_remove_client(client_num); 
                     }
@@ -145,10 +145,10 @@ void wss_handle_tsk(void* parm)
         /* match request */        
         if(strstr(buf,"GET / ") && strstr(buf,"Upgrade: websocket")) {
             ESP_LOGI( TAG, "Requesting websocket on /" );
-            client_num = ws_server_add_client( client, buf, buflen, "/", wss_callback);
+            client_num = ws_server_add_client( client, buf, buflen, "/", ws_callback);
             if (client_num >= 0) {
-                clients[client_num].valid = true;
-                clients[client_num].lifetime = WS_CLIENT_LIFETIME;
+                clientlifes[client_num].valid = true;
+                clientlifes[client_num].lifetime = WS_CLIENT_LIFETIME;
                 netbuf_delete(inbuf);
                 isWebSocket = true;
             } else {
@@ -162,61 +162,62 @@ next:
             netconn_close( client );
             netconn_delete( client );
             netbuf_delete( inbuf ); 
+            inbuf = NULL;
         }
     }
-    tsk_handle = NULL;
+    ws_connect_tsk_handle = NULL;
     vTaskDelete(NULL);
 }
 
-void wss_callback(uint8_t num, WEBSOCKET_TYPE_t type, char* msg, uint64_t len) 
+void ws_callback(uint8_t num, WEBSOCKET_TYPE_t type, char* msg, uint64_t len) 
 {
     switch(type) {
     case WEBSOCKET_CONNECT:
         ESP_LOGI(TAG, "client[%i] connected!", num);
-        clients[num].lifetime = WS_CLIENT_LIFETIME;
+        clientlifes[num].lifetime = WS_CLIENT_LIFETIME;
         return;
     case WEBSOCKET_BIN:
         //ESP_LOGI(TAG, "client[%i] sent binary message of size %i", num, (uint32_t)len);
-        wss_callback_bin(num, msg, len);
+        ws_callback_bin(num, msg, len);
         return;
     case WEBSOCKET_PING:
         //ESP_LOGI(TAG, "client[%i] pinged us with message of size %i", num, (uint32_t)len);
-        clients[num].lifetime = WS_CLIENT_LIFETIME;
+        clientlifes[num].lifetime = WS_CLIENT_LIFETIME;
         return;
     case WEBSOCKET_PONG:
         //ESP_LOGI(TAG,"client[%i] responded to the ping",num);
         return;
     case WEBSOCKET_DISCONNECT_EXTERNAL:
         ESP_LOGI(TAG, "client[%i] sent a disconnect message", num);
-        wss_callback_disconnect(num);
+        ws_callback_disconnect(num);
         break;
     case WEBSOCKET_DISCONNECT_INTERNAL:
         ESP_LOGI(TAG, "client[%i] was disconnected", num);
-        wss_callback_disconnect(num);
+        ws_callback_disconnect(num);
         break;
     case WEBSOCKET_DISCONNECT_ERROR:
         ESP_LOGI(TAG, "client[%i] was disconnected due to an error", num);
-        wss_callback_disconnect(num);
+        ws_callback_disconnect(num);
         break;
     case WEBSOCKET_TEXT:
         ESP_LOGI(TAG, "client[%i] sent: %s", num, msg);
-        wss_callback_text(num, msg, len);
+        ws_callback_text(num, msg, len);
         break;
     }
 }
 
-void wss_callback_disconnect(uint8_t client)
+void ws_callback_disconnect(uint8_t client)
 {
-    wss_client_reset(client);
+    ws_client_reset(client);
     if (is_ota_client(client)) 
         ota_end(client);
 }
 
-void wss_callback_bin(uint8_t client, char *msg, uint64_t len)
+void ws_callback_bin(uint8_t client, char *msg, uint64_t len)
 {
     char  resp[2];
 
-    if (wss_cmd_e_ota_write != msg[0]) {
+    if (ws_cmd_e_ota_write != msg[0]) {
         resp[1] = 1;
     } else if (len <= 1) {
         resp[1] = 2;
@@ -228,15 +229,15 @@ void wss_callback_bin(uint8_t client, char *msg, uint64_t len)
             resp[1] = 0;
         }
     }
-    clients[client].lifetime = WS_CLIENT_LIFETIME;  
+    clientlifes[client].lifetime = WS_CLIENT_LIFETIME;  
     resp[0] = msg[0];
     ws_server_send_bin_client_from_callback( client, resp, 2 );
 }
 
-void wss_callback_text(uint8_t client, char* msg, uint64_t len)
+void ws_callback_text(uint8_t client, char* msg, uint64_t len)
 {
     cJSON *request, *respone, *item;
-    wss_respond_code_t code = wss_respond_code_ok;
+    ws_respond_code_t code = ws_respond_code_ok;
     uint32_t cmd = 0;
     char *out = NULL, *token = NULL;
 
@@ -245,96 +246,96 @@ void wss_callback_text(uint8_t client, char* msg, uint64_t len)
     request = cJSON_Parse( msg );
     if ( !request ) {
         ESP_LOGI(TAG, "parse client %i sent message failure", client); 
-        code = wss_respond_code_invalid_format;
+        code = ws_respond_code_invalid_format;
     } else {
         item = cJSON_GetObjectItem( request, "cmd" );
         if ( !cJSON_IsNumber(item) ) {
             ESP_LOGI(TAG, "get client %i sent message cmd failure", client); 
-            code = wss_respond_code_invalid_cmd;
+            code = ws_respond_code_invalid_cmd;
         } else {
             cmd = item->valueint;
         }
         item = cJSON_GetObjectItem( request, "token" );
         if (!cJSON_IsString(item)) {
             ESP_LOGI(TAG, "parse client %i sent message token failure", client); 
-            code = wss_respond_code_invalid_token;
+            code = ws_respond_code_invalid_token;
         } else {
             token = item->valuestring;
         }
     }
 
-    if (wss_respond_code_ok != code) {
+    if (ws_respond_code_ok != code) {
         goto send_respond;
     }
     switch (cmd) {
-    case wss_cmd_r_heartbeat:
-        code = wss_respond_code_ok;
+    case ws_cmd_r_heartbeat:
+        code = ws_respond_code_ok;
         break;
-    case wss_cmd_r_dev_info:
+    case ws_cmd_r_dev_info:
         code = read_dev_info_handle(request, respone);
         break;
-    case wss_cmd_r_dev_time:
+    case ws_cmd_r_dev_time:
         code = read_dev_time_handle(request, respone);
         break;
-    case wss_cmd_w_dev_time:
+    case ws_cmd_w_dev_time:
         code = write_dev_time_handle(request, respone);
         break;
-    case wss_cmd_w_dev_network:
+    case ws_cmd_w_dev_network:
         code = write_dev_network_handle(request, respone);
         break;
-    case wss_cmd_e_wifi_ap_scan:
+    case ws_cmd_e_wifi_ap_scan:
         code = exec_wifi_ap_scan_handle(client, request, respone);
         break;
-    case wss_cmd_r_fan_duty:
+    case ws_cmd_r_fan_duty:
         code = read_fan_duty_handle(request, respone);
         break;
-    case wss_cmd_w_fan_duty:
+    case ws_cmd_w_fan_duty:
         code = write_fan_duty_handle(request, respone);
         break; 
-    case wss_cmd_e_dev_reboot:
+    case ws_cmd_e_dev_reboot:
         code = exec_reboot_handle(request, respone);
         break;
-    case wss_cmd_e_dev_recovery:
+    case ws_cmd_e_dev_recovery:
         code = exec_recovery_factory_handle(request, respone);
         break;
-    case wss_cmd_r_ledctrl_state:
+    case ws_cmd_r_ledctrl_state:
         code = read_ledctrl_state_handle(request, respone);
         break;  
-    case wss_cmd_r_ledctrl_mode:
+    case ws_cmd_r_ledctrl_mode:
         code = read_ledctrl_mode_handle(request, respone);
         break;
-    case wss_cmd_w_ledctrl_mode:
+    case ws_cmd_w_ledctrl_mode:
         code = write_ledctrl_mode_handle(request, respone);
         break;
-    case wss_cmd_r_ledctrl_current_output:
+    case ws_cmd_r_ledctrl_current_output:
         code = read_ledctrl_current_output_handle(request, respone);
         break;
-    case wss_cmd_w_ledctrl_demo_output:
+    case ws_cmd_w_ledctrl_demo_output:
         code = write_ledctrl_demo_output_handle(request, respone);
         break;  
-    case wss_cmd_r_ledctrl_manual:
+    case ws_cmd_r_ledctrl_manual:
         code = read_ledctrl_manual_handle(request, respone);
         break;  
-    case wss_cmd_w_ledctrl_manual:
+    case ws_cmd_w_ledctrl_manual:
         code = write_ledctrl_manual_handle(request, respone);
         break;
-    case wss_cmd_r_ledctrl_schedule:
+    case ws_cmd_r_ledctrl_schedule:
         code = read_ledctrl_schedule_handle(request, respone);
         break;  
-    case wss_cmd_w_ledctrl_schedule:
+    case ws_cmd_w_ledctrl_schedule:
         code = write_ledctrl_schedule_handle(request, respone);
         break;   
-    case wss_cmd_e_ota_begin:
+    case ws_cmd_e_ota_begin:
         code = exec_ota_begin_handle(client, request, respone);
         break;   
-    case wss_cmd_e_ota_done:
+    case ws_cmd_e_ota_done:
         code = exec_ota_done_handle(client, request, respone);
         break;     
     default:
-        code = wss_respond_code_invalid_cmd;
+        code = ws_respond_code_invalid_cmd;
         break;
     }
-    clients[client].lifetime = WS_CLIENT_LIFETIME;
+    clientlifes[client].lifetime = WS_CLIENT_LIFETIME;
 send_respond: 
     cJSON_AddStringToObject(respone, "token", token);   
     cJSON_AddNumberToObject(respone, "cmd",   cmd);

@@ -29,7 +29,7 @@ esp_err_t storage_get_blob(const char *key, void *out_value, size_t maxlen, size
 esp_err_t storage_set_blob(const char *key, const void *value, size_t len);
 
 static SemaphoreHandle_t storage_mutex = NULL;
-static nvs_handle        storage_handle;
+static nvs_handle        storage_handle = 0;
 
 void storage_lock()
 {
@@ -266,7 +266,7 @@ exit:
     return ESP_OK == err; 
 }
 
-bool storage_write_tz(int tz)
+bool storage_write_tz(int32_t tz)
 {
     esp_err_t err;
 

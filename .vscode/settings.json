@@ -140,7 +140,20 @@
 		"gpio.h": "c",
 		"gpio_periph.h": "c",
 		"soc_caps.h": "c",
-		"format": "c"
+		"format": "c",
+		"tsk_ws.h": "c",
+		"websocket.h": "c",
+		"api.h": "c",
+		"compare": "c",
+		"adc_cali.h": "c",
+		"adc_oneshot.h": "c",
+		"gpio_types.h": "c",
+		"adc_cali_scheme.h": "c",
+		"freertosconfig.h": "c",
+		"esp_wifi_default.h": "c",
+		"esp_wifi_types.h": "c",
+		"esp_wifi_private.h": "c",
+		"wifi_os_adapter.h": "c"
 	},
 
 	"powershell.integratedConsole.suppressStartupBanner": true,

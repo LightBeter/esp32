@@ -51,14 +51,13 @@ void tsk_key_deinit()
     io_conf.pull_down_en = 0;
     io_conf.pull_up_en = 0;
     gpio_config(&io_conf);
-    
 }
 
 void tsk_key_start()
 {
     ESP_LOGI( TAG, "start" );
     if (!tsk_handle) {
-        xTaskCreatePinnedToCore(key_tsk, TAG, TSK_STACK_SIZE, NULL, TSK_PRIORITY_KEY, &tsk_handle, 0);
+        xTaskCreatePinnedToCore(key_tsk, TAG, TSK_STACK_SIZE, NULL, TSK_PRIO_KEY, &tsk_handle, TSK_COREID_KEY);
     }
     gpio_install_isr_service(KEY_INTR_FLAG_DEFAULT);
     gpio_isr_handler_add(KEY_GPIO_PIN, key_isr_handler, NULL);

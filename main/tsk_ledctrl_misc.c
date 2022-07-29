@@ -147,7 +147,7 @@ void ledctrl_save_sch(led_sch_id_t id, led_value_t power)
     led_demo.remaining = 0;
 }
 
-uint16_t ledctrl_current_time()
+int16_t ledctrl_current_time()
 {
     time_t t;
     struct tm* stime;
@@ -226,7 +226,7 @@ void ledctrl_read_config()
 default_handle:
     /* default manual */
     for (index = 0; index < LED_CHAN_COUNT; index++)
-        led_manual[index] = LED_VALUE_MAX * 0.3;
+        led_manual[index] = (LED_VALUE_MAX * 3) / 10;
 
     /* default schedule */
     ledctrl_clean_sch();
@@ -238,12 +238,12 @@ default_handle:
     led_schedule[1].valid = true;
     led_schedule[1].time  = 12 * 60;
     for (index = 0; index < LED_CHAN_COUNT; index++) 
-        led_schedule[1].targ[index] = LED_VALUE_MAX * 0.5;
+        led_schedule[1].targ[index] = LED_VALUE_MAX / 2;
 
     led_schedule[2].valid = true;
     led_schedule[2].time  = 15 * 60;
     for (index = 0; index < LED_CHAN_COUNT; index++) 
-        led_schedule[2].targ[index] = LED_VALUE_MAX * 0.5;
+        led_schedule[2].targ[index] = LED_VALUE_MAX / 2;
 
     led_schedule[3].valid = true;
     led_schedule[3].time  = 19 * 60;

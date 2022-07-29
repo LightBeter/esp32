@@ -1,5 +1,5 @@
-#ifndef _TSK_WSS_H
-#define _TSK_WSS_H
+#ifndef _TSK_WS_H
+#define _TSK_WS_H
 
 #include <stdbool.h>
 
@@ -10,12 +10,12 @@ extern "C" {
 typedef struct {
     bool valid;
     int  lifetime;
-} wss_client_t;
+} ws_client_life_t;
 
-void tsk_wss_init();
-void tsk_wss_deinit();
-void tsk_wss_start();
-void tsk_wss_stop();
+void tsk_ws_init();
+void tsk_ws_deinit();
+void tsk_ws_start();
+void tsk_ws_stop();
 
 #ifdef __cplusplus
 }

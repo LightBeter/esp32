@@ -27,9 +27,9 @@ void wifi_eventHandler(void* arg, esp_event_base_t event_base,
                        int32_t event_id, void* event_data);
 
 static xTaskHandle         tsk_handle = NULL;
-static wifi_config_t       wifiConf;
+static wifi_config_t       wifiConf = { .sta = { .ssid = "", .password = "" } };
 static wifi_tsk_state      wifiState = wifi_tsk_state_idle;
-static EventGroupHandle_t  wifiEventGroup;  
+static EventGroupHandle_t  wifiEventGroup = NULL;  
 static esp_netif_t*        wifiStaNetif = NULL;
 static esp_netif_t*        wifiApNetif  = NULL;
 static char   staSSID[32] = "";
@@ -67,7 +67,7 @@ void tsk_wifi_start()
     esp_netif_set_hostname(wifiStaNetif, hostname());
     esp_netif_set_hostname(wifiApNetif, hostname()); 
     if (!tsk_handle) {
-        xTaskCreatePinnedToCore(wifi_tsk, TAG, TSK_STACK_SIZE, NULL, TSK_PRIORITY_WIFISCAN, &tsk_handle, 0);
+        xTaskCreatePinnedToCore(wifi_tsk, TAG, TSK_STACK_SIZE, NULL, TSK_PRIO_WIFI, &tsk_handle, TSK_COREID_WIFI);
     }
 }
 

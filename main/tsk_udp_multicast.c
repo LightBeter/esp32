@@ -9,19 +9,19 @@
 #include "tsk_udp_multicast.h"
 #include "tsk_ledctrl.h"
 #include "tsk_ledctrl_misc.h"
-#include "tsk_tempctrl.h"
+#include "tsk_fanctrl.h"
 #include "tsk_wifi.h"
-#include "wss_cmd_handle.h"
+#include "ws_cmd_handle.h"
 #include "multicast.pb.h"
 #include "pb_decode.h"
 #include "misc.h"
 
-#define TAG                                    "UDP_MULTICAST"
+#define TAG                                    "Multicast"
 #define LISTEN_ALL_IF                          0
 #define UDP_MULTICAST_ADDR                     "238.0.0.8"
 #define UDP_MULTICAST_PORT                     9966
-#define UDP_MULTICAST_RECV_TSK_STACK_SIZE      (4 * 1024)
-#define UDP_MULTICAST_HANDLE_TSK_STACK_SIZE    (5 * 1024)
+#define UDP_MULTI_RECV_TSK_STACK_SIZE          (4 * 1024)
+#define UDP_MULTI_TSK_STACK_SIZE               (6 * 1024)
 #define UDP_MULTICAST_DIST_MAX_SIZE            256
 
 void multicast_recv_tsk(void * parm);
@@ -29,7 +29,7 @@ void multicast_handle_tsk(void * parm);
 bool multicast_match_name(const char *list);
 bool read_string(pb_istream_t *stream, const pb_field_t *field, void **arg);
 
-static xTaskHandle     tsk_recv = NULL;
+static xTaskHandle     recv_tsk_handle = NULL;
 static xTaskHandle     tsk_handle = NULL;
 static QueueHandle_t   freeQueue;
 static QueueHandle_t   handleQueue;
@@ -151,28 +151,28 @@ void tsk_udp_multicast_start()
     if (!tsk_handle) {
         xTaskCreatePinnedToCore(multicast_handle_tsk, 
                     "multi_tsk", 
-                    UDP_MULTICAST_HANDLE_TSK_STACK_SIZE, 
+                    UDP_MULTI_TSK_STACK_SIZE,
                     NULL, 
-                    TSK_PRIORITY_MULTICAST, 
+                    TSK_PRIO_MULTI_HANDLE, 
                     &tsk_handle,
-                    1);
+                    TSK_COREID_MULTI_HANDLE);
     }
-    if (!tsk_recv) {
+    if (!recv_tsk_handle) {
         xTaskCreatePinnedToCore(multicast_recv_tsk, 
                     "multi_recv_tsk", 
-                    UDP_MULTICAST_RECV_TSK_STACK_SIZE,
+                    UDP_MULTI_RECV_TSK_STACK_SIZE,
                     NULL, 
-                    TSK_PRIORITY_MULTICAST, 
-                    &tsk_recv,
-                    1);
+                    TSK_PRIO_MULTI_RECV, 
+                    &recv_tsk_handle,
+                    TSK_COREID_MULTI_RECV);
     }
 }
 
 void tsk_udp_multicast_stop()
 {
-    if (tsk_recv) {
-        vTaskDelete(tsk_recv);
-        tsk_recv = NULL;
+    if (recv_tsk_handle) {
+        vTaskDelete(recv_tsk_handle);
+        recv_tsk_handle = NULL;
     }
     
     if (tsk_handle) {
@@ -228,7 +228,7 @@ void multicast_recv_tsk(void* parm)
         xQueueSend(handleQueue, &packet, portMAX_DELAY);
         packet = NULL;
     }
-    tsk_recv = NULL;
+    recv_tsk_handle = NULL;
     vTaskDelete(NULL);
 }
 
@@ -253,7 +253,7 @@ void multicast_handle_tsk(void* parm)
             goto Next;
         }
 #if 1
-        ESP_LOGI(TAG, "multicast cmd[%d](%d): %s", packet.cmd, rawPacket->len, multicast_dist_list);
+        ESP_LOGI(TAG, "cmd[%d](%d): %s", packet.cmd, rawPacket->len, multicast_dist_list);
         if (packet.has_modeParam) 
             ESP_LOGI(TAG, "has modeParam sw[%u] mode[%d]", packet.modeParam.sw, packet.modeParam.mode);
         if (packet.has_manualParam) 
@@ -274,11 +274,11 @@ void multicast_handle_tsk(void* parm)
         if (!multicast_match_name(multicast_dist_list))
             goto Next;
 
-        if (wss_cmd_w_ledctrl_mode == packet.cmd && packet.has_modeParam) {
+        if (ws_cmd_w_ledctrl_mode == packet.cmd && packet.has_modeParam) {
             ledctrl_set_mode(packet.modeParam.sw, (ledctrl_mode_t)packet.modeParam.mode);
         }
 
-        if (wss_cmd_w_ledctrl_manual == packet.cmd && packet.has_manualParam) {
+        if (ws_cmd_w_ledctrl_manual == packet.cmd && packet.has_manualParam) {
             values[0] = packet.manualParam.values.chan1;
             values[1] = packet.manualParam.values.chan2;
             values[2] = packet.manualParam.values.chan3;
@@ -290,7 +290,7 @@ void multicast_handle_tsk(void* parm)
                 ledctrl_set_mode(true, LED_CTRL_MODE_MANUAL);
         }
 
-        if (wss_cmd_w_ledctrl_demo_output == packet.cmd && packet.has_playParam) {
+        if (ws_cmd_w_ledctrl_demo_output == packet.cmd && packet.has_playParam) {
             values[0] = packet.playParam.values.chan1;
             values[1] = packet.playParam.values.chan2;
             values[2] = packet.playParam.values.chan3;
@@ -301,12 +301,12 @@ void multicast_handle_tsk(void* parm)
             ledctrl_set_demo(packet.playParam.play, values);
         }
 
-        if (wss_cmd_w_fan_duty == packet.cmd && packet.has_fanParam) {
+        if (ws_cmd_w_fan_duty == packet.cmd && packet.has_fanParam) {
             if (packet.fanParam.duty > -1)
-                tempctrl_set_fanduty(packet.fanParam.duty);
+                fanctrl_set_duty(packet.fanParam.duty);
             
             if (packet.fanParam.play > -1)
-                tempctrl_set_fanplay(packet.fanParam.play);
+                fanctrl_set_play(packet.fanParam.play);
         }
 Next:
         xQueueSend(freeQueue, &rawPacket, portMAX_DELAY);

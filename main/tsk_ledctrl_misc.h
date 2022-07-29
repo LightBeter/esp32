@@ -48,7 +48,7 @@ bool ledctrl_set_manual(const led_value_t *values);
 void ledctrl_set_sch_item(uint8_t index, uint16_t time, led_value_t *values);
 void ledctrl_clean_sch();
 void ledctrl_save_sch(led_sch_id_t id, led_value_t power);
-uint16_t ledctrl_current_time();
+int16_t ledctrl_current_time();
 bool ledctrl_check_values(const led_value_t *values);
 void ledctrl_read_config();
 void ledctrl_write_config();

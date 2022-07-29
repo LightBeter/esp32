@@ -9,12 +9,13 @@
 #include <freertos/event_groups.h>
 #include "tsk_ledctrl.h"
 #include "tsk_ledctrl_misc.h"
-#include "tsk_tempctrl.h"
+#include "tsk_fanctrl.h"
 #include "misc.h"
 
 #define TAG                         "LedCtrl"
 #define TSK_NAME                    TAG
 #define TSK_STACK_SIZE              (5 * 1024)
+#define SAVE_DELAY_S                (3)
 
 void led_ctrl_get_by_sch();
 void led_ctrl_save_config();
@@ -28,7 +29,7 @@ led_value_t         led_output[LED_CHAN_COUNT];
 bool                led_sw = false;  
 ledctrl_mode_t      led_mode = LED_CTRL_MODE_SCHEDULE;
 led_value_t         led_power = 0;
-ledctrl_demo_t      led_demo;
+ledctrl_demo_t      led_demo = { .remaining = -1, .targ = {0} };
 led_value_t         led_manual[LED_CHAN_COUNT];
 led_sch_item_t      led_schedule[LED_CTRL_SCH_MAX];
 led_sch_id_t        led_schedule_Id = 0;
@@ -60,7 +61,7 @@ void tsk_ledctrl_deinit()
 void tsk_ledctrl_start()
 {
     if (!tsk_handle)
-        xTaskCreatePinnedToCore(led_ctrl_tsk, TSK_NAME, TSK_STACK_SIZE, NULL, TSK_PRIORITY_LEDCTRL, &tsk_handle, 1);
+        xTaskCreatePinnedToCore(led_ctrl_tsk, TSK_NAME, TSK_STACK_SIZE, NULL, TSK_PRIO_LEDCTRL, &tsk_handle, TSK_COREID_LEDCTRL);
 }
 
 void tsk_ledctrl_stop()
@@ -117,13 +118,14 @@ void led_ctrl_tsk(void * parm)
     EventBits_t events = 0;
     led_chan_t index = 0;
     bool indicator_state = false;
+    int8_t tick = SAVE_DELAY_S;
 
     led_ctrl_boot_play();
     while (1) 
     {
         tsk_ledctrl_lock();
         /* save new config */
-        if (time(NULL) % 3 == 0 &&  0 == events) {
+        if (0 == tick) {
             led_ctrl_save_config();
         }
         /* update output */
@@ -144,24 +146,29 @@ void led_ctrl_tsk(void * parm)
         }
         indicator_state = led_sw;
         tsk_ledctrl_unlock();
+
         for (index = 0; index < LED_CHAN_COUNT; index++)
             led_pwm_output(index, led_output[index]);
 
         indicator_set_state(indicator_state);
         indicator_set_chan(LED_CTRL_MODE_MANUAL == led_mode ? INDICATOR_CHAN_MANUAL : INDICATOR_CHAN_AUTO);
+
         events = xEventGroupWaitBits(led_event_group, uxBitsToWaitFor, true, false, pdMS_TO_TICKS(1000)); 
+        if (0 == events) {
+            tick = (tick > 0) ? (tick  - 1) : (-1);
+        } else {
+            tick = SAVE_DELAY_S;
+        }
     }
 }
 
 void led_ctrl_get_by_sch()
 {
-    uint32_t now, diff, leftDiff = 0, rightDiff = 0; 
-    int32_t  index, left = -1, right = -1;
-    float  percent, power;
-    led_value_t offset;
+    int16_t now, diff, leftDiff = 0, rightDiff = 0; 
+    int16_t  index, left = -1, right = -1;
+    led_value_t offset = 0;
 
     now = ledctrl_current_time();
-    power = led_power / 1000.0;
     for (index = 0 ; index < LED_CTRL_SCH_MAX; index++) {
         if (false == led_schedule[index].valid) 
             continue;
@@ -192,35 +199,40 @@ void led_ctrl_get_by_sch()
             led_output[index] = 0; 
     } else if (leftDiff == 0) {
         for (index = 0; index < LED_CHAN_COUNT; index++)
-            led_output[index] = led_schedule[left].targ[index] * power;  
+            led_output[index] = led_schedule[left].targ[index];  
     } else if (rightDiff == 0) {
         for (index = 0; index < LED_CHAN_COUNT; index++)
-            led_output[index] = led_schedule[right].targ[index] * power;  
+            led_output[index] = led_schedule[right].targ[index];  
     } else {
         if (led_schedule[right].time > led_schedule[left].time) {
             diff = led_schedule[right].time - led_schedule[left].time;
         } else {
             diff = LED_CTRL_SCH_TIME_MAX - (led_schedule[left].time - led_schedule[right].time);
         }
-        percent = (leftDiff * 1.0) / diff;
+
         for (index = 0; index < LED_CHAN_COUNT; index++) {
             offset = led_schedule[right].targ[index] - led_schedule[left].targ[index];
-            offset *= percent;
-            led_output[index] = (led_schedule[left].targ[index] + offset) * power; 
+            offset = (leftDiff * offset) / diff;
+            led_output[index] = led_schedule[left].targ[index] + offset; 
         }
     }
-
-#if 0        
-        // ESP_LOGI(TAG, "left [%8u] output: %04d, %04d, %04d, %04d, %04d, %04d, %04d", 
-        //     led_schedule[left].time, led_schedule[left].targ[0], 
-        //     led_schedule[left].targ[1], led_schedule[left].targ[2],
-        //     led_schedule[left].targ[3], led_schedule[left].targ[4],
-        //     led_schedule[left].targ[5], led_schedule[left].targ[6]);
-        // ESP_LOGI(TAG, "right[%8u] output: %04d, %04d, %04d, %04d, %04d, %04d, %04d", 
-        //     led_schedule[right].time, led_schedule[right].targ[0], 
-        //     led_schedule[right].targ[1], led_schedule[right].targ[2],
-        //     led_schedule[right].targ[3], led_schedule[right].targ[4],
-        //     led_schedule[right].targ[5], led_schedule[right].targ[6]);
+    /* Power Limit */
+    for (index = 0; index < LED_CHAN_COUNT; index++) {
+        led_output[index] = (led_output[index] * led_power) / 1000; 
+    }
+    
+#if 0
+        ESP_LOGI(TAG, "left [%8u] output: %04d, %04d, %04d, %04d, %04d, %04d, %04d", 
+            led_schedule[left].time, led_schedule[left].targ[0], 
+            led_schedule[left].targ[1], led_schedule[left].targ[2],
+            led_schedule[left].targ[3], led_schedule[left].targ[4],
+            led_schedule[left].targ[5], led_schedule[left].targ[6]);
+        ESP_LOGI(TAG, "right[%8u] output: %04d, %04d, %04d, %04d, %04d, %04d, %04d", 
+            led_schedule[right].time, led_schedule[right].targ[0], 
+            led_schedule[right].targ[1], led_schedule[right].targ[2],
+            led_schedule[right].targ[3], led_schedule[right].targ[4],
+            led_schedule[right].targ[5], led_schedule[right].targ[6]);
+        ESP_LOGI(TAG, "offset: %d", offset);   
         ESP_LOGI(TAG, "now [%8u] output: %04d, %04d, %04d, %04d, %04d, %04d, %04d", 
             now, led_output[0], 
             led_output[1], led_output[2],

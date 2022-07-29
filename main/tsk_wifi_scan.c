@@ -7,7 +7,7 @@
 #include <string.h>
 #include <esp_log.h>
 #include "tsk_wifi_scan.h"
-#include "wss_cmd_handle.h"
+#include "ws_cmd_handle.h"
 #include "websocket_server.h"
 #include "misc.h"
 
@@ -48,7 +48,7 @@ void tsk_wifi_scan_start()
 {
     ESP_LOGI( TAG, "start" );
     if (!tsk_handle) {
-        xTaskCreatePinnedToCore(wifi_ap_scan_tsk, TAG, TSK_STACK_SIZE, NULL, TSK_PRIORITY_WIFISCAN, &tsk_handle, 1);
+        xTaskCreatePinnedToCore(wifi_ap_scan_tsk, TAG, TSK_STACK_SIZE, NULL, TSK_PRIO_WIFISCAN, &tsk_handle, TSK_COREID_WIFISCAN);
     }
 }
 
@@ -135,7 +135,7 @@ void broadcast_ap_info()
         cJSON_AddItemToArray(list, pSub);
     }
     cJSON_AddItemToObject(packet, "list", list);
-    cJSON_AddNumberToObject(packet, "cmd", wss_cmd_b_wifi_ap_list);
+    cJSON_AddNumberToObject(packet, "cmd", ws_cmd_b_wifi_ap_list);
     out = cJSON_PrintUnformatted(packet);
     cJSON_Delete(packet);
 

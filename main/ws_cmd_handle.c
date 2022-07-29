@@ -1,9 +1,9 @@
 #include <string.h>
 #include <esp_log.h>
-#include "wss_cmd_handle.h"
-#include "tsk_wss.h"
+#include "ws_cmd_handle.h"
+#include "tsk_ws.h"
 #include "datetime.h"
-#include "tsk_tempctrl.h"
+#include "tsk_fanctrl.h"
 #include "tsk_ledctrl.h"
 #include "tsk_ledctrl_misc.h"
 #include "tsk_wifi_scan.h"
@@ -75,60 +75,60 @@ void set_outpu_to_json(cJSON *packet, const char *name, const led_value_t *targ)
 }
 
 
-wss_respond_code_t read_dev_info_handle(cJSON *request, cJSON *respone)
+ws_respond_code_t read_dev_info_handle(cJSON *request, cJSON *respone)
 {
     cJSON_AddStringToObject(respone, "model", DEVICE_MODEL);
     cJSON_AddStringToObject(respone, "serial", serialnum());
     cJSON_AddStringToObject(respone, "firmware", app_version());
     cJSON_AddNumberToObject(respone, "group", LED_CHAN_COUNT);
     cJSON_AddBoolToObject(respone, "fanspeedctrl", 1);
-    return wss_respond_code_ok;
+    return ws_respond_code_ok;
 }
 
-wss_respond_code_t read_dev_time_handle(cJSON *request, cJSON *respone)
+ws_respond_code_t read_dev_time_handle(cJSON *request, cJSON *respone)
 {
     time_t  utc;
     int tz;
     datetime_get(&utc, &tz);
     cJSON_AddNumberToObject(respone, "utc", utc);
     cJSON_AddNumberToObject(respone, "tz", tz);
-    return wss_respond_code_ok;
+    return ws_respond_code_ok;
 }
 
-wss_respond_code_t write_dev_time_handle(cJSON *request, cJSON *respone)
+ws_respond_code_t write_dev_time_handle(cJSON *request, cJSON *respone)
 {
     cJSON *utc, *zone;
     utc = cJSON_GetObjectItem(request, "utc");
     if (!cJSON_IsNumber(utc)) {
         ESP_LOGE(TAG, "%s invalid utc.", __FUNCTION__);
-        return wss_respond_code_invalid_param;
+        return ws_respond_code_invalid_param;
     } 
     zone = cJSON_GetObjectItem(request, "tz");
     if (!cJSON_IsNumber(zone)) {
         ESP_LOGE(TAG, "%s invalid timezone.", __FUNCTION__);
-        return wss_respond_code_invalid_param;
+        return ws_respond_code_invalid_param;
     } 
     datetime_set_tz( zone->valuedouble );
     datetime_set( utc->valuedouble );
-    return wss_respond_code_ok;
+    return ws_respond_code_ok;
 }
 
-wss_respond_code_t read_fan_duty_handle(cJSON *request, cJSON *respone)
+ws_respond_code_t read_fan_duty_handle(cJSON *request, cJSON *respone)
 {
-    cJSON_AddNumberToObject(respone, "duty", tempctrl_get_fanduty());
-    return wss_respond_code_ok;
+    cJSON_AddNumberToObject(respone, "duty", fanctrl_get_fanduty());
+    return ws_respond_code_ok;
 }
 
-wss_respond_code_t write_fan_duty_handle(cJSON *request, cJSON *respone)
+ws_respond_code_t write_fan_duty_handle(cJSON *request, cJSON *respone)
 {
-    wss_respond_code_t ret = wss_respond_code_ok;
+    ws_respond_code_t ret = ws_respond_code_ok;
     cJSON *duty, *play;
 
     duty = cJSON_GetObjectItem(request, "duty");
     if (duty) {
         if (!cJSON_IsNumber(duty)) {
             ESP_LOGI(TAG, "%s invalid utc.", __FUNCTION__);
-            ret = wss_respond_code_invalid_param;
+            ret = ws_respond_code_invalid_param;
         } 
     }
 
@@ -136,22 +136,22 @@ wss_respond_code_t write_fan_duty_handle(cJSON *request, cJSON *respone)
     if (play) {
         if (!cJSON_IsNumber(play)) {
             ESP_LOGI(TAG, "%s invalid play time.", __FUNCTION__);
-            ret = wss_respond_code_invalid_param;
+            ret = ws_respond_code_invalid_param;
         } 
     }
 
     if ( !duty && !play ) {
-        ret = wss_respond_code_invalid_param;   
-    } else if (wss_respond_code_ok == ret) {
+        ret = ws_respond_code_invalid_param;   
+    } else if (ws_respond_code_ok == ret) {
         if (duty)
-            tempctrl_set_fanduty( duty->valueint );
+            fanctrl_set_duty( duty->valueint );
         if (play)
-            tempctrl_set_fanplay( play->valueint );
+            fanctrl_set_play( play->valueint );
     }
     return ret;   
 }
 
-wss_respond_code_t write_dev_network_handle(cJSON *request, cJSON *respone)
+ws_respond_code_t write_dev_network_handle(cJSON *request, cJSON *respone)
 {
     int mode;
     cJSON *item;
@@ -161,31 +161,31 @@ wss_respond_code_t write_dev_network_handle(cJSON *request, cJSON *respone)
     item = cJSON_GetObjectItem(request, "mode");
     if (!cJSON_IsNumber(item)) {
         ESP_LOGI(TAG, "%s get mode failure.", __FUNCTION__);
-        return wss_respond_code_invalid_param;
+        return ws_respond_code_invalid_param;
     } 
     mode = item->valueint;
     if (1 == mode) {
         item = cJSON_GetObjectItem(request, "ssid");
         if (!cJSON_IsString(item)) {
             ESP_LOGI(TAG, "%s invalid ssid.", __FUNCTION__);
-            return wss_respond_code_invalid_param;
+            return ws_respond_code_invalid_param;
         } 
         len = strlen(item->valuestring);
         if (len <= 0 || len >= 32) {
             ESP_LOGI(TAG, "%s invalid ssid len(%zu) failure.", __FUNCTION__, len);
-            return wss_respond_code_invalid_param;
+            return ws_respond_code_invalid_param;
         }
         ssid = item->valuestring;
 
         item = cJSON_GetObjectItem(request, "password");
         if (!cJSON_IsString(item)) {
             ESP_LOGI(TAG, "%s invalid password.", __FUNCTION__);
-           return wss_respond_code_invalid_param;
+           return ws_respond_code_invalid_param;
         }
         len = strlen(item->valuestring);
         if (len >= 64) {
             ESP_LOGI(TAG, "%s invalid password len(%zu).", __FUNCTION__, len);
-            return wss_respond_code_invalid_param;
+            return ws_respond_code_invalid_param;
         }
         pwd = item->valuestring;
         tsk_wifi_set(mode, ssid, pwd);
@@ -195,30 +195,30 @@ wss_respond_code_t write_dev_network_handle(cJSON *request, cJSON *respone)
         ESP_LOGI(TAG, "%s save network config(ap)", __FUNCTION__);
     } else {
         ESP_LOGI(TAG, "%s invalid mode %d.", __FUNCTION__, mode);
-        return wss_respond_code_invalid_param;  
+        return ws_respond_code_invalid_param;  
     }
-    return wss_respond_code_ok;
+    return ws_respond_code_ok;
 }
 
-wss_respond_code_t exec_wifi_ap_scan_handle(int client, cJSON *request, cJSON *respone)
+ws_respond_code_t exec_wifi_ap_scan_handle(int client, cJSON *request, cJSON *respone)
 {
     tsk_trigger_wifi_scan(client);
-    return wss_respond_code_ok;
+    return ws_respond_code_ok;
 }
 
-wss_respond_code_t exec_reboot_handle(cJSON *request, cJSON *respone)
+ws_respond_code_t exec_reboot_handle(cJSON *request, cJSON *respone)
 {
     global_event_set(GLOBAL_EVENT_REBOOT);
-    return wss_respond_code_ok; 
+    return ws_respond_code_ok; 
 }
 
-wss_respond_code_t exec_recovery_factory_handle(cJSON *request, cJSON *respone)
+ws_respond_code_t exec_recovery_factory_handle(cJSON *request, cJSON *respone)
 {
     global_event_set(GLOBAL_EVENT_RECOVERY_FACTORY);
-    return wss_respond_code_ok; 
+    return ws_respond_code_ok; 
 }
 
-wss_respond_code_t read_ledctrl_state_handle(cJSON *request, cJSON *respone)
+ws_respond_code_t read_ledctrl_state_handle(cJSON *request, cJSON *respone)
 {
     /* time */
     time_t  utc;
@@ -227,42 +227,42 @@ wss_respond_code_t read_ledctrl_state_handle(cJSON *request, cJSON *respone)
     cJSON_AddNumberToObject(respone, "utc", utc);
     cJSON_AddNumberToObject(respone, "tz", tz);
     /* temperature */
-    cJSON_AddNumberToObject(respone, "temperature", tempctrl_get_temperature());
+    cJSON_AddNumberToObject(respone, "temperature", fanctrl_get_temperature());
     /* switch & mode & current output */
     tsk_ledctrl_lock();
     cJSON_AddNumberToObject(respone, "switch", ledctrl_switch());
     cJSON_AddNumberToObject(respone, "mode", ledctrl_mode());
     set_outpu_to_json(respone, "values", ledctrl_current_output());
     tsk_ledctrl_unlock();
-    return wss_respond_code_ok;
+    return ws_respond_code_ok;
 }
 
-wss_respond_code_t read_ledctrl_mode_handle(cJSON *request, cJSON *respone)
+ws_respond_code_t read_ledctrl_mode_handle(cJSON *request, cJSON *respone)
 {
     tsk_ledctrl_lock();
     cJSON_AddNumberToObject(respone, "switch", ledctrl_switch());
     cJSON_AddNumberToObject(respone, "mode", ledctrl_mode());
     tsk_ledctrl_unlock();
-    return wss_respond_code_ok;
+    return ws_respond_code_ok;
 }
 
-wss_respond_code_t read_ledctrl_current_output_handle(cJSON *request, cJSON *respone)
+ws_respond_code_t read_ledctrl_current_output_handle(cJSON *request, cJSON *respone)
 {
     tsk_ledctrl_lock();
     set_outpu_to_json(respone, "values", ledctrl_current_output());
     tsk_ledctrl_unlock();
-    return wss_respond_code_ok;
+    return ws_respond_code_ok;
 }
 
-wss_respond_code_t read_ledctrl_manual_handle(cJSON *request, cJSON *respone)
+ws_respond_code_t read_ledctrl_manual_handle(cJSON *request, cJSON *respone)
 {
     tsk_ledctrl_lock();
     set_outpu_to_json(respone, "values", ledctrl_manual_output());
     tsk_ledctrl_unlock();
-    return wss_respond_code_ok;
+    return ws_respond_code_ok;
 }
 
-wss_respond_code_t read_ledctrl_schedule_handle(cJSON *request, cJSON *respone)
+ws_respond_code_t read_ledctrl_schedule_handle(cJSON *request, cJSON *respone)
 {
     cJSON *pSchedule = cJSON_CreateArray();
     cJSON *pSub;
@@ -282,10 +282,10 @@ wss_respond_code_t read_ledctrl_schedule_handle(cJSON *request, cJSON *respone)
     cJSON_AddNumberToObject(respone, "power", ledctrl_power());
     tsk_ledctrl_unlock();
     cJSON_AddItemToObject(respone, "schedule", pSchedule);
-    return wss_respond_code_ok;
+    return ws_respond_code_ok;
 }
 
-wss_respond_code_t write_ledctrl_mode_handle(cJSON *request, cJSON *respone)
+ws_respond_code_t write_ledctrl_mode_handle(cJSON *request, cJSON *respone)
 {
     cJSON *sw, *mode;
 
@@ -302,12 +302,12 @@ wss_respond_code_t write_ledctrl_mode_handle(cJSON *request, cJSON *respone)
     } 
 
     if (ledctrl_set_mode(sw->valueint != 0, mode->valueint)) 
-        return wss_respond_code_ok;
+        return ws_respond_code_ok;
 err_exit:
-    return wss_respond_code_invalid_param;
+    return ws_respond_code_invalid_param;
 }
 
-wss_respond_code_t write_ledctrl_demo_output_handle(cJSON *request, cJSON *respone)
+ws_respond_code_t write_ledctrl_demo_output_handle(cJSON *request, cJSON *respone)
 {
     uint16_t    lifetime = 0;
     led_value_t targ[LED_CHAN_COUNT];
@@ -319,12 +319,12 @@ wss_respond_code_t write_ledctrl_demo_output_handle(cJSON *request, cJSON *respo
         goto err_exit;
 
     if (ledctrl_set_demo(lifetime, targ)) 
-        return wss_respond_code_ok;
+        return ws_respond_code_ok;
 err_exit:
-    return wss_respond_code_invalid_param; 
+    return ws_respond_code_invalid_param; 
 }
 
-wss_respond_code_t write_ledctrl_manual_handle(cJSON *request, cJSON *respone)
+ws_respond_code_t write_ledctrl_manual_handle(cJSON *request, cJSON *respone)
 {
     led_value_t targ[LED_CHAN_COUNT];
     /* channel values */
@@ -332,12 +332,12 @@ wss_respond_code_t write_ledctrl_manual_handle(cJSON *request, cJSON *respone)
         goto err_exit;
 
     if (ledctrl_set_manual(targ)) 
-        return wss_respond_code_ok;
+        return ws_respond_code_ok;
 err_exit:
-    return wss_respond_code_invalid_param;
+    return ws_respond_code_invalid_param;
 }
 
-wss_respond_code_t write_ledctrl_schedule_handle(cJSON *request, cJSON *respone)
+ws_respond_code_t write_ledctrl_schedule_handle(cJSON *request, cJSON *respone)
 {
     cJSON *pId, *pPower, *pSchedule, *pSub;
     led_value_t power = LED_VALUE_MAX, targ[LED_CHAN_COUNT];
@@ -395,33 +395,33 @@ wss_respond_code_t write_ledctrl_schedule_handle(cJSON *request, cJSON *respone)
     }
     ledctrl_save_sch(pId->valueint, power);
     tsk_ledctrl_unlock();
-    return wss_respond_code_ok;
+    return ws_respond_code_ok;
 err_exit:
-    return wss_respond_code_invalid_param;
+    return ws_respond_code_invalid_param;
 }
 
-wss_respond_code_t exec_ota_begin_handle(int client, cJSON *request, cJSON *respone)
+ws_respond_code_t exec_ota_begin_handle(int client, cJSON *request, cJSON *respone)
 {
     cJSON *item;
 
     item = cJSON_GetObjectItem(request, "img_size");
     if (!cJSON_IsNumber(item)) {
         ESP_LOGI(TAG, "%s invalid img_size.", __FUNCTION__);
-        return wss_respond_code_invalid_param;
+        return ws_respond_code_invalid_param;
     } 
 
     if (true == ota_begin(client, item->valueint)) {
-        return wss_respond_code_ok;
+        return ws_respond_code_ok;
     } else {
-        return wss_respond_code_exec_failure;
+        return ws_respond_code_exec_failure;
     } 
 }
 
-wss_respond_code_t exec_ota_done_handle(int client, cJSON *request, cJSON *respone)
+ws_respond_code_t exec_ota_done_handle(int client, cJSON *request, cJSON *respone)
 {
     if (true == ota_end(client)) {
-        return wss_respond_code_ok;
+        return ws_respond_code_ok;
     } else {
-        return wss_respond_code_exec_failure;
+        return ws_respond_code_exec_failure;
     } 
 }
