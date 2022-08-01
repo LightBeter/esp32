@@ -93,7 +93,7 @@ void wifi_ap_scan_tsk(void * parm)
         .ssid = NULL,
         .bssid = NULL,
         .channel = 0,
-        .show_hidden = true,
+        .show_hidden = false,
         .scan_type = WIFI_SCAN_TYPE_PASSIVE,
         .scan_time.passive = 300,
     };
@@ -128,6 +128,9 @@ void broadcast_ap_info()
     uint16_t mask;
   
     for(int index = 0; index < wifi_ap_num; index++) {
+        if (strlen((const char*)wifi_ap_list[index].ssid) <= 0)
+            continue;
+
         pSub = cJSON_CreateObject();
         cJSON_AddStringToObject(pSub, "ssid", (char*)wifi_ap_list[index].ssid);
         cJSON_AddNumberToObject(pSub, "auth", wifi_ap_list[index].authmode);

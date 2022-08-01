@@ -1,6 +1,6 @@
 menu "Application"
 
-choice
+choice DEVICE_MODEL
     prompt "Device Model"
     default DEVICE_MODEL_LM25
     config DEVICE_MODEL_LB150
@@ -11,6 +11,17 @@ choice
         bool "LM15"
     config DEVICE_MODEL_LM30
         bool "LM30"
+endchoice
+
+ choice COMPILE_MODEL
+    bool "compile model"
+    default COMPILE_MODEL_DEBUG
+    config COMPILE_MODEL_DEBUG
+        bool "compile debug version"
+    config COMPILE_MODEL_RELEASE
+        bool "compile release version"
+        select SECURE_BOOT
+        select SECURE_FLASH_ENC_ENABLED
 endchoice
 
 endmenu                             
