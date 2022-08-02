@@ -22,6 +22,7 @@ void tsk_wifi_scan_unlock();
 void broadcast_ap_info();
 void wifi_ap_scan_tsk(void * parm);
 void wifi_scan_eventHandler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data);
+bool check_ssid(const char *ssid);
 
 static xTaskHandle        tsk_handle = NULL;
 static SemaphoreHandle_t  mutex = NULL;
@@ -131,6 +132,9 @@ void broadcast_ap_info()
         if (strlen((const char*)wifi_ap_list[index].ssid) <= 0)
             continue;
 
+        if (!check_ssid((const char*)wifi_ap_list[index].ssid))
+            continue;
+
         pSub = cJSON_CreateObject();
         cJSON_AddStringToObject(pSub, "ssid", (char*)wifi_ap_list[index].ssid);
         cJSON_AddNumberToObject(pSub, "auth", wifi_ap_list[index].authmode);
@@ -153,4 +157,60 @@ void broadcast_ap_info()
     }
     tsk_wifi_scan_unlock();
     cJSON_free(out);
+}
+
+//根据首字节,获取utf8字符所占字节数
+int GetUtf8charByteNum(unsigned char ch)
+{
+    if (ch >= 0xFC && ch < 0xFE) {
+        return 6;
+    } else if (ch >= 0xF8) {
+        return 5;
+    } else if (ch >= 0xF0) {
+        return 4;
+    } else if (ch >= 0xE0) {
+        return 3;
+    } else if (ch >= 0xC0) {
+        return 2;
+    } else if (0 == (ch & 0x80)) {
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
+// 检查SSID是否UTF-8字符串及其它有效性
+bool check_ssid(const char *ssid)
+{
+    int byteNum = 0;
+    unsigned char ch = 0;
+    const char *ptr = ssid;
+
+    if (NULL == ssid)
+        return 0;
+
+    while (*ptr != '\0') {
+        ch = (unsigned char)*ptr;
+        if (byteNum == 0) {
+            //根据首字节特性判断该字符的字节数
+            byteNum = GetUtf8charByteNum(ch);
+            if (0 == byteNum)
+                return 0;
+
+            //ssid不能包含"
+            if (1 == byteNum && ch == '"')
+                return 0;
+        } else {
+             //多字节字符,非首字节格式:10xxxxxx
+            if ((ch & 0xC0) != 0x80)
+                return 0;
+        }
+        byteNum--;
+        ptr++;
+    }
+
+    if (byteNum > 0)
+        return 0;
+
+    return 1;
 }
