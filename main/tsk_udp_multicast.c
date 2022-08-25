@@ -31,11 +31,11 @@ bool read_string(pb_istream_t *stream, const pb_field_t *field, void **arg);
 
 static xTaskHandle     recv_tsk_handle = NULL;
 static xTaskHandle     tsk_handle = NULL;
-static QueueHandle_t   freeQueue;
-static QueueHandle_t   handleQueue;
-static int             sock = -1;
-static char multicast_dist_list[UDP_MULTICAST_DIST_MAX_SIZE];   
-static udp_multicast_packet_t multicast_buffer[UDP_MULTICAST_PACKET_POOL_SIZE];
+static QueueHandle_t   freeQueue = NULL;
+static QueueHandle_t   handleQueue = NULL;
+static int  sock = -1;
+static char multicast_dist_list[UDP_MULTICAST_DIST_MAX_SIZE] = {0};
+static udp_multicast_packet_t multicast_buffer[UDP_MULTICAST_PACKET_POOL_SIZE] = {0};
 
 
 int socket_add_ipv4_multicast_group(int sock)
@@ -126,7 +126,7 @@ err_handle:
 
 void tsk_udp_multicast_init()
 {
-    udp_multicast_packet_t *packet;
+    udp_multicast_packet_t *packet = NULL;
 
     handleQueue = xQueueCreate(UDP_MULTICAST_PACKET_POOL_SIZE, sizeof(udp_multicast_packet_t*));
     freeQueue = xQueueCreate(UDP_MULTICAST_PACKET_POOL_SIZE, sizeof(udp_multicast_packet_t*));
@@ -196,7 +196,7 @@ void multicast_recv_tsk(void* parm)
     int s;
     struct sockaddr_storage raddr;
     socklen_t socklen;
-    udp_multicast_packet_t *packet;
+    udp_multicast_packet_t *packet = NULL;
 
     ESP_LOGI(TAG, "Udp Multicase Start Recv");
     while (1) {
@@ -205,6 +205,10 @@ void multicast_recv_tsk(void* parm)
 
         if (!packet)
             continue;
+
+        if (packet < multicast_buffer || packet >= (multicast_buffer + UDP_MULTICAST_PACKET_POOL_SIZE)) {
+            ESP_LOGW(TAG, "freeQueue packet(%p:%p) failed", packet, multicast_buffer);
+        }
 
         FD_ZERO(&rfds);
         FD_SET(sock, &rfds);
@@ -234,17 +238,22 @@ void multicast_recv_tsk(void* parm)
 
 void multicast_handle_tsk(void* parm) 
 {
-    static led_value_t values[LED_CHAN_COUNT];
+    led_value_t values[LED_CHAN_COUNT] = { 0 };
     udp_multicast_packet_t *rawPacket = NULL;
-    pb_istream_t    stream;
-
+    pb_istream_t stream;
+    MulticastPacket packet = MulticastPacket_init_default;
 
     while (1) { 
         xQueueReceive(handleQueue, &rawPacket, portMAX_DELAY);
         if (NULL == rawPacket)
             continue; 
 
-        MulticastPacket packet = MulticastPacket_init_default;
+        if ( (rawPacket->len < 0 || rawPacket->len > UDP_MULTICAST_PACKET_MAX_SIZE)
+            || (rawPacket < multicast_buffer || rawPacket >= (multicast_buffer + UDP_MULTICAST_PACKET_POOL_SIZE))) {
+            ESP_LOGW(TAG, "handleQueue packet(%p:%p) len(%d) failed", rawPacket, multicast_buffer, rawPacket->len);
+        }
+
+        memset(&packet, 0x00, sizeof(MulticastPacket));
         packet.dist.arg = multicast_dist_list;
         packet.dist.funcs.decode = read_string;
         stream = pb_istream_from_buffer(rawPacket->data, rawPacket->len);

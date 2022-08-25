@@ -24,10 +24,10 @@ This program is free software: you can redistribute it and/or modify
 #include "freertos/queue.h"
 #include <string.h>
 
-static SemaphoreHandle_t xwebsocket_mutex; // to lock the client array
-static QueueHandle_t xwebsocket_queue; // to hold the clients that send messages
-static ws_client_t clients[WEBSOCKET_SERVER_MAX_CLIENTS]; // holds list of clients
-static TaskHandle_t xtask; // the task itself
+static SemaphoreHandle_t xwebsocket_mutex = NULL; // to lock the client array
+static QueueHandle_t xwebsocket_queue = NULL; // to hold the clients that send messages
+static ws_client_t clients[WEBSOCKET_SERVER_MAX_CLIENTS] = { 0 }; // holds list of clients
+static TaskHandle_t xtask = NULL; // the task itself
 
 static void background_callback(struct netconn* conn, enum netconn_evt evt,u16_t len) {
   switch(evt) {
@@ -81,7 +81,7 @@ static void handle_read(uint8_t num) {
 }
 
 static void ws_server_task(void* pvParameters) {
-  struct netconn* conn;
+  struct netconn* conn = NULL;
 
   xwebsocket_mutex = xSemaphoreCreateMutex();
   xwebsocket_queue = xQueueCreate(WEBSOCKET_SERVER_QUEUE_SIZE, sizeof(struct netconn*));
@@ -99,6 +99,7 @@ static void ws_server_task(void* pvParameters) {
   }
 
   for(;;) {
+    conn = NULL;
     xQueueReceive(xwebsocket_queue,&conn,portMAX_DELAY);
     if(!conn) continue; // if the connection was NULL, ignore it
 

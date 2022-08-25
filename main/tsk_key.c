@@ -19,7 +19,7 @@ void key_tsk(void * parm);
 static xTaskHandle  tsk_handle = NULL;
 static xQueueHandle gpio_evt_queue = NULL;
 
-void key_isr_handler(void* arg)
+static void IRAM_ATTR key_isr_handler(void* arg)
 {
     uint8_t level = KEY_STATE_DOWN;//gpio_get_level(KEY_GPIO_PIN);
     xQueueSendFromISR(gpio_evt_queue, &level, NULL);
