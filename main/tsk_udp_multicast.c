@@ -206,10 +206,6 @@ void multicast_recv_tsk(void* parm)
         if (!packet)
             continue;
 
-        if (packet < multicast_buffer || packet >= (multicast_buffer + UDP_MULTICAST_PACKET_POOL_SIZE)) {
-            ESP_LOGW(TAG, "freeQueue packet(%p:%p) failed", packet, multicast_buffer);
-        }
-
         FD_ZERO(&rfds);
         FD_SET(sock, &rfds);
         s = select(sock + 1, &rfds, NULL, NULL, &tv);
@@ -247,11 +243,6 @@ void multicast_handle_tsk(void* parm)
         xQueueReceive(handleQueue, &rawPacket, portMAX_DELAY);
         if (NULL == rawPacket)
             continue; 
-
-        if ( (rawPacket->len < 0 || rawPacket->len > UDP_MULTICAST_PACKET_MAX_SIZE)
-            || (rawPacket < multicast_buffer || rawPacket >= (multicast_buffer + UDP_MULTICAST_PACKET_POOL_SIZE))) {
-            ESP_LOGW(TAG, "handleQueue packet(%p:%p) len(%d) failed", rawPacket, multicast_buffer, rawPacket->len);
-        }
 
         memset(&packet, 0x00, sizeof(MulticastPacket));
         packet.dist.arg = multicast_dist_list;
