@@ -105,6 +105,8 @@ void wifi_start_sta()
     memset( &wifiConf, 0x00, sizeof(wifi_config_t) );
     memcpy(wifiConf.sta.ssid, ssid, strlen(ssid));
     memcpy(wifiConf.sta.password, password, strlen(password));
+    wifiConf.sta.scan_method = WIFI_ALL_CHANNEL_SCAN;
+    wifiConf.sta.sort_method = WIFI_CONNECT_AP_BY_SIGNAL;
     wifiConf.sta.pmf_cfg.capable = true;
     wifiConf.sta.pmf_cfg.required = false;
     ESP_ERROR_CHECK( esp_wifi_set_mode(WIFI_MODE_STA) );
