@@ -268,33 +268,34 @@ void fan_deinit()
 
 void fan_update()
 {
-    static uint16_t output = 0;
+    static uint16_t pre = 0, output = 0;
 
     if (playTime >  0) {
         playTime -= 1;
         output = fanDuty;
-    } else if (false == ledctrl_switch()) {
-        isTemperatureHigh = false;
-        output = 0;
+        goto update;
+    } 
+    
+    if (curTemperature >= TEMP_CTRL_T4) {
+        output = 100;
+        isTemperatureHigh = true;   
+    } else if (isTemperatureHigh && curTemperature > TEMP_CTRL_T3) {
+        output = 100;  
     } else {
-        if (curTemperature >= TEMP_CTRL_T4) {
-            output = 100;
-            isTemperatureHigh = true;
-        } else if (isTemperatureHigh && curTemperature > TEMP_CTRL_T3) {
-            output = 100;  
+        isTemperatureHigh = false; 
+        if (curTemperature >= TEMP_CTRL_T2) {
+            output = fanDuty;
+        } else if ( ledctrl_is_close() ) {
+            output = 0;
         } else {
-            isTemperatureHigh = false; 
-            if (curTemperature >= TEMP_CTRL_T2) {
-                output = fanDuty;
-            } else if (curTemperature <= TEMP_CTRL_T1) {
-                output = 0;
-            }
+            output = pre;
         }
     }
+    pre = output;
 
+update:
     if (output > 0 && output < 40)
         output = 40;
-
     ledc_set_duty(FAN_PWM_SPEED_MODE, FAN_PWM_CHANNEL, (output * FAN_PWM_DUTY_MAX) / 100 );
     ledc_update_duty(FAN_PWM_SPEED_MODE, FAN_PWM_CHANNEL);
 }

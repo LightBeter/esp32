@@ -55,13 +55,13 @@ const ledc_channel_config_t ledc_chan_cfg[LED_CHAN_COUNT] = {
 
 #if defined(CONFIG_DEVICE_MODEL_LM15) && CONFIG_DEVICE_MODEL_LM15
 const led_output_cfg_t ledc_output_cfg[LED_CHAN_COUNT] = {
-    [LED_CHAN_WHITE]     = LED_OUTPUT_CFG( 10, 820 ),
-    [LED_CHAN_DARK_BLUE] = LED_OUTPUT_CFG( 10, 820 ), 
-    [LED_CHAN_BLUE]      = LED_OUTPUT_CFG( 10, 820 ),  
-    [LED_CHAN_RED]       = LED_OUTPUT_CFG( 10, 820 ),     
-    [LED_CHAN_GREEN]     = LED_OUTPUT_CFG( 10, 820 ), 
-    [LED_CHAN_UV_405]    = LED_OUTPUT_CFG( 10, 820 ), 
-    [LED_CHAN_UV_415]    = LED_OUTPUT_CFG( 10, 820 ), 
+    [LED_CHAN_WHITE]     = LED_OUTPUT_CFG( 10, 750 ),
+    [LED_CHAN_DARK_BLUE] = LED_OUTPUT_CFG( 10, 750 ), 
+    [LED_CHAN_BLUE]      = LED_OUTPUT_CFG( 10, 750 ),  
+    [LED_CHAN_RED]       = LED_OUTPUT_CFG( 10, 750 ),     
+    [LED_CHAN_GREEN]     = LED_OUTPUT_CFG( 10, 750 ), 
+    [LED_CHAN_UV_405]    = LED_OUTPUT_CFG( 10, 750 ), 
+    [LED_CHAN_UV_415]    = LED_OUTPUT_CFG( 10, 750 ), 
 };
 #else
 const led_output_cfg_t ledc_output_cfg[LED_CHAN_COUNT] = {

@@ -26,6 +26,18 @@ bool ledctrl_switch()
     return led_sw;
 }
 
+bool ledctrl_is_close()
+{
+    if (false == led_sw)
+        return true;
+
+    for (uint8_t index = 0; index < LED_CHAN_COUNT; index++) {
+        if (LED_VALUE_MIN != led_output[index])
+            return false;
+    }
+    return true;
+}
+
 ledctrl_mode_t ledctrl_mode()
 {
     return led_mode;

@@ -35,6 +35,7 @@ extern "C" {
 #endif
 
 bool ledctrl_switch();
+bool ledctrl_is_close();
 ledctrl_mode_t ledctrl_mode();
 led_value_t ledctrl_power();
 const led_value_t* ledctrl_current_output();
