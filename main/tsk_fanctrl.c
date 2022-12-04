@@ -78,7 +78,7 @@ static ringbuffer_type  adcBufs[ADC_CHAN_COUNT] = {
     { .buffer = NULL, .bufferSize = 0 },
     { .buffer = NULL, .bufferSize = 0 }
 };
-static uint16_t     playTime = 0;
+static int16_t      playTime = 0;
 static uint16_t     fanDuty = 0;
 static int16_t      curTemperature = 0;
 static bool         isTemperatureOver = false;
@@ -151,7 +151,7 @@ void fanctrl_set_duty(uint16_t value)
     }
 }
 
-void fanctrl_set_play(uint16_t value)
+void fanctrl_set_play(int16_t value)
 {
     if (!INVALID_FAN_PLAY(value))
         playTime = value;
@@ -204,13 +204,13 @@ void temp_ctrl_tsk(void * parm)
         } else if (curTemperature <= TEMP_OVER_CANCEL) {
             isTemperatureOver = false;
         }
-        /* 更新风扇输出 */
-        fan_update();
         /* 写风扇配置 */
         if (preSaveToken != curSaveToken && 0 == playTime) {
             storage_write_fan_duty(fanDuty);
             preSaveToken = curSaveToken;
         }
+        /* 更新风扇输出 */
+        fan_update();
 next:        
         vTaskDelay( pdMS_TO_TICKS(ADC_SAMPLE_INTERVAL) );
     }
@@ -271,10 +271,15 @@ void fan_update()
     static uint16_t pre = 0, output = 0;
 
     if (playTime >  0) {
-        playTime -= 1;
         output = fanDuty;
+        playTime -= 1;
         goto update;
-    } 
+    } else if (0 == playTime) {
+        playTime -= 1;
+        if (pre !=0) {
+            pre = fanDuty;
+        }   
+    }
     
     if (curTemperature >= TEMP_CTRL_T4) {
         output = 100;
