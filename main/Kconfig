@@ -13,7 +13,7 @@ choice DEVICE_MODEL
         bool "LM30"
 endchoice
 
- choice COMPILE_MODEL
+choice COMPILE_MODEL
     bool "compile model"
     default COMPILE_MODEL_DEBUG
     config COMPILE_MODEL_DEBUG
@@ -23,5 +23,15 @@ endchoice
         select SECURE_BOOT
         select SECURE_FLASH_ENC_ENABLED
 endchoice
+
+config LED_PWM_MIN
+    int
+    default 10
+
+config LED_PWM_MAX
+    int
+    default 780  if DEVICE_MODEL_LM15
+    default 950 if DEVICE_MODEL_LM30
+    default 900
 
 endmenu                             
