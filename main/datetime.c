@@ -43,6 +43,9 @@ void datetime_init()
     /* initial datetime */
     datetime_extrtc_read(&t);
     datetime_set(t);
+#if defined(CONFIG_DEVICE_MODEL_LM12) && CONFIG_DEVICE_MODEL_LM12
+    // datetime_extrtc_enable_charge();
+#endif
 }
 
 void datetime_deinit()
@@ -181,31 +184,23 @@ uint8_t bcdToInt(uint8_t bcd) {
 esp_err_t datetime_extrtc_read(time_t *t)
 {	
     struct tm tm;
-    uint8_t data[7];
+    uint8_t data[8];
 	esp_err_t errRc;
-    
-	i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-	ESP_ERROR_CHECK( i2c_master_start(cmd) );
-	ESP_ERROR_CHECK( i2c_master_write_byte(cmd, (DS1307_ADDRESS << 1) | I2C_MASTER_WRITE, 1 /* expect ack */) );
-	ESP_ERROR_CHECK( i2c_master_write_byte(cmd, 0x0, 1));
-	ESP_ERROR_CHECK( i2c_master_start(cmd));
-	ESP_ERROR_CHECK( i2c_master_write_byte(cmd, (DS1307_ADDRESS << 1) | I2C_MASTER_READ, 1 /* expect ack */) );
-	ESP_ERROR_CHECK( i2c_master_read(cmd, data, 7, I2C_MASTER_LAST_NACK) );
-	ESP_ERROR_CHECK( i2c_master_stop(cmd) );
-    errRc = i2c_master_cmd_begin( EXT_RTC_I2C_NUM, cmd, I2C_MASTER_TIMEOUT_MS);
-    i2c_cmd_link_delete(cmd);
+
+    data[0] = 0x00;
+    errRc = i2c_master_write_read_device( EXT_RTC_I2C_NUM, DS1307_ADDRESS, &data[0], 1, &data[1], 7, I2C_MASTER_TIMEOUT_MS);
     if (errRc != ESP_OK) {
-		ESP_LOGE( TAG, "%s: i2c_master_cmd_begin: %d", __FUNCTION__, errRc );
+		ESP_LOGE( TAG, "%s: read external rtc date failure(%d)", __FUNCTION__, errRc );
         return errRc;
 	}
 
-	tm.tm_sec  = bcdToInt(data[0] & 0x7f);
-	tm.tm_min  = bcdToInt(data[1] & 0x7f);
-	tm.tm_hour = bcdToInt(data[2] & 0x3f);
-    tm.tm_wday = bcdToInt(data[3] & 0x07) - 1;
-	tm.tm_mday = bcdToInt(data[4] & 0x3f);
-	tm.tm_mon  = bcdToInt(data[5] & 0x1f) - 1; // 0-11 - Note: The month on the DS1307 is 1-12.
-	tm.tm_year = bcdToInt(data[6] & 0xff) + 100; // Years since 1900
+	tm.tm_sec  = bcdToInt(data[1] & 0x7f);
+	tm.tm_min  = bcdToInt(data[2] & 0x7f);
+	tm.tm_hour = bcdToInt(data[3] & 0x3f);
+    tm.tm_wday = bcdToInt(data[4] & 0x07) - 1;
+	tm.tm_mday = bcdToInt(data[5] & 0x3f);
+	tm.tm_mon  = bcdToInt(data[6] & 0x1f) - 1; // 0-11 - Note: The month on the DS1307 is 1-12.
+	tm.tm_year = bcdToInt(data[7] & 0xff) + 100; // Years since 1900
 	*t = mktime(&tm) - (timezone * 60);
     ESP_LOGI( TAG, "%s: read external rtc date/time is %s", __FUNCTION__, asctime(&tm) );
 	return ESP_OK;
@@ -213,35 +208,41 @@ esp_err_t datetime_extrtc_read(time_t *t)
 
 void datetime_extrtc_write(time_t t)
 {
-    uint8_t data[7];
+    uint8_t data[8];
     esp_err_t errRc;
 	struct tm tm;
 	
     gmtime_r(&t, &tm);
-    data[0] = intToBCD(tm.tm_sec) & 0x7f;
-    data[1] = intToBCD(tm.tm_min) & 0x7f;
-    data[2] = intToBCD(tm.tm_hour) & 0x3f;
-    data[3] = intToBCD(tm.tm_wday+1) & 0x07;
-    data[4] = intToBCD(tm.tm_mday) & 0x3f;
-    data[5] = intToBCD(tm.tm_mon+1) & 0x1f;
-    data[6] = intToBCD(tm.tm_year-100) & 0xff;
-
+    data[0] = 0x00;
+    data[1] = intToBCD(tm.tm_sec) & 0x7f;
+    data[2] = intToBCD(tm.tm_min) & 0x7f;
+    data[3] = intToBCD(tm.tm_hour) & 0x3f;
+    data[4] = intToBCD(tm.tm_wday+1) & 0x07;
+    data[5] = intToBCD(tm.tm_mday) & 0x3f;
+    data[6] = intToBCD(tm.tm_mon+1) & 0x1f;
+    data[7] = intToBCD(tm.tm_year-100) & 0xff;
     // ESP_LOGI( TAG, "%s: write %02X%02X%02X%02X%02X%02X%02X", __FUNCTION__, 
-    //                 data[0], data[1], data[2], data[3], data[4], data[5], data[6]);
+    //                 data[1], data[2], data[3], data[4], data[5], data[6], data[7]);
 
-	i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-	ESP_ERROR_CHECK(i2c_master_start(cmd));
-	ESP_ERROR_CHECK(i2c_master_write_byte( cmd, (DS1307_ADDRESS << 1) | I2C_MASTER_WRITE, 1 /* expect ack */));
-	ESP_ERROR_CHECK(i2c_master_write_byte( cmd, 0x0, 1));
-	ESP_ERROR_CHECK(i2c_master_write( cmd, data, 7, 1) );
-	ESP_ERROR_CHECK(i2c_master_stop(cmd));
-	errRc = i2c_master_cmd_begin(EXT_RTC_I2C_NUM, cmd, I2C_MASTER_TIMEOUT_MS);
-    i2c_cmd_link_delete(cmd);
+    errRc = i2c_master_write_to_device( EXT_RTC_I2C_NUM, DS1307_ADDRESS, data, 8, I2C_MASTER_TIMEOUT_MS);
 	if (errRc != ESP_OK) {
-		ESP_LOGE( TAG, "%s: i2c_master_cmd_begin: %d", __FUNCTION__, errRc );
+		ESP_LOGE( TAG, "%s: write external rtc failure(%d)", __FUNCTION__, errRc );
 	} else {
         ESP_LOGI( TAG, "%s: write external rtc date/time is %s", __FUNCTION__, asctime(&tm) );
     }
+}
+
+void datetime_extrtc_enable_charge()
+{
+    uint8_t data = 0xAA;
+    esp_err_t errRc;
+
+    errRc = i2c_master_write_to_device( EXT_RTC_I2C_NUM, DS1307_ADDRESS, &data, 1, I2C_MASTER_TIMEOUT_MS);
+	if (errRc != ESP_OK) {
+		ESP_LOGE( TAG, "%s: enable external rtc charge failure(%d)", __FUNCTION__, errRc );
+	} else {
+        ESP_LOGI( TAG, "%s: enable external rtc charge success", __FUNCTION__ );
+    }  
 }
 
 void datetime_sync_extrtc()

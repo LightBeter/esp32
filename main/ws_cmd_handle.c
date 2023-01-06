@@ -15,7 +15,7 @@
 
 bool get_time_by_json(const cJSON *packet, const char *name, uint16_t *value, uint16_t max);
 bool get_output_by_json(const cJSON *packet, const char *name, led_value_t *targ);
-void set_outpu_to_json(cJSON *packet, const char *name, const led_value_t *targ);
+void set_output_to_json(cJSON *packet, const char *name, const led_value_t *targ);
 
 bool get_time_by_json(const cJSON *packet, const char *name, uint16_t *value, uint16_t max) 
 {
@@ -62,7 +62,7 @@ bool get_output_by_json(const cJSON *packet, const char *name, led_value_t *targ
     return true;
 }
 
-void set_outpu_to_json(cJSON *packet, const char *name, const led_value_t *targ)
+void set_output_to_json(cJSON *packet, const char *name, const led_value_t *targ)
 {
     int values[LED_CHAN_COUNT];
     cJSON *array;
@@ -70,6 +70,9 @@ void set_outpu_to_json(cJSON *packet, const char *name, const led_value_t *targ)
     for (int i = 0; i < LED_CHAN_COUNT; i++) {
        values[i] =  targ[i];
     }
+#if defined(CONFIG_DEVICE_MODEL_LM12) && CONFIG_DEVICE_MODEL_LM12
+    values[LED_CHAN_GREEN] = values[LED_CHAN_RED];
+#endif
     array = cJSON_CreateIntArray(values, LED_CHAN_COUNT);
     cJSON_AddItemToObject(packet, name, array);
 }
@@ -232,7 +235,7 @@ ws_respond_code_t read_ledctrl_state_handle(cJSON *request, cJSON *respone)
     tsk_ledctrl_lock();
     cJSON_AddNumberToObject(respone, "switch", ledctrl_switch());
     cJSON_AddNumberToObject(respone, "mode", ledctrl_mode());
-    set_outpu_to_json(respone, "values", ledctrl_current_output());
+    set_output_to_json(respone, "values", ledctrl_current_output());
     tsk_ledctrl_unlock();
     return ws_respond_code_ok;
 }
@@ -249,7 +252,7 @@ ws_respond_code_t read_ledctrl_mode_handle(cJSON *request, cJSON *respone)
 ws_respond_code_t read_ledctrl_current_output_handle(cJSON *request, cJSON *respone)
 {
     tsk_ledctrl_lock();
-    set_outpu_to_json(respone, "values", ledctrl_current_output());
+    set_output_to_json(respone, "values", ledctrl_current_output());
     tsk_ledctrl_unlock();
     return ws_respond_code_ok;
 }
@@ -257,7 +260,7 @@ ws_respond_code_t read_ledctrl_current_output_handle(cJSON *request, cJSON *resp
 ws_respond_code_t read_ledctrl_manual_handle(cJSON *request, cJSON *respone)
 {
     tsk_ledctrl_lock();
-    set_outpu_to_json(respone, "values", ledctrl_manual_output());
+    set_output_to_json(respone, "values", ledctrl_manual_output());
     tsk_ledctrl_unlock();
     return ws_respond_code_ok;
 }
@@ -274,7 +277,7 @@ ws_respond_code_t read_ledctrl_schedule_handle(cJSON *request, cJSON *respone)
         if (item) {
             pSub = cJSON_CreateObject();
             cJSON_AddNumberToObject(pSub, "t", item->time);
-            set_outpu_to_json(pSub, "values", item->targ);
+            set_output_to_json(pSub, "values", item->targ);
             cJSON_AddItemToArray(pSchedule, pSub);
         }
     }

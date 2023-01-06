@@ -112,7 +112,7 @@ bool ledctrl_set_demo(uint16_t lifetime, const led_value_t *values)
         return false;
     
     if (!ledctrl_check_values(values))
-        return false;
+        return false;          
 
     tsk_ledctrl_lock();
     led_demo.remaining = lifetime;

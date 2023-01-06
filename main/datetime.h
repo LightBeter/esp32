@@ -26,6 +26,7 @@ void datetime_extrtc_init(void);
 void datetime_extrtc_deinit(void);
 void datetime_extrtc_write(time_t t);
 esp_err_t datetime_extrtc_read(time_t *t);
+void datetime_extrtc_enable_charge();
 
 #ifdef __cplusplus
 }
