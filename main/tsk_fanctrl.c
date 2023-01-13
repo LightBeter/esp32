@@ -36,7 +36,6 @@
 
 #define FAN_PWM_SPEED_MODE          LEDC_LOW_SPEED_MODE
 #define FAN_PWM_TIMER               LEDC_TIMER_1
-#define FAN_PWM_GPIO                GPIO_NUM_2
 #define FAN_PWM_CHANNEL             LEDC_CHANNEL_7
 #define FAN_PWM_DUTY_RESOLUTION     LEDC_TIMER_11_BIT
 #define FAN_PWM_FREQ                (32 * 1000)
@@ -243,7 +242,7 @@ void fan_init()
     };
 
     ledc_channel_config_t fan_chan_cfg = {
-        .gpio_num   = FAN_PWM_GPIO,            
+        .gpio_num   = CONFIG_FAN_PIN,            
         .channel    = FAN_PWM_CHANNEL,           
         .speed_mode = FAN_PWM_SPEED_MODE,      
         .intr_type  = LEDC_INTR_DISABLE,       
@@ -299,8 +298,6 @@ void fan_update()
     pre = output;
 
 update:
-    if (output > 0 && output < 40)
-        output = 40;
     ledc_set_duty(FAN_PWM_SPEED_MODE, FAN_PWM_CHANNEL, (output * FAN_PWM_DUTY_MAX) / 100 );
     ledc_update_duty(FAN_PWM_SPEED_MODE, FAN_PWM_CHANNEL);
 }

@@ -7,8 +7,8 @@
 extern "C" {
 #endif
 
-#define INVALID_FAN_DUTY(_duty_)     (_duty_ < 10 || _duty_ > 100)
-#define INVALID_FAN_PLAY(_play_)     (_play_ > 30 || _play_ < 0)
+#define INVALID_FAN_DUTY(_duty_)     (_duty_ < CONFIG_FAN_PWM_MIN || _duty_ > 100)
+#define INVALID_FAN_PLAY(_play_)     (_play_ > CONFIG_FAN_PLAY_MAX || _play_ < 0)
 
 enum {
     ADC_CHAN_REF = 0,

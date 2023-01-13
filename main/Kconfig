@@ -1,39 +1,123 @@
 menu "Application"
 
-choice DEVICE_MODEL
-    prompt "Device Model"
-    default DEVICE_MODEL_LM25
-    config DEVICE_MODEL_LB150
-        bool "LB150"
-    config DEVICE_MODEL_LM25
-        bool "LM25"
-    config DEVICE_MODEL_LM15
-        bool "LM15"
-    config DEVICE_MODEL_LM12
-        bool "LM12"
-    config DEVICE_MODEL_LM30
-        bool "LM30"
-endchoice
+    choice DEVICE_MODEL
+        prompt "Device Model"
+        default DEVICE_MODEL_LM25
+        config DEVICE_MODEL_LB150
+            bool "LB150"
+        config DEVICE_MODEL_LM25
+            bool "LM25"
+        config DEVICE_MODEL_LM15
+            bool "LM15"
+        config DEVICE_MODEL_LM12
+            bool "LM12"
+        config DEVICE_MODEL_LM30
+            bool "LM30"
+    endchoice
 
-choice COMPILE_MODEL
-    bool "compile model"
-    default COMPILE_MODEL_DEBUG
-    config COMPILE_MODEL_DEBUG
-        bool "compile debug version"
-    config COMPILE_MODEL_RELEASE
-        bool "compile release version"
-        select SECURE_BOOT
-        select SECURE_FLASH_ENC_ENABLED
-endchoice
+    choice COMPILE_MODEL
+        bool "compile model"
+        default COMPILE_MODEL_DEBUG
+        config COMPILE_MODEL_DEBUG
+            bool "compile debug version"
+        config COMPILE_MODEL_RELEASE
+            bool "compile release version"
+            select SECURE_BOOT
+            select SECURE_FLASH_ENC_ENABLED
+    endchoice
 
-config LED_PWM_MIN
-    int
-    default 10
+    config FAN_PIN
+        int "Fan Control Pin"
+        range 0 33
+        default 2
+        help
+            Fan Control Pin
 
-config LED_PWM_MAX
-    int
-    default 780  if DEVICE_MODEL_LM15
-    default 950 if DEVICE_MODEL_LM30
-    default 900
+    config LED_WHITE_PIN
+        int "White Led Control Pin"
+        range 0 33
+        default 12 if DEVICE_MODEL_LM30
+        default 25
+        help
+            White Led Control Pin
 
+    config LED_DARK_BLUE_PIN
+        int "Dark Blue Led Control Pin"
+        range 0 33
+        default 26 if DEVICE_MODEL_LM30
+        default 27
+        help
+            Dark Blue Led Control Pin
+
+    config LED_BLUE_PIN
+        int "Blue Led Control Pin"
+        range 0 33
+        default 12 if DEVICE_MODEL_LM12
+        default 13
+        help
+            Blue Led Control Pin
+
+    config LED_RED_PIN
+        int "Red Led Control Pin"
+        range 0 33
+        default 33
+        help
+            Red Led Control Pin
+
+    config LED_GREEN_PIN
+        int "Green Led Control Pin"
+        range 0 33
+        default 25 if DEVICE_MODEL_LM30
+        default 32
+        help
+            Green Led Control Pin
+
+    config LED_UV_405_PIN
+        int "UV 405 Led Control Pin"
+        range 0 33
+        default 27 if DEVICE_MODEL_LM30
+        default 13 if DEVICE_MODEL_LM12
+        default 26
+        help
+            UV 405 Led Control Pin
+
+    config LED_UV_415_PIN
+        int "UV 415 Led Control Pin"
+        range 0 33
+        default 32 if DEVICE_MODEL_LM30
+        default 32 if DEVICE_MODEL_LM12
+        default 12
+        help
+            UV 415 Led Control Pin
+
+    config FAN_PLAY_MAX
+        int "Fan Play MAX Second"
+        range 1 65535
+        default 600
+        help
+            Fan Play MAX Second
+
+    config FAN_PWM_MIN
+        int "Fan Pwm Output Min Duty"
+        range 0 100
+        default 10
+        help
+            Fan Pwm Output Min Duty
+
+    config LED_PWM_MIN
+        int "LED Pwm Output Min Duty"
+        range 0 1000
+        default 10
+        help
+            Len Pwm Output Min Limit
+
+    config LED_PWM_MAX
+        int "LED Pwm Output Max Duty"
+        range 0 1000
+        default 780 if DEVICE_MODEL_LM15
+        default 950 if DEVICE_MODEL_LM30
+        default 900
+        help
+            Len Pwm Output Max
+    
 endmenu                             
