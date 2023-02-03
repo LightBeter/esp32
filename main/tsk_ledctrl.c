@@ -97,15 +97,21 @@ void led_ctrl_boot_play()
 {    
     uint8_t chan = 0;
     for (chan = 0 ; chan < LED_CHAN_COUNT; chan++) { 
+#if defined(CONFIG_DEVICE_MODEL_LM12) && CONFIG_DEVICE_MODEL_LM12
+        if (LED_CHAN_GREEN == chan)
+            continue;
+#endif
         led_pwm_output_play(chan, 50, 1);
         vTaskDelay(pdMS_TO_TICKS(700));
         led_pwm_output_play(chan, 0, 1);
         vTaskDelay(pdMS_TO_TICKS(200));
     }
+
     for (chan = 0 ; chan < LED_CHAN_COUNT; chan++) { 
         led_pwm_output_play(chan, 50, 1);
     }
     vTaskDelay(pdMS_TO_TICKS(700));
+
     for (chan = 0 ; chan < LED_CHAN_COUNT; chan++) { 
         led_pwm_output_play(chan, 0, 1);
     }

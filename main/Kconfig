@@ -26,6 +26,37 @@ menu "Application"
             select SECURE_FLASH_ENC_ENABLED
     endchoice
 
+    config HEARTBEAT_PIN
+        int "Heartbeat led Pin"
+        range 0 33
+        default 5
+        help
+            Heartbeat Pin
+
+    config INDICATOR_1_PIN
+        int "indicator led 1 Pin"
+        range 0 33
+        default 21 if DEVICE_MODEL_LM12
+        default 23
+        help
+            indicator led 1 Pin
+
+    config INDICATOR_2_PIN
+        int "indicator led 2 Pin"
+        range 0 33
+        default 22 if DEVICE_MODEL_LM12
+        default 22
+        help
+            indicator led 2 Pin
+
+    config KEY_PIN
+        int "Key Pin"
+        range 0 33
+        default 23 if DEVICE_MODEL_LM12
+        default 21
+        help
+            Key Pin
+
     config FAN_PIN
         int "Fan Control Pin"
         range 0 33
@@ -115,6 +146,7 @@ menu "Application"
         int "LED Pwm Output Max Duty"
         range 0 1000
         default 780 if DEVICE_MODEL_LM15
+        default 780 if DEVICE_MODEL_LM12
         default 950 if DEVICE_MODEL_LM30
         default 900
         help

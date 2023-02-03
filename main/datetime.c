@@ -234,10 +234,10 @@ void datetime_extrtc_write(time_t t)
 
 void datetime_extrtc_enable_charge()
 {
-    uint8_t data = 0xAA;
+    uint8_t data[2] = { 0x08, 0xAA };
     esp_err_t errRc;
 
-    errRc = i2c_master_write_to_device( EXT_RTC_I2C_NUM, DS1307_ADDRESS, &data, 1, I2C_MASTER_TIMEOUT_MS);
+    errRc = i2c_master_write_to_device( EXT_RTC_I2C_NUM, DS1307_ADDRESS, data, 2, I2C_MASTER_TIMEOUT_MS);
 	if (errRc != ESP_OK) {
 		ESP_LOGE( TAG, "%s: enable external rtc charge failure(%d)", __FUNCTION__, errRc );
 	} else {

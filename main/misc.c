@@ -8,9 +8,6 @@
 
 #define TAG                     "MISC"
 #define DEVICE_SERIAL_NUM_LEN   12  
-#define LED_1_GPIO_PIN          GPIO_NUM_23
-#define LED_2_GPIO_PIN          GPIO_NUM_22
-#define LED_3_GPIO_PIN          GPIO_NUM_5
 #define LED_OPEN_LEVEL          1
 #define LED_CLOSE_LEVEL         0
 
@@ -102,12 +99,12 @@ void indicator_init()
     gpio_config_t io_conf;
     io_conf.intr_type = GPIO_PIN_INTR_DISABLE;
     io_conf.mode = GPIO_MODE_INPUT_OUTPUT;
-    io_conf.pin_bit_mask = (1ULL << LED_1_GPIO_PIN) | (1ULL << LED_2_GPIO_PIN) | (1ULL << LED_3_GPIO_PIN);
+    io_conf.pin_bit_mask = (1ULL << CONFIG_INDICATOR_1_PIN) | (1ULL << CONFIG_INDICATOR_2_PIN) | (1ULL << CONFIG_HEARTBEAT_PIN);
     io_conf.pull_down_en = 0;
     io_conf.pull_up_en = 0;
     gpio_config(&io_conf);
-    gpio_set_level(LED_1_GPIO_PIN, LED_CLOSE_LEVEL);
-    gpio_set_level(LED_2_GPIO_PIN, LED_CLOSE_LEVEL);
+    gpio_set_level(CONFIG_INDICATOR_1_PIN, LED_CLOSE_LEVEL);
+    gpio_set_level(CONFIG_INDICATOR_2_PIN, LED_CLOSE_LEVEL);
 }
 
 void indicator_set_chan(Indicator_chen_t chan)
@@ -138,19 +135,19 @@ void indicator_update()
     }
 
     if (INDICATOR_CHAN_MANUAL == led_chan) {
-        gpio_set_level(LED_2_GPIO_PIN, LED_CLOSE_LEVEL);
-        gpio_set_level(LED_1_GPIO_PIN, led_level);
+        gpio_set_level(CONFIG_INDICATOR_2_PIN, LED_CLOSE_LEVEL);
+        gpio_set_level(CONFIG_INDICATOR_1_PIN, led_level);
     } else {
-        gpio_set_level(LED_1_GPIO_PIN, LED_CLOSE_LEVEL);
-        gpio_set_level(LED_2_GPIO_PIN, led_level);
+        gpio_set_level(CONFIG_INDICATOR_1_PIN, LED_CLOSE_LEVEL);
+        gpio_set_level(CONFIG_INDICATOR_2_PIN, led_level);
     }
     heartbeat = ~heartbeat & 0x1;
-    gpio_set_level(LED_3_GPIO_PIN, heartbeat);
+    gpio_set_level(CONFIG_HEARTBEAT_PIN, heartbeat);
 }
 
 void hearbeat_update()
 {
     static uint8_t heartbeat = 0;
     heartbeat = ~heartbeat & 0x1;
-    gpio_set_level(LED_3_GPIO_PIN, heartbeat);
+    gpio_set_level(CONFIG_HEARTBEAT_PIN, heartbeat);
 }

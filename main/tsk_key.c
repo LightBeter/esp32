@@ -11,7 +11,6 @@
 #define TAG                     "TSK_KEY"
 #define TSK_NAME                TAG
 #define TSK_STACK_SIZE          2048
-#define KEY_GPIO_PIN            21
 #define KEY_INTR_FLAG_DEFAULT   0
 
 void key_tsk(void * parm);
@@ -31,7 +30,7 @@ void tsk_key_init()
     ESP_LOGI( TAG, "initialize" );
     io_conf.intr_type = GPIO_INTR_NEGEDGE;
     io_conf.mode = GPIO_MODE_INPUT;
-    io_conf.pin_bit_mask = 1ULL << KEY_GPIO_PIN;
+    io_conf.pin_bit_mask = 1ULL << CONFIG_KEY_PIN;
     io_conf.pull_down_en = 0;
     io_conf.pull_up_en = 0;
     gpio_config(&io_conf);
@@ -47,7 +46,7 @@ void tsk_key_deinit()
     gpio_config_t io_conf;
     io_conf.intr_type = GPIO_INTR_DISABLE;
     io_conf.mode = GPIO_MODE_INPUT;
-    io_conf.pin_bit_mask = 1ULL << KEY_GPIO_PIN;
+    io_conf.pin_bit_mask = 1ULL << CONFIG_KEY_PIN;
     io_conf.pull_down_en = 0;
     io_conf.pull_up_en = 0;
     gpio_config(&io_conf);
@@ -60,13 +59,13 @@ void tsk_key_start()
         xTaskCreatePinnedToCore(key_tsk, TAG, TSK_STACK_SIZE, NULL, TSK_PRIO_KEY, &tsk_handle, TSK_COREID_KEY);
     }
     gpio_install_isr_service(KEY_INTR_FLAG_DEFAULT);
-    gpio_isr_handler_add(KEY_GPIO_PIN, key_isr_handler, NULL);
+    gpio_isr_handler_add(CONFIG_KEY_PIN, key_isr_handler, NULL);
 }
 
 void tsk_key_stop()
 {
     ESP_LOGI( TAG, "stop" );
-    gpio_isr_handler_remove(KEY_GPIO_PIN);
+    gpio_isr_handler_remove(CONFIG_KEY_PIN);
     gpio_uninstall_isr_service();
     if (tsk_handle) {
         vTaskDelete(tsk_handle);
@@ -82,7 +81,7 @@ void key_tsk(void * parm)
     tstart = tend = clock();
     while (1) {    
         if (pdTRUE != xQueueReceive(gpio_evt_queue, &level, pdMS_TO_TICKS(600))) {
-            level = gpio_get_level(KEY_GPIO_PIN);
+            level = gpio_get_level(CONFIG_KEY_PIN);
         }  
         tend = clock();
         if (KEY_STATE_UP == level) {
