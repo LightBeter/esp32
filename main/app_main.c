@@ -19,7 +19,7 @@
 
 void recovery_factory_configure()
 {
-    ESP_LOGI( TAG, "recovery factory configure" );
+    ESP_LOGW( TAG, "recovery factory configure" );
     storage_delete_all();
     indicator_set_flash(false);
     indicator_set_state(true);
@@ -97,6 +97,7 @@ void app_main() {
     if (uxBits & GLOBAL_EVENT_RECOVERY_FACTORY)
         recovery_factory_configure();
     storage_deinit();
-    /* Reboot */    
+    /* Reboot */   
+    ESP_LOGW( TAG, "application reboot" ); 
     esp_restart();
 }

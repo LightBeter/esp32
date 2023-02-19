@@ -44,7 +44,7 @@ void datetime_init()
     datetime_extrtc_read(&t);
     datetime_set(t);
 #if defined(CONFIG_DEVICE_MODEL_LM12) && CONFIG_DEVICE_MODEL_LM12
-    // datetime_extrtc_enable_charge();
+    datetime_extrtc_enable_charge();
 #endif
 }
 

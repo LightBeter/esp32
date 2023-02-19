@@ -146,7 +146,7 @@ menu "Application"
         int "LED Pwm Output Max Duty"
         range 0 1000
         default 780 if DEVICE_MODEL_LM15
-        default 780 if DEVICE_MODEL_LM12
+        default 800 if DEVICE_MODEL_LM12
         default 950 if DEVICE_MODEL_LM30
         default 900
         help
