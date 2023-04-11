@@ -219,6 +219,7 @@ void multicast_recv_tsk(void* parm)
     while (1) {
     
         if (tick++ >= 5) {
+            tick = 0;
 #if 1  
             multicast_send_heartbeat();
 #else
