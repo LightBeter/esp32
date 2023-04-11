@@ -124,6 +124,23 @@ err_handle:
     return -1;
 }
 
+void multicast_send_heartbeat()
+{
+    struct addrinfo hints = { .ai_flags = AI_PASSIVE, .ai_socktype = SOCK_DGRAM };
+    struct addrinfo *res;
+    char sendbuf[1] = { 0x00 };
+    int err = getaddrinfo(UDP_MULTICAST_ADDR, NULL, &hints, &res);
+
+    ((struct sockaddr_in *)res->ai_addr)->sin_port = htons(UDP_MULTICAST_PORT);
+    ESP_LOGI(TAG, "Sending to multicast ...");
+
+    err = sendto(sock, sendbuf, 1, 0, res->ai_addr, res->ai_addrlen);
+    freeaddrinfo(res);
+    if (err < 0) {
+        ESP_LOGE(TAG, "sendto failed. errno: %d", errno);
+    }
+}
+
 void tsk_udp_multicast_init()
 {
     udp_multicast_packet_t *packet = NULL;
@@ -183,23 +200,40 @@ void tsk_udp_multicast_stop()
     if (sock >= 0) {
         ESP_LOGI(TAG, "shutdown socket");
         shutdown(sock, 0);
-        // ESP_LOGI(TAG, "close socket");
-        // close(sock);
+        ESP_LOGI(TAG, "close socket");
+        close(sock);
         sock = -1;
     }
 }
 
 void multicast_recv_tsk(void* parm) 
 {
-    struct timeval tv = { 5, 0 };
+    struct timeval tv = { 60, 0 };
     fd_set rfds;
-    int s;
+    int s, tick = 0;
     struct sockaddr_storage raddr;
     socklen_t socklen;
     udp_multicast_packet_t *packet = NULL;
 
     ESP_LOGI(TAG, "Udp Multicase Start Recv");
     while (1) {
+    
+        if (tick++ >= 5) {
+#if 1  
+            multicast_send_heartbeat();
+#else
+            ESP_LOGI(TAG, "rebulid multicast socket");
+            shutdown(sock, 0);
+            close(sock);
+            sock = -1;
+            sock = create_multicast_ipv4_socket();
+            if (sock < 0) {
+                ESP_LOGE(TAG, "rebulid multicast socket failure");
+                break;
+            }
+#endif
+        }
+
         if (!packet)
             xQueueReceive(freeQueue, &packet, portMAX_DELAY);
 
@@ -224,9 +258,14 @@ void multicast_recv_tsk(void* parm)
         if (packet->len <= 0 || packet->len > UDP_MULTICAST_PACKET_MAX_SIZE) {
             ESP_LOGE(TAG, "multicast recvfrom failed, size(%d) errno %d", packet->len, errno);
             continue;
+        } else if (1 == packet->len && 0x00 == packet->data[0]) {
+            ESP_LOGI(TAG, "multicast recvfrom HeartBeat");
+            continue;
+
         }
         xQueueSend(handleQueue, &packet, portMAX_DELAY);
         packet = NULL;
+        tick = 0;
     }
     recv_tsk_handle = NULL;
     vTaskDelete(NULL);
