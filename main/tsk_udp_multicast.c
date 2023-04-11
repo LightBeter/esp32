@@ -200,8 +200,8 @@ void tsk_udp_multicast_stop()
     if (sock >= 0) {
         ESP_LOGI(TAG, "shutdown socket");
         shutdown(sock, 0);
-        ESP_LOGI(TAG, "close socket");
-        close(sock);
+        //ESP_LOGI(TAG, "close socket");
+        //close(sock);
         sock = -1;
     }
 }
