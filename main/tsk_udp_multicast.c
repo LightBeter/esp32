@@ -5,6 +5,7 @@
 #include <lwip/sockets.h>
 #include <lwip/sys.h>
 #include <lwip/netdb.h>
+#include <time.h>
 #include <esp_log.h>
 #include "tsk_udp_multicast.h"
 #include "tsk_ledctrl.h"
@@ -33,7 +34,7 @@ static xTaskHandle     recv_tsk_handle = NULL;
 static xTaskHandle     tsk_handle = NULL;
 static QueueHandle_t   freeQueue = NULL;
 static QueueHandle_t   handleQueue = NULL;
-static int  sock = -1;
+static bool udp_run_flag = false;
 static char multicast_dist_list[UDP_MULTICAST_DIST_MAX_SIZE] = {0};
 static udp_multicast_packet_t multicast_buffer[UDP_MULTICAST_PACKET_POOL_SIZE] = {0};
 
@@ -119,12 +120,13 @@ int create_multicast_ipv4_socket(void)
         goto err_handle;
     }
     return sock;
+
 err_handle:
     close(sock);
     return -1;
 }
 
-void multicast_send_heartbeat()
+void multicast_send_heartbeat(int sock)
 {
     struct addrinfo hints = { .ai_flags = AI_PASSIVE, .ai_socktype = SOCK_DGRAM };
     struct addrinfo *res;
@@ -143,28 +145,46 @@ void multicast_send_heartbeat()
 
 void tsk_udp_multicast_init()
 {
-    udp_multicast_packet_t *packet = NULL;
-
     handleQueue = xQueueCreate(UDP_MULTICAST_PACKET_POOL_SIZE, sizeof(udp_multicast_packet_t*));
     freeQueue = xQueueCreate(UDP_MULTICAST_PACKET_POOL_SIZE, sizeof(udp_multicast_packet_t*));
-    for (int i = 0; i < UDP_MULTICAST_PACKET_POOL_SIZE; i++) {
-        packet = &multicast_buffer[i];
-        xQueueSend(freeQueue, &packet, portMAX_DELAY);
-    }
 }
 
 void tsk_udp_multicast_deinit()
 {
+    tsk_udp_multicast_stop();
+
     xQueueReset(handleQueue);
     xQueueReset(freeQueue);
+
+    vQueueDelete(handleQueue);
+    handleQueue = NULL;
+
+    vQueueDelete(freeQueue);
+    freeQueue = NULL;
 }
 
 void tsk_udp_multicast_start()
 {
-    sock = create_multicast_ipv4_socket();
-    if (sock < 0)
-        return;
+    udp_multicast_packet_t *packet = NULL;
 
+    if (NULL == handleQueue || NULL == freeQueue) {
+        ESP_LOGW(TAG, "UDP Multicase Tasks uninitialized");
+        return;
+    }
+
+    if (tsk_handle || recv_tsk_handle || udp_run_flag) {
+        ESP_LOGW(TAG, "UDP Multicase Tasks is running");
+        return;
+    }
+
+    xQueueReset(handleQueue);
+    xQueueReset(freeQueue);
+    for (int i = 0; i < UDP_MULTICAST_PACKET_POOL_SIZE; i++) {
+        packet = &multicast_buffer[i];
+        xQueueSend(freeQueue, &packet, portMAX_DELAY);
+    }
+
+    udp_run_flag = true;
     if (!tsk_handle) {
         xTaskCreatePinnedToCore(multicast_handle_tsk, 
                     "multi_tsk", 
@@ -187,87 +207,83 @@ void tsk_udp_multicast_start()
 
 void tsk_udp_multicast_stop()
 {
-    if (recv_tsk_handle) {
-        vTaskDelete(recv_tsk_handle);
-        recv_tsk_handle = NULL;
-    }
-    
-    if (tsk_handle) {
-        vTaskDelete(tsk_handle);
-        tsk_handle = NULL;
-    }
-
-    if (sock >= 0) {
-        ESP_LOGI(TAG, "shutdown socket");
-        shutdown(sock, 0);
-        //ESP_LOGI(TAG, "close socket");
-        //close(sock);
-        sock = -1;
+    udp_run_flag = false;
+    while (recv_tsk_handle || recv_tsk_handle) {
+        ESP_LOGI(TAG, "waiting UDP Multicase Task Exit");
+        vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
 
 void multicast_recv_tsk(void* parm) 
 {
-    struct timeval tv = { 60, 0 };
+    struct timeval tv = { 1, 0 };
     fd_set rfds;
-    int s, tick = 0;
+    int s, socket = -1, tick = 0;
     struct sockaddr_storage raddr;
     socklen_t socklen;
     udp_multicast_packet_t *packet = NULL;
+    time_t heartbeat_time = time(NULL);
+    double diff = 0;
+
+    socket = create_multicast_ipv4_socket();
+    if (socket < 0)
+        return;
 
     ESP_LOGI(TAG, "Udp Multicase Start Recv");
-    while (1) {
-    
-        if (tick++ >= 5) {
-            tick = 0;
-#if 1  
-            multicast_send_heartbeat();
-#else
-            ESP_LOGI(TAG, "rebulid multicast socket");
-            shutdown(sock, 0);
-            close(sock);
-            sock = -1;
-            sock = create_multicast_ipv4_socket();
-            if (sock < 0) {
-                ESP_LOGE(TAG, "rebulid multicast socket failure");
-                break;
-            }
-#endif
+    while (udp_run_flag) {
+        
+        if (!packet) {
+            xQueueReceive(freeQueue, &packet, pdMS_TO_TICKS(1000));
         }
 
-        if (!packet)
-            xQueueReceive(freeQueue, &packet, portMAX_DELAY);
-
-        if (!packet)
-            continue;
+        if (!packet) {
+            goto send_hearbeat;
+        }
 
         FD_ZERO(&rfds);
-        FD_SET(sock, &rfds);
-        s = select(sock + 1, &rfds, NULL, NULL, &tv);
+        FD_SET(socket, &rfds);
+        s = select(socket + 1, &rfds, NULL, NULL, &tv);
         if (s < 0) {
             ESP_LOGE(TAG, "Select failed: errno %d", errno);
-            continue;
+            goto send_hearbeat;
         } else if (0 == s) {
-            continue;
+            goto send_hearbeat;
         }
         
-        if (!FD_ISSET(sock, &rfds))
-            continue;
+        if (!FD_ISSET(socket, &rfds)) {
+            goto send_hearbeat;
+        }
   
         socklen = sizeof(raddr);
-        packet->len = recvfrom(sock, packet->data, UDP_MULTICAST_PACKET_MAX_SIZE, 0, (struct sockaddr*)&raddr, &socklen);
+        packet->len = recvfrom(socket, packet->data, UDP_MULTICAST_PACKET_MAX_SIZE, 0, (struct sockaddr*)&raddr, &socklen);
         if (packet->len <= 0 || packet->len > UDP_MULTICAST_PACKET_MAX_SIZE) {
             ESP_LOGE(TAG, "multicast recvfrom failed, size(%d) errno %d", packet->len, errno);
-            continue;
-        } else if (1 == packet->len && 0x00 == packet->data[0]) {
+            goto send_hearbeat;
+        } 
+        
+        if (1 == packet->len && 0x00 == packet->data[0]) {
             ESP_LOGI(TAG, "multicast recvfrom HeartBeat");
-            continue;
-
+            goto send_hearbeat;
         }
+
         xQueueSend(handleQueue, &packet, portMAX_DELAY);
         packet = NULL;
-        tick = 0;
+        continue;
+
+send_hearbeat:
+        diff = difftime(time(NULL), heartbeat_time);
+        if (diff >= 60) {
+            heartbeat_time = time(NULL);
+            multicast_send_heartbeat(socket);
+        }
     }
+
+    ESP_LOGI(TAG, "shutdown socket");
+    shutdown(socket, 0);
+    ESP_LOGI(TAG, "close socket");
+    close(socket);
+    socket = -1;
+
     recv_tsk_handle = NULL;
     vTaskDelete(NULL);
 }
@@ -279,8 +295,8 @@ void multicast_handle_tsk(void* parm)
     pb_istream_t stream;
     MulticastPacket packet = MulticastPacket_init_default;
 
-    while (1) { 
-        xQueueReceive(handleQueue, &rawPacket, portMAX_DELAY);
+    while (udp_run_flag) { 
+        xQueueReceive(handleQueue, &rawPacket, pdMS_TO_TICKS(1000));
         if (NULL == rawPacket)
             continue; 
 
@@ -292,7 +308,8 @@ void multicast_handle_tsk(void* parm)
             ESP_LOGE(TAG, "decode buffer(%d) failure: %s", rawPacket->len, PB_GET_ERROR(&stream));
             goto Next;
         }
-#if 1
+
+#if defined(CONFIG_LOG_DEFAULT_LEVEL_INFO) && CONFIG_LOG_DEFAULT_LEVEL_INFO
         ESP_LOGI(TAG, "cmd[%d](%d): %s", packet.cmd, rawPacket->len, multicast_dist_list);
         if (packet.has_modeParam) 
             ESP_LOGI(TAG, "has modeParam sw[%u] mode[%d]", packet.modeParam.sw, packet.modeParam.mode);
@@ -311,6 +328,7 @@ void multicast_handle_tsk(void* parm)
         if (packet.has_fanParam)
             ESP_LOGI(TAG, "has fanParam play(%d) duty(%d)", packet.fanParam.play, packet.fanParam.duty);
 #endif
+
         if (!multicast_match_name(multicast_dist_list))
             goto Next;
 
@@ -352,6 +370,9 @@ Next:
         xQueueSend(freeQueue, &rawPacket, portMAX_DELAY);
         rawPacket = NULL;
     }
+
+    tsk_handle = NULL;
+    vTaskDelete(NULL);
 }
 
 bool read_string(pb_istream_t *stream, const pb_field_t *field, void **arg)
