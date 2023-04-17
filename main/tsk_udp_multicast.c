@@ -145,6 +145,10 @@ void multicast_send_heartbeat(int sock)
 
 void tsk_udp_multicast_init()
 {
+    if (handleQueue || freeQueue) {
+        ESP_LOGW(TAG, "UDP Multicase has been initialized");
+        return;
+    }
     handleQueue = xQueueCreate(UDP_MULTICAST_PACKET_POOL_SIZE, sizeof(udp_multicast_packet_t*));
     freeQueue = xQueueCreate(UDP_MULTICAST_PACKET_POOL_SIZE, sizeof(udp_multicast_packet_t*));
 }
@@ -153,14 +157,18 @@ void tsk_udp_multicast_deinit()
 {
     tsk_udp_multicast_stop();
 
-    xQueueReset(handleQueue);
-    xQueueReset(freeQueue);
+    if (handleQueue) {
+        xQueueReset(handleQueue);
+        vQueueDelete(handleQueue);
+        
+        handleQueue = NULL;
+    }
 
-    vQueueDelete(handleQueue);
-    handleQueue = NULL;
-
-    vQueueDelete(freeQueue);
-    freeQueue = NULL;
+    if (freeQueue) {
+        xQueueReset(freeQueue);
+        vQueueDelete(freeQueue);
+        freeQueue = NULL;
+    }
 }
 
 void tsk_udp_multicast_start()
@@ -208,7 +216,7 @@ void tsk_udp_multicast_start()
 void tsk_udp_multicast_stop()
 {
     udp_run_flag = false;
-    while (recv_tsk_handle || recv_tsk_handle) {
+    while (NULL != recv_tsk_handle || NULL != tsk_handle) {
         ESP_LOGI(TAG, "waiting UDP Multicase Task Exit");
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
