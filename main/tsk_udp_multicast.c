@@ -218,7 +218,7 @@ void multicast_recv_tsk(void* parm)
 {
     struct timeval tv = { 1, 0 };
     fd_set rfds;
-    int s, socket = -1, tick = 0;
+    int s, socket = -1;
     struct sockaddr_storage raddr;
     socklen_t socklen;
     udp_multicast_packet_t *packet = NULL;
@@ -227,7 +227,7 @@ void multicast_recv_tsk(void* parm)
 
     socket = create_multicast_ipv4_socket();
     if (socket < 0)
-        return;
+        goto exit;
 
     ESP_LOGI(TAG, "Udp Multicase Start Recv");
     while (udp_run_flag) {
@@ -283,7 +283,7 @@ send_hearbeat:
     ESP_LOGI(TAG, "close socket");
     close(socket);
     socket = -1;
-
+exit:
     recv_tsk_handle = NULL;
     vTaskDelete(NULL);
 }
