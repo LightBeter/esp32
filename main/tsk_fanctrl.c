@@ -38,7 +38,6 @@
 #define FAN_PWM_TIMER               LEDC_TIMER_1
 #define FAN_PWM_CHANNEL             LEDC_CHANNEL_7
 #define FAN_PWM_DUTY_RESOLUTION     LEDC_TIMER_11_BIT
-#define FAN_PWM_FREQ                (32 * 1000)
 #define FAN_PWM_DUTY_MAX            ((0x1 << FAN_PWM_DUTY_RESOLUTION) - 1)
 #define FAN_DUTY_DEFAILT            (30)
 #define FAN_CTRL_INTERVAL           (1000 / ADC_SAMPLE_INTERVAL)
@@ -236,7 +235,7 @@ void fan_init()
 {
     ledc_timer_config_t ledc_timer = {
         .duty_resolution = FAN_PWM_DUTY_RESOLUTION, 
-        .freq_hz    = FAN_PWM_FREQ,    
+        .freq_hz    = CONFIG_FAN_PWM_FREQ,    
         .speed_mode = FAN_PWM_SPEED_MODE,
         .timer_num  = FAN_PWM_TIMER
     };

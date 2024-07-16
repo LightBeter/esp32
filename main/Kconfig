@@ -13,6 +13,8 @@ menu "Application"
             bool "LM12"
         config DEVICE_MODEL_LM30
             bool "LM30"
+        config DEVICE_MODEL_LM35
+            bool "LM35"
     endchoice
 
     choice COMPILE_MODEL
@@ -120,6 +122,13 @@ menu "Application"
         default 12
         help
             UV 415 Led Control Pin
+
+    config FAN_PWM_FREQ
+        int "Fan Pwm Signal Period Freq(Hz)"
+        range 10000 64000
+        default 32000
+        help
+            Fan Pwm Signal Period Freq(Hz)
 
     config FAN_PLAY_MAX
         int "Fan Play MAX Second"

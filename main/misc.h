@@ -18,6 +18,8 @@ extern "C" {
 #define DEVICE_MODEL                      "LM15"
 #elif defined(CONFIG_DEVICE_MODEL_LM30) && CONFIG_DEVICE_MODEL_LM30
 #define DEVICE_MODEL                      "LM30"
+#elif defined(CONFIG_DEVICE_MODEL_LM35) && CONFIG_DEVICE_MODEL_LM35
+#define DEVICE_MODEL                      "LM35"
 #else
 #error "Error, The device model is not defined!!"
 #endif

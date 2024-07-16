@@ -1,6 +1,5 @@
 # Enable C++ exceptions 
 CONFIG_COMPILER_CXX_EXCEPTIONS=n
-
 # Flash size
 CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
 # Wifi
