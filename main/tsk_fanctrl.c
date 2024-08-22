@@ -247,7 +247,12 @@ void fan_init()
         .intr_type  = LEDC_INTR_DISABLE,       
         .timer_sel  = FAN_PWM_TIMER,           
         .duty       = 0,                       
-        .hpoint     = 0,                       
+        .hpoint     = 0,   
+#if defined(CONFIG_FAN_SIGNALE_INVERT) && CONFIG_FAN_SIGNALE_INVERT
+        .flags.output_invert = 1 
+#else        
+        .flags.output_invert = 0                    
+#endif
     };
 
     ESP_LOGI( TAG, "Fan initialize" ); 
@@ -297,7 +302,11 @@ void fan_update()
     pre = output;
 
 update:
-    ledc_set_duty(FAN_PWM_SPEED_MODE, FAN_PWM_CHANNEL, (output * FAN_PWM_DUTY_MAX) / 100 );
+    if (output < CONFIG_FAN_PWM_MIN) {
+        ledc_set_duty(FAN_PWM_SPEED_MODE, FAN_PWM_CHANNEL, 0 );
+    } else {
+        ledc_set_duty(FAN_PWM_SPEED_MODE, FAN_PWM_CHANNEL, (output * FAN_PWM_DUTY_MAX) / 100) ;
+    }
     ledc_update_duty(FAN_PWM_SPEED_MODE, FAN_PWM_CHANNEL);
 }
 

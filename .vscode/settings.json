@@ -153,7 +153,8 @@
 		"esp_wifi_default.h": "c",
 		"esp_wifi_types.h": "c",
 		"esp_wifi_private.h": "c",
-		"wifi_os_adapter.h": "c"
+		"wifi_os_adapter.h": "c",
+		"periph_ctrl.h": "c"
 	},
 
 	"powershell.integratedConsole.suppressStartupBanner": true,

@@ -59,6 +59,12 @@ menu "Application"
         help
             Key Pin
 
+    config FAN_SIGNALE_INVERT
+        bool "Fan Control Signal Invert"
+        default n
+        help
+            Fan Control Signal Invert
+
     config FAN_PIN
         int "Fan Control Pin"
         range 0 33
