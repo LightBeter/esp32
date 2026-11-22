@@ -2,10 +2,20 @@
 build/
 sdkconfig
 sdkconfig.old
+flash_project_args
+flasher_args.json
+build_logs/
+
 *.bin
 *.elf
-flash_project_args
-build_logs/
+*.map
+*.hex
+
 .vscode/
 __pycache__/
 *.pyc
+*.log
+
+# 系统垃圾
+.DS_Store
+Thumbs.db
