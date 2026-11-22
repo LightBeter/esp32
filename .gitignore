@@ -1,0 +1,11 @@
+# ESP-IDF 忽略清单
+build/
+sdkconfig
+sdkconfig.old
+*.bin
+*.elf
+flash_project_args
+build_logs/
+.vscode/
+__pycache__/
+*.pyc
